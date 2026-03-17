@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Composer Plan",
+  "type": "object",
+  "required": [
+    "summary",
+    "recommended_mode",
+    "alternative_modes",
+    "tasks",
+    "task_boundaries",
+    "conflict_reasons",
+    "questions_for_user",
+    "verification_targets",
+    "needs_dialogue"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "recommended_mode": {
+      "type": "string",
+      "enum": ["serial", "parallel_ab"]
+    },
+    "alternative_modes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["serial", "parallel_ab"]
+      },
+      "minItems": 1
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "goal", "include", "exclude", "deliverables", "needs_dialogue"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": ["a", "b"]
+          },
+          "title": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deliverables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "needs_dialogue": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "task_boundaries": {
+      "type": "object",
+      "required": ["a"],
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/taskBoundary"
+        },
+        "b": {
+          "$ref": "#/$defs/taskBoundary"
+        }
+      }
+    },
+    "conflict_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "questions_for_user": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification_targets": {
+      "type": "object",
+      "required": ["a", "ab", "main"],
+      "properties": {
+        "a": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "b": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ab": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "main": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "needs_dialogue": {
+      "type": "object",
+      "required": ["control", "a", "ab"],
+      "properties": {
+        "control": {
+          "type": "boolean"
+        },
+        "a": {
+          "type": "boolean"
+        },
+        "b": {
+          "type": "boolean"
+        },
+        "ab": {
+          "type": "boolean"
+        }
+      }
+    },
+    "policy_evaluation": {
+      "type": "object",
+      "properties": {
+        "forced_mode": {
+          "type": ["string", "null"],
+          "enum": ["serial", "parallel_ab", null]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "taskBoundary": {
+      "type": "object",
+      "required": ["include", "exclude"],
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

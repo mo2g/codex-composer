@@ -1,0 +1,41 @@
+[project]
+main_branch = "main"
+branch_prefix = "codex/"
+repo_type = "protocol"
+
+[codex]
+binary = "codex"
+profile = "default"
+sandbox = "workspace-write"
+approval_policy = "on-request"
+
+[planner]
+max_parallel = 2
+require_plan_approval = true
+require_integrate_approval = true
+
+[budget]
+max_codex_runs = 5
+allow_auto_replan = false
+
+[hooks]
+branch_verify = ["node --test test/*.test.mjs"]
+integration_verify = ["node --test test/*.test.mjs"]
+main_verify = ["node --test test/*.test.mjs"]
+
+[[path_rules]]
+globs = ["scripts/**", "tools/**"]
+component = "protocol-runtime"
+conflict_group = "protocol-runtime"
+core = true
+
+[[path_rules]]
+globs = ["docs/**", "README.md", "AGENTS.md", "prompts/**", "skills/**"]
+component = "docs-and-prompts"
+conflict_group = "docs-and-prompts"
+core = false
+
+[[parallel_rules]]
+action = "deny"
+when_component = "protocol-runtime"
+reason = "Runtime protocol changes are serialized by default."

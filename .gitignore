@@ -1,0 +1,5 @@
+.DS_Store
+.codex-composer/
+node_modules/
+coverage/
+*.log

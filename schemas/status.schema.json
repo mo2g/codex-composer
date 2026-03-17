@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Composer Status",
+  "type": "object",
+  "required": [
+    "run_id",
+    "repo_root",
+    "created_at",
+    "updated_at",
+    "phase",
+    "current_checkpoint",
+    "plan",
+    "tasks",
+    "sessions",
+    "verification",
+    "decisions"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "repo_root": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "current_checkpoint": {
+      "type": "string"
+    },
+    "plan": {
+      "type": "object",
+      "required": ["status", "recommended_mode", "approved_mode"],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "recommended_mode": {
+          "type": ["string", "null"]
+        },
+        "approved_mode": {
+          "type": ["string", "null"]
+        },
+        "policy_forced_mode": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "tasks": {
+      "type": "object"
+    },
+    "sessions": {
+      "type": "object"
+    },
+    "verification": {
+      "type": "object"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}
