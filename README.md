@@ -1,86 +1,103 @@
 # Codex Composer
 
-Codex Composer is a protocol-first workflow for running Codex in short, reviewable phases instead of one long autonomous thread. It is designed around four ideas:
+Codex Composer is a protocol-first workflow for using Codex inside an existing repository. The default MVP keeps planning in the current Codex thread, uses skills and prompts for consistency, and only creates an optional `B` worktree when the user explicitly approves a parallel split.
 
-- Keep planning, coding, verification, and integration as separate stages.
-- Let Codex propose a plan, but keep final decisions with the user.
-- Use `git worktree` to isolate A/B task execution when parallel work is safe.
-- Move test, lint, build, and benchmark loops into explicit shell hooks.
+## What The MVP Optimizes For
 
-## Bootstrap A New Repo
+- existing repositories, not greenfield demos only
+- the current Codex thread as planner/control
+- optional `A/B` parallel work without subagents
+- explicit verification and commit gates
+- manual merge, never hidden auto-merge
 
-Initialize a target project from this repository:
+## Install Into An Existing Repository
 
-```bash
-scripts/composer-init-repo.sh --repo /path/to/project --template react-go-minimal
-cd /path/to/project
-git add .
-git commit -m "chore: bootstrap codex composer"
-```
-
-After bootstrap, the target repository is self-contained. You run `./scripts/...` from the target repo root and Codex uses the repo-local `AGENTS.md`, `prompts/`, `skills/`, `schemas/`, `scripts/`, and `tools/`.
-
-## What This Repository Contains
-
-- `AGENTS.md`: rules for Codex behavior inside a Codex Composer repo
-- `prompts/`: reusable prompt templates for control-session planning, task execution, and integration review
-- `skills/`: Codex skill packs mirroring the prompt templates
-- `scripts/`: user-facing entrypoints for runs, planning, splitting, verification, integration, and summaries
-- `schemas/`: JSON schemas for `plan.json` and `status.json`
-- `tools/`: internal helpers used by the public scripts
-- `examples/react-go-login/`: a React + Go example showing a `parallel_ab` split
-
-## Workflow
-
-1. Create a run with `./scripts/composer-new-run.sh`.
-2. Start or resume the control session with `./scripts/composer-chat-control.sh`.
-3. Generate a structured plan with `./scripts/composer-plan.sh`.
-4. Review the plan in the control session. Codex records the user's decision in the run state.
-5. Split the repo into A/B/AB worktrees with `./scripts/composer-split.sh`.
-6. Execute A and B with `./scripts/composer-run-task.sh`.
-7. Run branch verification with `./scripts/composer-verify.sh`.
-8. Commit verified task branches with `./scripts/composer-commit.sh`.
-9. Return to the control session for the pre-integrate gate.
-10. Merge into `AB`, verify, then merge to the main branch with `./scripts/composer-integrate.sh`.
-11. Generate summaries with `./scripts/composer-summarize.sh`.
-
-## Requirements
-
-- `bash`
-- `git`
-- `node >= 20`
-- `codex`
-
-## Quick Start
+From the target repository root:
 
 ```bash
-./scripts/composer-new-run.sh --run demo-login --requirement "Implement a React + Go login module"
-./scripts/composer-chat-control.sh --run demo-login --checkpoint clarify
-./scripts/composer-plan.sh --run demo-login
-./scripts/composer-chat-control.sh --run demo-login --checkpoint plan-review
-./scripts/composer-split.sh --run demo-login
-./scripts/composer-run-task.sh --run demo-login --task a
-./scripts/composer-run-task.sh --run demo-login --task b
-./scripts/composer-verify.sh --run demo-login --target a
-./scripts/composer-verify.sh --run demo-login --target b
-./scripts/composer-commit.sh --run demo-login --task a
-./scripts/composer-commit.sh --run demo-login --task b
-./scripts/composer-chat-control.sh --run demo-login --checkpoint pre-integrate
-./scripts/composer-integrate.sh --run demo-login
-./scripts/composer-verify.sh --run demo-login --target ab
-./scripts/composer-chat-control.sh --run demo-login --checkpoint publish
-./scripts/composer-integrate.sh --run demo-login
-./scripts/composer-summarize.sh --run demo-login
+curl -fsSL https://raw.githubusercontent.com/<owner>/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 ```
 
-## Design Notes
+During local development of this repository, the same bootstrap works without GitHub:
 
-- `parallel_ab` is a recommendation, not an automatic choice.
-- The control session is interactive and long-lived.
-- Task A and task B default to single-shot `codex exec`.
-- All machine state lives under `.codex-composer/runs/<run-id>/`.
-- New runs automatically add `.codex-composer/` to `.git/info/exclude`.
-- Human decisions are stored in both `status.json` and `decisions.md`.
+```bash
+bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template existing --source /path/to/codex-composer
+```
 
-More detail lives in [docs/protocol.md](/Volumes/dev/web/mo2g/codex-composer/docs/protocol.md).
-New-project instructions live in [docs/new-project.md](/Volumes/dev/web/mo2g/codex-composer/docs/new-project.md).
+## Main Flow
+
+1. In the target repo, create a run:
+
+```bash
+./scripts/composer-start.sh --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+```
+
+2. Stay in the current Codex thread and use the planner guidance from:
+   - `AGENTS.md`
+   - `skills/planner/SKILL.md`
+
+3. Record clarify and plan-review decisions with:
+
+```bash
+./scripts/composer-checkpoint.sh --run login --checkpoint clarify --decision clarified --note "..."
+./scripts/composer-plan.sh --run login
+./scripts/composer-checkpoint.sh --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
+```
+
+4. Prepare execution:
+
+```bash
+./scripts/composer-split.sh --run login
+./scripts/composer-status.sh --run login
+```
+
+5. Execution model:
+   - `A`: keep working in the current repository and current Codex thread.
+   - `B`: if enabled, open a new Codex thread manually in the printed `B` worktree path.
+
+6. After each task is implemented:
+
+```bash
+./scripts/composer-verify.sh --run login --target a
+./scripts/composer-commit.sh --run login --task a
+./scripts/composer-verify.sh --run login --target b
+./scripts/composer-commit.sh --run login --task b
+```
+
+7. When status reaches `merge-review`, use `skills/integrator-reviewer/SKILL.md` in the current thread, then record:
+
+```bash
+./scripts/composer-checkpoint.sh --run login --checkpoint merge-review --decision allow_manual_merge
+```
+
+8. Merge branches manually, then verify main and generate the handoff text:
+
+```bash
+./scripts/composer-verify.sh --run login --target main
+./scripts/composer-summarize.sh --run login
+```
+
+## Key Scripts
+
+- `install.sh`: one-command bootstrap into an existing repository
+- `scripts/composer-start.sh`: create a run and print the current-thread planner instructions
+- `scripts/composer-plan.sh`: generate `plan.json` and `PLAN.md`
+- `scripts/composer-split.sh`: keep the current repo as `A`, and create `B` worktree only when needed
+- `scripts/composer-status.sh`: print the next step, worktree paths, task prompt paths, and verify/commit status
+- `scripts/composer-verify.sh`: run explicit verification hooks
+- `scripts/composer-commit.sh`: commit only after verification passes
+- `scripts/composer-summarize.sh`: generate `SUMMARY.md` and `PR_BODY.md`
+
+## Compatibility Helpers
+
+These remain available but are not the primary path:
+
+- `scripts/composer-chat-control.sh`
+- `scripts/composer-run-task.sh`
+- `scripts/composer-integrate.sh`
+
+## Documents
+
+- `docs/new-project.md`
+- `docs/protocol.md`
+- `docs/codex-native-mvp.md`

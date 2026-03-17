@@ -1,87 +1,205 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { protocolRoot, git, runCommand } from "./runtime.mjs";
-import { ensureDir, pathExists, readText, writeText } from "./fs.mjs";
+import { collectRepoFiles, protocolRoot, git, runCommand, branchExists, currentBranch } from "./runtime.mjs";
+import { ensureDir, pathExists, readText, toPosixPath, writeText } from "./fs.mjs";
 
 const PROTOCOL_BUNDLE_ENTRIES = ["AGENTS.md", "prompts", "skills", "schemas", "scripts", "tools"];
+const COPY_IGNORE = new Set([".DS_Store"]);
+const FRONTEND_CANDIDATES = ["frontend", "web", "ui", "client", "apps/web"];
+const BACKEND_CANDIDATES = ["backend", "api", "server", "apps/api"];
 
-function templateConfig(template, codexBinary) {
-  if (template === "react-go-minimal") {
-    return `[project]
-main_branch = "main"
-branch_prefix = "codex/"
-repo_type = "react-go-minimal"
+function quoteTomlString(value) {
+  return JSON.stringify(String(value));
+}
 
-[codex]
-binary = "${codexBinary}"
-profile = "default"
-sandbox = "workspace-write"
-approval_policy = "on-request"
+function renderArray(values) {
+  return `[${values.map((value) => quoteTomlString(value)).join(", ")}]`;
+}
 
-[planner]
-max_parallel = 2
-require_plan_approval = true
-require_integrate_approval = true
-
-[budget]
-max_codex_runs = 5
-allow_auto_replan = false
-
-[hooks]
-branch_verify = ["echo \\"replace branch_verify in .codex-composer.toml\\""]
-integration_verify = ["echo \\"replace integration_verify in .codex-composer.toml\\""]
-main_verify = ["git rev-parse --verify HEAD >/dev/null"]
-
-[[path_rules]]
-globs = ["frontend/**"]
-component = "frontend"
-conflict_group = "frontend"
-core = false
-
-[[path_rules]]
-globs = ["backend/**"]
-component = "backend"
-conflict_group = "backend"
-core = false
-
-[[path_rules]]
-globs = ["backend/internal/auth/**"]
-component = "auth-core"
-conflict_group = "auth-core"
-core = true
-
-[[parallel_rules]]
-action = "deny"
-when_component = "auth-core"
-reason = "auth-core work must be serialized."
-`;
+async function detectMainBranch(repoRoot) {
+  for (const candidate of ["main", "master"]) {
+    if (await branchExists(repoRoot, candidate)) {
+      return candidate;
+    }
   }
 
-  return `[project]
-main_branch = "main"
-branch_prefix = "codex/"
-repo_type = "empty"
+  const branch = await currentBranch(repoRoot);
+  return branch || "main";
+}
 
-[codex]
-binary = "${codexBinary}"
-profile = "default"
-sandbox = "workspace-write"
-approval_policy = "on-request"
+function detectDirectory(files, candidates) {
+  for (const candidate of candidates) {
+    if (files.some((file) => file === candidate || file.startsWith(`${candidate}/`))) {
+      return candidate;
+    }
+  }
 
-[planner]
-max_parallel = 2
-require_plan_approval = true
-require_integrate_approval = true
+  return null;
+}
 
-[budget]
-max_codex_runs = 5
-allow_auto_replan = false
+function detectGoModules(files) {
+  const dirs = new Set();
+  for (const file of files) {
+    if (!file.endsWith("/go.mod") && file !== "go.mod") {
+      continue;
+    }
+    const dir = path.posix.dirname(file);
+    dirs.add(dir === "." ? "." : dir);
+  }
+  return [...dirs];
+}
 
-[hooks]
-branch_verify = ["echo \\"replace branch_verify in .codex-composer.toml\\""]
-integration_verify = ["echo \\"replace integration_verify in .codex-composer.toml\\""]
-main_verify = ["git rev-parse --verify HEAD >/dev/null"]
-`;
+function detectPackageRoots(files) {
+  const dirs = new Set();
+  for (const file of files) {
+    if (!file.endsWith("/package.json") && file !== "package.json") {
+      continue;
+    }
+    const dir = path.posix.dirname(file);
+    dirs.add(dir === "." ? "." : dir);
+  }
+  return [...dirs];
+}
+
+function inferLayout(files, template) {
+  if (template === "react-go-minimal") {
+    return {
+      repoType: "react-go-minimal",
+      frontendDir: "frontend",
+      backendDir: "backend",
+      authCoreDir: "backend/internal/auth",
+      goModuleDirs: ["backend"],
+      packageDirs: []
+    };
+  }
+
+  const frontendDir = detectDirectory(files, FRONTEND_CANDIDATES);
+  const backendDir = detectDirectory(files, BACKEND_CANDIDATES);
+  const authCoreDir = backendDir && files.some((file) => file.startsWith(`${backendDir}/internal/auth/`))
+    ? `${backendDir}/internal/auth`
+    : null;
+
+  return {
+    repoType: template === "existing" ? "existing" : "empty",
+    frontendDir,
+    backendDir,
+    authCoreDir,
+    goModuleDirs: detectGoModules(files),
+    packageDirs: detectPackageRoots(files)
+  };
+}
+
+function renderHooks(layout) {
+  const branchVerify = [
+    "git diff --quiet HEAD -- && { echo \"No tracked changes to verify\"; exit 1; } || true"
+  ];
+  const integrationVerify = [
+    "git rev-parse --verify HEAD >/dev/null"
+  ];
+  const mainVerify = [
+    "git rev-parse --verify HEAD >/dev/null"
+  ];
+
+  for (const moduleDir of layout.goModuleDirs) {
+    if (moduleDir === ".") {
+      branchVerify.push("go test ./...");
+      integrationVerify.push("go test ./...");
+      mainVerify.push("go test ./...");
+      continue;
+    }
+
+    branchVerify.push(`test -f ${quoteTomlString(`${moduleDir}/go.mod`)} && (cd ${quoteTomlString(moduleDir)} && go test ./...) || true`);
+    integrationVerify.push(`test -f ${quoteTomlString(`${moduleDir}/go.mod`)} && (cd ${quoteTomlString(moduleDir)} && go test ./...) || true`);
+    mainVerify.push(`test -f ${quoteTomlString(`${moduleDir}/go.mod`)} && (cd ${quoteTomlString(moduleDir)} && go test ./...) || true`);
+  }
+
+  for (const packageDir of layout.packageDirs) {
+    const packageJson = packageDir === "." ? "package.json" : `${packageDir}/package.json`;
+    const workDir = packageDir === "." ? "." : packageDir;
+    branchVerify.push(`test -f ${quoteTomlString(packageJson)} && (cd ${quoteTomlString(workDir)} && npm test -- --runInBand) || true`);
+    mainVerify.push(`test -f ${quoteTomlString(packageJson)} && (cd ${quoteTomlString(workDir)} && npm test -- --runInBand) || true`);
+  }
+
+  return { branchVerify, integrationVerify, mainVerify };
+}
+
+function renderPathRules(layout) {
+  const lines = [];
+
+  if (layout.frontendDir && layout.backendDir) {
+    lines.push(
+      "",
+      "[[path_rules]]",
+      `globs = ${renderArray([`${layout.frontendDir}/**`])}`,
+      'component = "frontend"',
+      'conflict_group = "frontend"',
+      "core = false",
+      "",
+      "[[path_rules]]",
+      `globs = ${renderArray([`${layout.backendDir}/**`])}`,
+      'component = "backend"',
+      'conflict_group = "backend"',
+      "core = false"
+    );
+  }
+
+  if (layout.authCoreDir) {
+    lines.push(
+      "",
+      "[[path_rules]]",
+      `globs = ${renderArray([`${layout.authCoreDir}/**`])}`,
+      'component = "auth-core"',
+      'conflict_group = "auth-core"',
+      "core = true",
+      "",
+      "[[parallel_rules]]",
+      'action = "deny"',
+      'when_component = "auth-core"',
+      'reason = "auth-core work must be serialized."'
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function templateConfig({ template, codexBinary, mainBranch, layout }) {
+  const hooks = renderHooks(layout);
+  const lines = [
+    "[project]",
+    `main_branch = ${quoteTomlString(mainBranch)}`,
+    'branch_prefix = "codex/"',
+    `repo_type = ${quoteTomlString(layout.repoType)}`,
+    "",
+    "[codex]",
+    `binary = ${quoteTomlString(codexBinary)}`,
+    'sandbox = "workspace-write"',
+    'approval_policy = "on-request"',
+    "",
+    "[planner]",
+    "max_parallel = 2",
+    "require_plan_approval = true",
+    "require_integrate_approval = false",
+    "",
+    "[budget]",
+    "max_codex_runs = 5",
+    "allow_auto_replan = false",
+    "",
+    "[hooks]",
+    `branch_verify = ${renderArray(hooks.branchVerify)}`,
+    `integration_verify = ${renderArray(hooks.integrationVerify)}`,
+    `main_verify = ${renderArray(hooks.mainVerify)}`
+  ];
+
+  const pathRuleSection = renderPathRules(layout);
+  if (pathRuleSection) {
+    lines.push(pathRuleSection);
+  }
+
+  if (template === "empty") {
+    lines[3] = 'repo_type = "empty"';
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 function reactGoMinimalFiles() {
@@ -186,12 +304,31 @@ async function ensureGitRepository(repoRoot, mainBranch) {
   return true;
 }
 
+async function copyEntry(sourcePath, targetPath) {
+  const stats = await fs.stat(sourcePath);
+  if (stats.isDirectory()) {
+    await ensureDir(targetPath);
+    const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (COPY_IGNORE.has(entry.name)) {
+        continue;
+      }
+      await copyEntry(path.join(sourcePath, entry.name), path.join(targetPath, entry.name));
+    }
+    return;
+  }
+
+  if (COPY_IGNORE.has(path.basename(sourcePath))) {
+    return;
+  }
+
+  await ensureFileAbsent(targetPath);
+  await fs.copyFile(sourcePath, targetPath);
+}
+
 async function copyBundle(targetRoot) {
   for (const entry of PROTOCOL_BUNDLE_ENTRIES) {
-    const sourcePath = path.join(protocolRoot, entry);
-    const targetPath = path.join(targetRoot, entry);
-    await ensureFileAbsent(targetPath);
-    await fs.cp(sourcePath, targetPath, { recursive: true, force: false, errorOnExist: true });
+    await copyEntry(path.join(protocolRoot, entry), path.join(targetRoot, entry));
   }
 }
 
@@ -221,13 +358,22 @@ async function writeTemplateFiles(targetRoot, template) {
   }
 }
 
-export async function bootstrapProtocolRepo({ repoRoot, template = "empty", codexBinary = "codex" }) {
-  if (!["empty", "react-go-minimal"].includes(template)) {
+async function collectBootstrapFacts(repoRoot, template) {
+  const files = (await collectRepoFiles(repoRoot)).map((file) => toPosixPath(file));
+  return {
+    mainBranch: await detectMainBranch(repoRoot),
+    layout: inferLayout(files, template)
+  };
+}
+
+export async function bootstrapProtocolRepo({ repoRoot, template = "existing", codexBinary = "codex" }) {
+  if (!["existing", "empty", "react-go-minimal"].includes(template)) {
     throw new Error(`Unsupported template: ${template}`);
   }
 
   await ensureDir(repoRoot);
   const initializedGit = await ensureGitRepository(repoRoot, "main");
+  const facts = await collectBootstrapFacts(repoRoot, template);
 
   await copyBundle(repoRoot);
   await ensureExecutableBits(repoRoot);
@@ -236,7 +382,12 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "empty", code
   if (await pathExists(configPath)) {
     throw new Error(`Target already contains ${configPath}`);
   }
-  await writeText(configPath, templateConfig(template, codexBinary));
+  await writeText(configPath, templateConfig({
+    template,
+    codexBinary,
+    mainBranch: facts.mainBranch,
+    layout: facts.layout
+  }));
   await writeTemplateFiles(repoRoot, template);
   await ensureGitIgnoreEntry(repoRoot, ".codex-composer/");
   await ensureGitExcludeEntry(repoRoot, ".codex-composer/");

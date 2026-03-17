@@ -36,7 +36,7 @@
     },
     "plan": {
       "type": "object",
-      "required": ["status", "recommended_mode", "approved_mode"],
+      "required": ["status", "recommended_mode", "approved_mode", "policy_forced_mode"],
       "properties": {
         "status": {
           "type": "string"
@@ -53,18 +53,98 @@
       }
     },
     "tasks": {
-      "type": "object"
+      "type": "object",
+      "required": ["a", "b"],
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/task"
+        },
+        "b": {
+          "$ref": "#/$defs/task"
+        }
+      }
     },
     "sessions": {
-      "type": "object"
+      "type": "object",
+      "required": ["control"],
+      "properties": {
+        "control": {
+          "type": "object",
+          "required": ["mode", "session_id", "marker"],
+          "properties": {
+            "mode": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": ["string", "null"]
+            },
+            "marker": {
+              "type": "string"
+            }
+          }
+        }
+      }
     },
     "verification": {
-      "type": "object"
+      "type": "object",
+      "required": ["a", "b", "main"],
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/verification"
+        },
+        "b": {
+          "$ref": "#/$defs/verification"
+        },
+        "main": {
+          "$ref": "#/$defs/verification"
+        }
+      }
     },
     "decisions": {
       "type": "array",
       "items": {
         "type": "object"
+      }
+    }
+  },
+  "$defs": {
+    "task": {
+      "type": "object",
+      "required": ["enabled", "branch", "worktree", "launch_strategy", "status", "commit", "last_run_at"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "branch": {
+          "type": ["string", "null"]
+        },
+        "worktree": {
+          "type": ["string", "null"]
+        },
+        "launch_strategy": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "commit": {
+          "type": ["string", "null"]
+        },
+        "last_run_at": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["status", "report"],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "report": {
+          "type": ["string", "null"]
+        }
       }
     }
   }

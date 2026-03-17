@@ -28,7 +28,6 @@ repo_type = "validation"
 
 [codex]
 binary = "$FAKE_CODEX"
-profile = "default"
 sandbox = "workspace-write"
 approval_policy = "on-request"
 
@@ -42,9 +41,9 @@ max_codex_runs = 5
 allow_auto_replan = false
 
 [hooks]
-branch_verify = ["test -f task-a-output.txt || test -f task-b-output.txt"]
-integration_verify = ["test -f task-a-output.txt && test -f task-b-output.txt"]
-main_verify = ["git rev-parse --verify HEAD >/dev/null"]
+branch_verify = ["git diff --quiet HEAD -- && { echo \\"No tracked changes to verify\\"; exit 1; } || true", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
+integration_verify = ["git rev-parse --verify HEAD >/dev/null", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
+main_verify = ["git rev-parse --verify HEAD >/dev/null", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
 
 [[path_rules]]
 globs = ["frontend/**"]
@@ -93,8 +92,7 @@ run_empty_validation() {
 
   (
     cd "$EMPTY_REPO"
-    HOME="$EMPTY_HOME" ./scripts/composer-new-run.sh --run login --requirement "$REQUIREMENT" >/dev/null
-    HOME="$EMPTY_HOME" ./scripts/composer-chat-control.sh --run login --checkpoint clarify >/dev/null
+    ./scripts/composer-start.sh --run login --requirement "$REQUIREMENT" >/dev/null
     node ./tools/composer.mjs checkpoint --run login --checkpoint clarify --decision clarified --note "No stable frontend/backend layout exists yet"
     ./scripts/composer-plan.sh --run login >/dev/null
   )
@@ -117,11 +115,9 @@ run_react_validation() {
 
   (
     cd "$REACT_REPO"
-    HOME="$REACT_HOME" ./scripts/composer-new-run.sh --run login --requirement "$REQUIREMENT" >/dev/null
-    HOME="$REACT_HOME" ./scripts/composer-chat-control.sh --run login --checkpoint clarify >/dev/null
+    ./scripts/composer-start.sh --run login --requirement "$REQUIREMENT" >/dev/null
     node ./tools/composer.mjs checkpoint --run login --checkpoint clarify --decision clarified --note "Frontend and backend scaffolds already exist"
     ./scripts/composer-plan.sh --run login >/dev/null
-    HOME="$REACT_HOME" ./scripts/composer-chat-control.sh --run login --checkpoint plan-review >/dev/null
     node ./tools/composer.mjs checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
     ./scripts/composer-split.sh --run login >/dev/null
     ./scripts/composer-run-task.sh --run login --task a >/dev/null
@@ -130,13 +126,10 @@ run_react_validation() {
     ./scripts/composer-verify.sh --run login --target b >/dev/null
     ./scripts/composer-commit.sh --run login --task a >/dev/null
     ./scripts/composer-commit.sh --run login --task b >/dev/null
-    HOME="$REACT_HOME" ./scripts/composer-chat-control.sh --run login --checkpoint pre-integrate >/dev/null
-    node ./tools/composer.mjs checkpoint --run login --checkpoint pre-integrate --decision approve_ab
-    ./scripts/composer-integrate.sh --run login >/dev/null
-    ./scripts/composer-verify.sh --run login --target ab >/dev/null
-    HOME="$REACT_HOME" ./scripts/composer-chat-control.sh --run login --checkpoint publish >/dev/null
-    node ./tools/composer.mjs checkpoint --run login --checkpoint publish --decision approve_publish
-    ./scripts/composer-integrate.sh --run login >/dev/null
+    node ./tools/composer.mjs checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
+    git checkout main >/dev/null
+    git merge --no-ff codex/login-a -m "merge(a): login" >/dev/null
+    git merge --no-ff codex/login-b -m "merge(b): login" >/dev/null
     ./scripts/composer-verify.sh --run login --target main >/dev/null
     ./scripts/composer-summarize.sh --run login >/dev/null
   )

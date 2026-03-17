@@ -15,14 +15,14 @@ const DEFAULT_CONFIG = {
   },
   codex: {
     binary: "codex",
-    profile: "default",
+    profile: "",
     sandbox: "workspace-write",
     approval_policy: "on-request"
   },
   planner: {
     max_parallel: 2,
     require_plan_approval: true,
-    require_integrate_approval: true
+    require_integrate_approval: false
   },
   budget: {
     max_codex_runs: 5,
@@ -139,9 +139,8 @@ function initialTaskState(runId, role) {
     enabled: role === "a",
     branch: null,
     worktree: null,
-    mode: role === "ab" ? "interactive" : "exec",
+    launch_strategy: role === "a" ? "current_thread" : "manual_thread",
     status: "pending",
-    session_id: null,
     commit: null,
     last_run_at: null
   };
@@ -163,29 +162,13 @@ export function initialStatus(repoRoot, runId) {
     },
     tasks: {
       a: initialTaskState(runId, "a"),
-      b: initialTaskState(runId, "b"),
-      ab: initialTaskState(runId, "ab")
+      b: initialTaskState(runId, "b")
     },
     sessions: {
       control: {
         mode: "interactive",
         session_id: null,
         marker: `CC:${runId}:control`
-      },
-      a: {
-        mode: "exec",
-        session_id: null,
-        marker: `CC:${runId}:a`
-      },
-      b: {
-        mode: "exec",
-        session_id: null,
-        marker: `CC:${runId}:b`
-      },
-      ab: {
-        mode: "interactive",
-        session_id: null,
-        marker: `CC:${runId}:ab`
       }
     },
     verification: {
@@ -194,10 +177,6 @@ export function initialStatus(repoRoot, runId) {
         report: null
       },
       b: {
-        status: "pending",
-        report: null
-      },
-      ab: {
         status: "pending",
         report: null
       },
@@ -227,21 +206,13 @@ export async function loadStatus(repoRoot, runId) {
     session_id: null,
     marker: `CC:${runId}:control`
   };
-  status.sessions.a ||= {
-    mode: status.tasks?.a?.mode ?? "exec",
-    session_id: null,
-    marker: `CC:${runId}:a`
-  };
-  status.sessions.b ||= {
-    mode: status.tasks?.b?.mode ?? "exec",
-    session_id: null,
-    marker: `CC:${runId}:b`
-  };
-  status.sessions.ab ||= {
-    mode: status.tasks?.ab?.mode ?? "interactive",
-    session_id: null,
-    marker: `CC:${runId}:ab`
-  };
+  status.tasks ||= {};
+  status.tasks.a ||= initialTaskState(runId, "a");
+  status.tasks.b ||= initialTaskState(runId, "b");
+  status.verification ||= {};
+  status.verification.a ||= { status: "pending", report: null };
+  status.verification.b ||= { status: "pending", report: null };
+  status.verification.main ||= { status: "pending", report: null };
   return status;
 }
 
@@ -660,14 +631,14 @@ Read these files in order:
 6. ${paths.planMd}
 7. ${paths.status}
 
-Use this checkpoint prompt:
+Use this checkpoint prompt inside the current Codex thread:
 
 ${template}
 
 When the user makes a decision, persist it with:
 
-- node ${protocol.composerTool} checkpoint --repo ${repoRoot} --run ${runId} --checkpoint ${checkpoint} --decision <decision> [--mode <serial|parallel_ab>] [--note "<summary>"]
-`;
+- ${path.join(protocol.scriptsDir, "composer-checkpoint.sh")} --run ${runId} --checkpoint ${checkpoint} --decision <decision> [--mode <serial|parallel_ab>] [--note "<summary>"]
+  `;
   await writeText(promptPath, content);
   return promptPath;
 }
@@ -699,8 +670,8 @@ Return JSON only and obey the schema in:
 
 ${path.join(protocol.schemasDir, "plan.schema.json")}
 
-If frontend and backend boundaries are cleanly separated, task A should usually own frontend and task B should own backend.
-`;
+The current repository root is task A. If frontend and backend boundaries are cleanly separated, task A should usually own frontend and task B should usually own backend in a separate worktree.
+  `;
   await writeText(promptPath, content);
   return promptPath;
 }
@@ -709,6 +680,7 @@ export async function renderTaskPrompt(repoRoot, runId, taskId, plan) {
   const paths = runPaths(repoRoot, runId);
   const protocol = await resolveProtocolPaths(repoRoot);
   const task = taskById(plan, taskId);
+  const status = await loadStatus(repoRoot, runId);
 
   if (!task) {
     return null;
@@ -726,6 +698,7 @@ export async function renderTaskPrompt(repoRoot, runId, taskId, plan) {
 - deliverables: ${(task.deliverables ?? []).join(", ") || "(none)"}
 - risks: ${(task.risks ?? []).join(", ") || "(none)"}
 - needs_dialogue: ${task.needs_dialogue ? "true" : "false"}
+- launch_strategy: ${status.tasks[taskId]?.launch_strategy ?? (taskId === "a" ? "current_thread" : "manual_thread")}
 
 Read:
 
@@ -734,8 +707,8 @@ Read:
 3. ${paths.planMd}
 4. ${paths.status}
 
-Stay inside the task boundary. Stop after implementation.
-`;
+Stay inside the task boundary. After implementation, run verification and commit from the repository scripts. Do not merge branches from this prompt.
+  `;
   await writeText(promptPath, content);
   return promptPath;
 }
@@ -757,15 +730,39 @@ export async function updateStatusForPlan(repoRoot, runId, plan) {
 
   for (const taskId of ["a", "b"]) {
     const task = taskById(plan, taskId);
-    if (!task) {
-      continue;
-    }
-    status.tasks[taskId].enabled = true;
-    status.tasks[taskId].mode = task.needs_dialogue ? "interactive" : "exec";
-    status.sessions[taskId].mode = status.tasks[taskId].mode;
+    status.tasks[taskId].enabled = Boolean(task);
+    status.tasks[taskId].launch_strategy = taskId === "a" ? "current_thread" : "manual_thread";
+    status.tasks[taskId].status = task ? "pending" : "skipped";
   }
 
   await saveStatus(repoRoot, runId, status);
+}
+
+function isMergeReady(status, taskId) {
+  const task = status.tasks[taskId];
+  if (!task?.enabled) {
+    return true;
+  }
+  return task.status === "committed" && status.verification[taskId]?.status === "passed";
+}
+
+function advanceMergeReviewIfReady(status) {
+  if (!status.plan.approved_mode) {
+    return;
+  }
+
+  if (status.plan.approved_mode === "parallel_ab") {
+    if (isMergeReady(status, "a") && isMergeReady(status, "b")) {
+      status.phase = "merge-review";
+      status.current_checkpoint = "merge-review";
+    }
+    return;
+  }
+
+  if (isMergeReady(status, "a")) {
+    status.phase = "merge-review";
+    status.current_checkpoint = "merge-review";
+  }
 }
 
 export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mode = null, note = "") {
@@ -788,6 +785,9 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
       status.phase = "plan-approved";
       status.current_checkpoint = "plan-review";
       status.tasks.b.enabled = mode === "parallel_ab";
+      if (mode !== "parallel_ab") {
+        status.tasks.b.status = "skipped";
+      }
     } else if (decision === "needs_replan") {
       status.plan.status = "needs_replan";
       status.plan.approved_mode = null;
@@ -796,26 +796,27 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
     }
   }
 
-  if (checkpoint === "pre-integrate") {
-    if (decision === "approve_ab") {
-      status.phase = "pre-integrate-approved";
-      status.current_checkpoint = "pre-integrate";
+  if (checkpoint === "merge-review" || checkpoint === "pre-integrate") {
+    if (decision === "allow_manual_merge" || decision === "approve_ab") {
+      status.phase = "ready-to-merge";
+      status.current_checkpoint = "merge-review";
     } else if (decision === "return_a") {
       status.phase = "execute";
+      status.current_checkpoint = "merge-review";
       status.tasks.a.status = "needs-rework";
+      status.tasks.a.commit = null;
+      status.verification.a.status = "pending";
+      status.verification.a.report = null;
     } else if (decision === "return_b") {
       status.phase = "execute";
+      status.current_checkpoint = "merge-review";
       status.tasks.b.status = "needs-rework";
-    }
-  }
-
-  if (checkpoint === "publish") {
-    if (decision === "approve_publish") {
-      status.phase = "publish-approved";
-      status.current_checkpoint = "publish";
-    } else if (decision === "hold_publish") {
-      status.phase = "publish";
-      status.current_checkpoint = "publish";
+      status.tasks.b.commit = null;
+      status.verification.b.status = "pending";
+      status.verification.b.report = null;
+    } else if (decision === "hold_merge" || decision === "hold_publish") {
+      status.phase = "merge-review";
+      status.current_checkpoint = "merge-review";
     }
   }
 
@@ -976,6 +977,7 @@ export async function commitTask(repoRoot, runId, taskId, message = null) {
   const head = await git(task.worktree, ["rev-parse", "HEAD"]);
   task.commit = head.stdout.trim();
   task.status = "committed";
+  advanceMergeReviewIfReady(status);
   await saveStatus(repoRoot, runId, status);
   return commitMessage;
 }
@@ -987,7 +989,7 @@ export async function generateSummary(repoRoot, runId) {
   const mainBranch = config.project.main_branch;
   const branchSummaries = [];
 
-  for (const taskId of ["a", "b", "ab"]) {
+  for (const taskId of ["a", "b"]) {
     const task = status.tasks[taskId];
     if (!task?.enabled || !task.branch) {
       continue;
@@ -1019,9 +1021,13 @@ ${branchSummaries.map((entry) => `### ${entry.task.toUpperCase()} (${entry.branc
 
 - A: ${status.verification.a.status}
 - B: ${status.verification.b.status}
-- AB: ${status.verification.ab.status}
 - Main: ${status.verification.main.status}
-`;
+
+## Merge Readiness
+
+- phase: ${status.phase}
+- next_checkpoint: ${status.current_checkpoint}
+  `;
 
   const prBody = `# Summary
 
@@ -1035,7 +1041,6 @@ ${branchSummaries.map((entry) => `- ${entry.task.toUpperCase()}: ${entry.files.j
 
 - A: ${status.verification.a.status}
 - B: ${status.verification.b.status}
-- AB: ${status.verification.ab.status}
 - Main: ${status.verification.main.status}
 
 ## Human Checkpoints

@@ -89,15 +89,58 @@ function ensureNested(root, keys) {
   return cursor;
 }
 
+function bracketBalance(value) {
+  let balance = 0;
+  let inString = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    const previous = value[index - 1];
+
+    if (char === "\"" && previous !== "\\") {
+      inString = !inString;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === "[") {
+      balance += 1;
+    } else if (char === "]") {
+      balance -= 1;
+    }
+  }
+
+  return balance;
+}
+
 export function parseToml(source) {
   const result = {};
   let current = result;
+  const rawLines = source.split(/\r?\n/);
 
-  for (const rawLine of source.split(/\r?\n/)) {
-    const line = stripComments(rawLine);
+  for (let index = 0; index < rawLines.length; index += 1) {
+    const rawLine = rawLines[index];
+    let line = stripComments(rawLine);
 
     if (!line) {
       continue;
+    }
+
+    const separator = line.indexOf("=");
+    if (separator !== -1) {
+      const value = line.slice(separator + 1).trim();
+      if (value.startsWith("[") && bracketBalance(value) > 0) {
+        while (index + 1 < rawLines.length && bracketBalance(line.slice(separator + 1).trim()) > 0) {
+          index += 1;
+          const continuation = stripComments(rawLines[index]);
+          if (!continuation) {
+            continue;
+          }
+          line = `${line} ${continuation}`;
+        }
+      }
     }
 
     if (line.startsWith("[[") && line.endsWith("]]")) {
@@ -117,7 +160,6 @@ export function parseToml(source) {
       continue;
     }
 
-    const separator = line.indexOf("=");
     if (separator === -1) {
       throw new Error(`Invalid TOML line: ${line}`);
     }

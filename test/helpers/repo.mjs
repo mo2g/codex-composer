@@ -75,7 +75,6 @@ repo_type = "test"
 
 [codex]
 binary = "${fakeCodexPath}"
-profile = "default"
 sandbox = "workspace-write"
 approval_policy = "on-request"
 
@@ -89,9 +88,9 @@ max_codex_runs = 5
 allow_auto_replan = false
 
 [hooks]
-branch_verify = ["test -f task-a-output.txt || test -f task-b-output.txt"]
-integration_verify = ["test -f task-a-output.txt && test -f task-b-output.txt"]
-main_verify = ["git rev-parse --verify HEAD >/dev/null"]
+branch_verify = ["git diff --quiet HEAD -- && { echo \\"No tracked changes to verify\\"; exit 1; } || true", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
+integration_verify = ["git rev-parse --verify HEAD >/dev/null", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
+main_verify = ["git rev-parse --verify HEAD >/dev/null", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
 
 [[path_rules]]
 globs = ["frontend/**"]
@@ -139,6 +138,19 @@ export async function createTestRepo() {
   return repoRoot;
 }
 
+export async function createExistingRepo() {
+  const repoRoot = await makeTempDir("codex-composer-existing-");
+  await initGitRepo(repoRoot);
+  await writeDefaultRepoFiles(repoRoot);
+  await fs.writeFile(path.join(repoRoot, "README.md"), "# Existing Repo\n", "utf8");
+  await fs.mkdir(path.join(repoRoot, "scripts"), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, "tools"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "scripts", "existing.sh"), "#!/usr/bin/env bash\nexit 0\n", "utf8");
+  await fs.writeFile(path.join(repoRoot, "tools", "existing.mjs"), "export const existing = true;\n", "utf8");
+  await initialCommit(repoRoot);
+  return repoRoot;
+}
+
 export async function runScript(scriptName, args, options = {}) {
   const env = {
     ...process.env,
@@ -158,6 +170,30 @@ export async function runTool(args, options = {}) {
   };
   return run("node", [path.join(helperRoot, "tools", "composer.mjs"), ...args], {
     cwd: helperRoot,
+    env,
+    allowFailure: options.allowFailure ?? false
+  });
+}
+
+export async function runInstall(args, options = {}) {
+  const env = {
+    ...process.env,
+    ...options.env
+  };
+  return run("bash", [path.join(helperRoot, "install.sh"), ...args], {
+    cwd: helperRoot,
+    env,
+    allowFailure: options.allowFailure ?? false
+  });
+}
+
+export async function runGit(repoRoot, args, options = {}) {
+  const env = {
+    ...process.env,
+    ...options.env
+  };
+  return run("git", args, {
+    cwd: repoRoot,
     env,
     allowFailure: options.allowFailure ?? false
   });

@@ -37,6 +37,125 @@ function requireArg(args, key) {
   return args[key];
 }
 
+function promptPathForTask(repoRoot, runId, taskId) {
+  return path.join(runPaths(repoRoot, runId).tasksDir, `${taskId}.md`);
+}
+
+function taskSummaryLines(repoRoot, runId, taskId, taskState) {
+  const lines = [
+    `- ${taskId.toUpperCase()}: ${taskState.enabled ? taskState.status : "disabled"}`
+  ];
+
+  if (taskState.branch) {
+    lines.push(`  branch: ${taskState.branch}`);
+  }
+
+  if (taskState.worktree) {
+    lines.push(`  worktree: ${taskState.worktree}`);
+  }
+
+  if (taskId === "a" || taskId === "b") {
+    lines.push(`  prompt: ${promptPathForTask(repoRoot, runId, taskId)}`);
+    lines.push(`  launch_strategy: ${taskState.launch_strategy}`);
+  }
+
+  if (taskState.commit) {
+    lines.push(`  commit: ${taskState.commit}`);
+  }
+
+  return lines;
+}
+
+function recommendedNextSteps(repoRoot, runId, status) {
+  switch (status.phase) {
+    case "clarify":
+    case "clarified":
+      return [
+        "Stay in the current Codex thread. This thread is the planner/control thread.",
+        `Read AGENTS.md and skills/planner/SKILL.md, then update ${runPaths(repoRoot, runId).clarifications}.`,
+        `Record clarify with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
+        `Generate the plan with ./scripts/composer-plan.sh --run ${runId}.`
+      ];
+    case "plan-review":
+      return [
+        "Stay in the current Codex thread and review PLAN.md with the planner skill.",
+        `Choose parallel or serial with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint plan-review --decision approve_parallel --mode parallel_ab`,
+        `Or keep it serial with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint plan-review --decision force_serial --mode serial`,
+        `If the requirement changed, record needs_replan and rerun ./scripts/composer-plan.sh --run ${runId}.`
+      ];
+    case "plan-approved":
+      return [
+        `Run ./scripts/composer-split.sh --run ${runId}.`,
+        "After split, continue task A in the current repo. If B is enabled, open a new Codex thread in the B worktree."
+      ];
+    case "execute": {
+      const steps = [];
+      if (status.tasks.a.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.a.status)) {
+        steps.push(`Continue task A in the current Codex thread at ${status.tasks.a.worktree ?? repoRoot} and use ${promptPathForTask(repoRoot, runId, "a")}.`);
+        steps.push(`When task A is ready, run ./scripts/composer-verify.sh --run ${runId} --target a and then ./scripts/composer-commit.sh --run ${runId} --task a.`);
+      }
+      if (status.tasks.b.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.b.status)) {
+        steps.push(`Open a new Codex thread in ${status.tasks.b.worktree ?? "<pending split>"} for task B and use ${promptPathForTask(repoRoot, runId, "b")}.`);
+        steps.push(`When task B is ready, run ./scripts/composer-verify.sh --run ${runId} --target b and then ./scripts/composer-commit.sh --run ${runId} --task b.`);
+      }
+      if (steps.length > 0) {
+        return steps;
+      }
+      return ["Run verification or continue the next approved branch action."];
+    }
+    case "merge-review":
+      return [
+        "Return to the current Codex thread and use the integrator-reviewer skill to inspect status.json and verify reports.",
+        `If merge-ready, record ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint merge-review --decision allow_manual_merge.`,
+        `If a task needs more work, record ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint merge-review --decision return_a|return_b.`
+      ];
+    case "ready-to-merge":
+      return [
+        "Manually merge the verified task branches into your chosen integration target or main branch.",
+        `After merging to main, run ./scripts/composer-verify.sh --run ${runId} --target main.`,
+        `Generate handoff text with ./scripts/composer-summarize.sh --run ${runId}.`
+      ];
+    case "completed":
+      return [`Run ./scripts/composer-summarize.sh --run ${runId} if SUMMARY.md or PR_BODY.md need regeneration.`];
+    default:
+      return ["Inspect status.json and continue from the latest approved checkpoint."];
+  }
+}
+
+function renderStatusOutput(repoRoot, runId, status) {
+  const lines = [
+    `run_id: ${runId}`,
+    `repo_root: ${repoRoot}`,
+    `phase: ${status.phase}`,
+    `current_checkpoint: ${status.current_checkpoint}`,
+    `recommended_mode: ${status.plan.recommended_mode ?? "pending"}`,
+    `approved_mode: ${status.plan.approved_mode ?? "pending"}`,
+    `control_session: ${status.sessions.control?.session_id ?? "current-thread"}`,
+    "",
+    "tasks:"
+  ];
+
+  for (const taskId of ["a", "b"]) {
+    lines.push(...taskSummaryLines(repoRoot, runId, taskId, status.tasks[taskId]));
+  }
+
+  lines.push(
+    "",
+    "verification:",
+    `- A: ${status.verification.a.status}`,
+    `- B: ${status.verification.b.status}`,
+    `- Main: ${status.verification.main.status}`,
+    "",
+    "next_steps:"
+  );
+
+  for (const step of recommendedNextSteps(repoRoot, runId, status)) {
+    lines.push(`- ${step}`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
 async function commandNewRun(args) {
   const repoRoot = await resolveRepoRoot(args.repo);
   const runId = requireArg(args, "run");
@@ -45,11 +164,33 @@ async function commandNewRun(args) {
   console.log(paths.runRoot);
 }
 
+async function commandStart(args) {
+  const repoRoot = await resolveRepoRoot(args.repo);
+  const runId = requireArg(args, "run");
+  const requirement = requireArg(args, "requirement");
+  await createRun(repoRoot, runId, requirement);
+  const paths = runPaths(repoRoot, runId);
+
+  process.stdout.write([
+    `run_id: ${runId}`,
+    `repo_root: ${repoRoot}`,
+    `run_root: ${paths.runRoot}`,
+    "",
+    "next_steps:",
+    "- Stay in the current Codex thread. This thread is the planner/control thread.",
+    "- Read AGENTS.md and skills/planner/SKILL.md.",
+    `- Update ${paths.clarifications} with any missing acceptance criteria or constraints.`,
+    `- Record checkpoint 1 with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
+    `- Generate the plan with ./scripts/composer-plan.sh --run ${runId}.`
+  ].join("\n"));
+  process.stdout.write("\n");
+}
+
 async function commandInitRepo(args) {
   const repoRoot = await resolveRepoRoot(args.repo);
   const result = await bootstrapProtocolRepo({
     repoRoot,
-    template: args.template ?? "empty",
+    template: args.template ?? "existing",
     codexBinary: args.codex_binary ?? "codex"
   });
   console.log(`${result.repoRoot}\ninitialized_git=${result.initializedGit}\ntemplate=${result.template}`);
@@ -64,6 +205,18 @@ async function commandChatControl(args) {
   const status = await loadStatus(repoRoot, runId);
   const paths = runPaths(repoRoot, runId);
   const prompt = `[${status.sessions.control.marker}] Read ${promptPath} and operate as the Codex Composer control session.`;
+
+  if (!process.stdout.isTTY || process.env.TERM === "dumb") {
+    process.stdout.write([
+      `checkpoint: ${checkpoint}`,
+      `prompt_path: ${promptPath}`,
+      "",
+      "This shell is not suitable for launching an interactive Codex session.",
+      "Stay in the current Codex thread or open a rich terminal/Codex App window, then read the prompt file above."
+    ].join("\n"));
+    process.stdout.write("\n");
+    return;
+  }
 
   if (status.sessions.control.session_id) {
     await runCodexInteractive(config, repoRoot, ["resume", status.sessions.control.session_id, `Continue checkpoint ${checkpoint}. Read ${promptPath}.`], [paths.runRoot]);
@@ -156,53 +309,59 @@ async function commandSplit(args) {
   const fragment = sanitizeBranchFragment(runId);
   const branchPrefix = config.project.branch_prefix || "codex/";
   const plan = await readJson(paths.planJson);
+  const desiredABranch = `${branchPrefix}${fragment}-a`;
+  const current = await currentBranch(repoRoot);
+  let aBranch = current;
 
-  const workItems = [
-    { task: "a", branch: `${branchPrefix}${fragment}-a`, worktree: path.join(paths.worktreesDir, "a"), enabled: true },
-    { task: "ab", branch: `${branchPrefix}${fragment}-ab`, worktree: path.join(paths.worktreesDir, "ab"), enabled: status.plan.approved_mode === "parallel_ab" }
-  ];
-
-  if (status.plan.approved_mode === "parallel_ab") {
-    workItems.splice(1, 0, { task: "b", branch: `${branchPrefix}${fragment}-b`, worktree: path.join(paths.worktreesDir, "b"), enabled: true });
+  if (current === baseBranch) {
+    if (await branchExists(repoRoot, desiredABranch)) {
+      await git(repoRoot, ["checkout", desiredABranch]);
+    } else {
+      await git(repoRoot, ["checkout", "-b", desiredABranch]);
+    }
+    aBranch = desiredABranch;
   }
 
-  for (const item of workItems) {
-    if (!item.enabled) {
-      continue;
-    }
+  status.tasks.a.enabled = true;
+  status.tasks.a.branch = aBranch;
+  status.tasks.a.worktree = repoRoot;
+  status.tasks.a.status = "ready";
+  status.tasks.a.launch_strategy = "current_thread";
+  await renderTaskPrompt(repoRoot, runId, "a", plan);
 
-    const exists = await branchExists(repoRoot, item.branch);
-    const worktreeExists = await pathExists(item.worktree);
+  if (status.plan.approved_mode === "parallel_ab") {
+    const bBranch = `${branchPrefix}${fragment}-b`;
+    const bWorktree = path.join(paths.worktreesDir, "b");
+    const exists = await branchExists(repoRoot, bBranch);
+    const alreadyExists = await pathExists(bWorktree);
 
-    if (!worktreeExists) {
+    if (!alreadyExists) {
       const addArgs = ["worktree", "add"];
       if (exists) {
-        addArgs.push(item.worktree, item.branch);
+        addArgs.push(bWorktree, bBranch);
       } else {
-        addArgs.push("-b", item.branch, item.worktree, baseBranch);
+        addArgs.push("-b", bBranch, bWorktree, baseBranch);
       }
       await git(repoRoot, addArgs);
     }
 
-    status.tasks[item.task].enabled = true;
-    status.tasks[item.task].branch = item.branch;
-    status.tasks[item.task].worktree = item.worktree;
-    status.tasks[item.task].status = item.task === "ab" ? "pending" : "ready";
-
-    if (item.task === "a" || item.task === "b") {
-      await renderTaskPrompt(repoRoot, runId, item.task, plan);
-    }
-  }
-
-  if (status.plan.approved_mode === "serial") {
+    status.tasks.b.enabled = true;
+    status.tasks.b.branch = bBranch;
+    status.tasks.b.worktree = bWorktree;
+    status.tasks.b.status = "ready";
+    status.tasks.b.launch_strategy = "manual_thread";
+    await renderTaskPrompt(repoRoot, runId, "b", plan);
+  } else {
     status.tasks.b.enabled = false;
+    status.tasks.b.branch = null;
+    status.tasks.b.worktree = null;
     status.tasks.b.status = "skipped";
-    status.tasks.ab.enabled = false;
-    status.tasks.ab.status = "skipped";
   }
 
   status.phase = "execute";
+  status.current_checkpoint = "execute";
   await saveStatus(repoRoot, runId, status);
+  console.log(renderStatusOutput(repoRoot, runId, status));
 }
 
 async function commandRunTask(args) {
@@ -223,17 +382,8 @@ async function commandRunTask(args) {
     throw new Error(`Task prompt not found: ${promptPath}`);
   }
 
-  if (args.interactive || task.mode === "interactive") {
-    const marker = status.sessions[taskId].marker;
-    if (status.sessions[taskId].session_id) {
-      await runCodexInteractive(config, task.worktree, ["resume", status.sessions[taskId].session_id, `Continue task ${taskId}. Read ${promptPath}.`], [paths.runRoot]);
-    } else if (status.sessions.control.session_id) {
-      await runCodexInteractive(config, task.worktree, ["fork", status.sessions.control.session_id, `[${marker}] Read ${promptPath} and implement task ${taskId}.`], [paths.runRoot]);
-      await bindSession(repoRoot, runId, taskId);
-    } else {
-      await runCodexInteractive(config, task.worktree, [`[${marker}] Read ${promptPath} and implement task ${taskId}.`], [paths.runRoot]);
-      await bindSession(repoRoot, runId, taskId);
-    }
+  if (args.interactive) {
+    await runCodexInteractive(config, task.worktree, [`Read ${promptPath} and implement task ${taskId}.`], [paths.runRoot]);
   } else {
     const outputPath = path.join(paths.logsDir, `${taskId}.last-message.md`);
     await runCodexExec(
@@ -268,11 +418,11 @@ async function commandVerify(args) {
   let commands = [];
 
   if (target === "a" || target === "b") {
+    if (!status.tasks[target]?.enabled) {
+      throw new Error(`Task ${target} is not enabled`);
+    }
     cwd = status.tasks[target].worktree;
     commands = config.hooks.branch_verify;
-  } else if (target === "ab") {
-    cwd = status.tasks.ab.worktree;
-    commands = config.hooks.integration_verify;
   } else if (target === "main") {
     commands = config.hooks.main_verify;
   } else {
@@ -285,23 +435,8 @@ async function commandVerify(args) {
 
   if (target === "a" || target === "b") {
     status.tasks[target].status = report.status === "passed" ? "verified" : "failed";
-    const mode = status.plan.approved_mode;
-    if (mode === "parallel_ab") {
-      if (status.verification.a.status === "passed" && status.verification.b.status === "passed") {
-        status.phase = "pre-integrate";
-        status.current_checkpoint = "pre-integrate";
-      }
-    } else if (mode === "serial" && status.verification.a.status === "passed") {
-      status.phase = "publish";
-      status.current_checkpoint = "publish";
-    }
-  }
-
-  if (target === "ab") {
-    status.tasks.ab.status = report.status === "passed" ? "verified" : "failed";
-    if (report.status === "passed") {
-      status.phase = "publish";
-      status.current_checkpoint = "publish";
+    if (report.status === "failed") {
+      status.phase = "execute";
     }
   }
 
@@ -324,53 +459,23 @@ async function commandCommit(args) {
 async function commandIntegrate(args) {
   const repoRoot = await resolveRepoRoot(args.repo);
   const runId = requireArg(args, "run");
-  const config = await loadConfig(repoRoot);
   const status = await loadStatus(repoRoot, runId);
-  const mode = status.plan.approved_mode;
+  const steps = [
+    "composer-integrate.sh is now a compatibility helper.",
+    "Preferred MVP flow: review merge readiness in the current Codex thread, then merge manually.",
+    "",
+    `A branch: ${status.tasks.a.branch ?? "(not prepared)"}`,
+    `B branch: ${status.tasks.b.enabled ? status.tasks.b.branch : "(not enabled)"}`,
+    "",
+    "Suggested manual sequence:",
+    `1. git checkout ${status.plan.approved_mode === "parallel_ab" ? "main" : status.tasks.a.branch ?? "main"}`,
+    status.tasks.a.branch ? `2. git merge --no-ff ${status.tasks.a.branch}` : "2. prepare task A first",
+    status.tasks.b.enabled && status.tasks.b.branch ? `3. git merge --no-ff ${status.tasks.b.branch}` : "3. skip B or merge it manually if enabled",
+    `4. ./scripts/composer-verify.sh --run ${runId} --target main`,
+    `5. ./scripts/composer-summarize.sh --run ${runId}`
+  ];
 
-  if (!mode) {
-    throw new Error("Plan mode must be approved before integration");
-  }
-
-  await ensureCleanWorktree(repoRoot);
-
-  if (mode === "parallel_ab") {
-    if (status.phase === "pre-integrate-approved") {
-      if (status.tasks.a.status !== "committed" || status.tasks.b.status !== "committed") {
-        throw new Error("Tasks A and B must be committed before integrating into AB");
-      }
-
-      await git(status.tasks.ab.worktree, ["merge", "--no-ff", status.tasks.a.branch, "-m", `merge(a): ${runId}`]);
-      await git(status.tasks.ab.worktree, ["merge", "--no-ff", status.tasks.b.branch, "-m", `merge(b): ${runId}`]);
-      status.tasks.ab.status = "completed";
-      status.phase = "ab-ready-for-verify";
-      await saveStatus(repoRoot, runId, status);
-      return;
-    }
-
-    if (status.phase === "publish-approved") {
-      if (status.verification.ab.status !== "passed") {
-        throw new Error("AB verification must pass before merge to main");
-      }
-
-      await git(repoRoot, ["merge", "--no-ff", status.tasks.ab.branch, "-m", `merge(ab): ${runId}`]);
-      status.phase = "main-ready-for-verify";
-      await saveStatus(repoRoot, runId, status);
-      return;
-    }
-  }
-
-  if (mode === "serial") {
-    if (status.phase !== "publish-approved") {
-      throw new Error("Serial mode requires publish approval before merge to main");
-    }
-    if (status.tasks.a.status !== "committed") {
-      throw new Error("Task A must be committed before merge to main");
-    }
-    await git(repoRoot, ["merge", "--no-ff", status.tasks.a.branch, "-m", `merge(a): ${runId}`]);
-    status.phase = "main-ready-for-verify";
-    await saveStatus(repoRoot, runId, status);
-  }
+  process.stdout.write(`${steps.join("\n")}\n`);
 }
 
 async function commandSummarize(args) {
@@ -379,9 +484,17 @@ async function commandSummarize(args) {
   await generateSummary(repoRoot, runId);
 }
 
+async function commandStatus(args) {
+  const repoRoot = await resolveRepoRoot(args.repo);
+  const runId = requireArg(args, "run");
+  const status = await loadStatus(repoRoot, runId);
+  process.stdout.write(renderStatusOutput(repoRoot, runId, status));
+}
+
 const commands = {
   "init-repo": commandInitRepo,
   "new-run": commandNewRun,
+  start: commandStart,
   "chat-control": commandChatControl,
   plan: commandPlan,
   checkpoint: commandCheckpoint,
@@ -391,7 +504,8 @@ const commands = {
   verify: commandVerify,
   commit: commandCommit,
   integrate: commandIntegrate,
-  summarize: commandSummarize
+  summarize: commandSummarize,
+  status: commandStatus
 };
 
 const [command, ...rest] = process.argv.slice(2);
