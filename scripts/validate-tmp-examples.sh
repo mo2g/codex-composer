@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BASE_DIR="/tmp/codex-composer"
 EMPTY_REPO="$BASE_DIR/empty-login"
 REACT_REPO="$BASE_DIR/react-go-login"
@@ -20,7 +20,8 @@ ensure_absent() {
 
 write_fake_config() {
   local repo_root="$1"
-  cat > "$repo_root/.codex-composer.toml" <<EOF
+  mkdir -p "$repo_root/.codex-composer"
+  cat > "$repo_root/.codex-composer/config.toml" <<EOF
 [project]
 main_branch = "main"
 branch_prefix = "codex/"
@@ -92,9 +93,9 @@ run_empty_validation() {
 
   (
     cd "$EMPTY_REPO"
-    ./scripts/composer-start.sh --run login --requirement "$REQUIREMENT" >/dev/null
-    node ./tools/composer.mjs checkpoint --run login --checkpoint clarify --decision clarified --note "No stable frontend/backend layout exists yet"
-    ./scripts/composer-plan.sh --run login >/dev/null
+    ./codex-composer start --run login --requirement "$REQUIREMENT" >/dev/null
+    ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "No stable frontend/backend layout exists yet"
+    ./codex-composer plan --run login >/dev/null
   )
 
   node --input-type=module -e '
@@ -115,23 +116,23 @@ run_react_validation() {
 
   (
     cd "$REACT_REPO"
-    ./scripts/composer-start.sh --run login --requirement "$REQUIREMENT" >/dev/null
-    node ./tools/composer.mjs checkpoint --run login --checkpoint clarify --decision clarified --note "Frontend and backend scaffolds already exist"
-    ./scripts/composer-plan.sh --run login >/dev/null
-    node ./tools/composer.mjs checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
-    ./scripts/composer-split.sh --run login >/dev/null
-    ./scripts/composer-run-task.sh --run login --task a >/dev/null
-    ./scripts/composer-run-task.sh --run login --task b >/dev/null
-    ./scripts/composer-verify.sh --run login --target a >/dev/null
-    ./scripts/composer-verify.sh --run login --target b >/dev/null
-    ./scripts/composer-commit.sh --run login --task a >/dev/null
-    ./scripts/composer-commit.sh --run login --task b >/dev/null
-    node ./tools/composer.mjs checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
+    ./codex-composer start --run login --requirement "$REQUIREMENT" >/dev/null
+    ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "Frontend and backend scaffolds already exist"
+    ./codex-composer plan --run login >/dev/null
+    ./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
+    ./codex-composer next --run login >/dev/null
+    node ./.codex-composer/protocol/tools/composer.mjs run-task --run login --task a >/dev/null
+    node ./.codex-composer/protocol/tools/composer.mjs run-task --run login --task b >/dev/null
+    ./codex-composer verify --run login --target a >/dev/null
+    ./codex-composer verify --run login --target b >/dev/null
+    ./codex-composer commit --run login --task a >/dev/null
+    ./codex-composer commit --run login --task b >/dev/null
+    ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
     git checkout main >/dev/null
     git merge --no-ff codex/login-a -m "merge(a): login" >/dev/null
     git merge --no-ff codex/login-b -m "merge(b): login" >/dev/null
-    ./scripts/composer-verify.sh --run login --target main >/dev/null
-    ./scripts/composer-summarize.sh --run login >/dev/null
+    ./codex-composer verify --run login --target main >/dev/null
+    ./codex-composer summarize --run login >/dev/null
   )
 
   node --input-type=module -e '

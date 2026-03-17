@@ -1,18 +1,17 @@
 # Codex Composer Protocol
 
-This repository defines a protocol-first Codex workflow for existing repositories. Codex must follow these rules when a project adopts Codex Composer.
+Codex Composer defines a worktree-first workflow for using Codex inside an existing repository. The current Codex thread is the planner/control thread by default.
 
 ## Core Rules
 
 1. Do not skip checkpoints.
-2. The current Codex thread is the planner/control thread by default.
-3. Do not choose `parallel_ab` on the user's behalf.
-4. If information is missing, ask questions before generating a plan.
-5. If task boundaries match no repository files, do not recommend blind parallel work.
-6. If the user approves a split, the current repository root becomes task `A`. Create only the optional `B` worktree.
-7. Do not use subagents as the default execution model for this MVP.
-8. Do not merge branches automatically. Only move toward manual merge after tasks are complete, verified, and committed.
-9. If verification fails, stop and return to the current Codex thread. Do not loop autonomously.
+2. Do not choose `parallel_ab` on the user's behalf.
+3. If information is missing, ask questions before generating a plan.
+4. If task boundaries match no repository files, do not recommend blind parallel work.
+5. If the user approves a split, the current repository root becomes task `A`. Create only the optional `B` worktree.
+6. Do not use subagents as the default execution model for this MVP.
+7. Do not merge branches automatically. Only move toward manual merge after tasks are complete, verified, and committed.
+8. If verification fails, stop and return to the current Codex thread. Do not loop autonomously.
 
 ## Checkpoints
 
@@ -20,9 +19,22 @@ This repository defines a protocol-first Codex workflow for existing repositorie
 - `plan-review`: present `serial` and `parallel_ab`, explain the recommendation, and wait for the user's choice.
 - `merge-review`: summarize whether A and B are actually ready for a human merge.
 
+## Hybrid Install Layout
+
+- Root files kept visible to Codex:
+  - `AGENTS.md`
+  - repository launcher: `./codex-composer` or, if occupied, `./composer-next`
+- Hidden managed protocol:
+  - `.codex-composer/protocol/prompts/`
+  - `.codex-composer/protocol/skills/`
+  - `.codex-composer/protocol/schemas/`
+  - `.codex-composer/protocol/tools/`
+- Runtime state:
+  - `.codex-composer/runs/<run-id>/`
+  - `.codex-composer/worktrees/<run-id>/`
+
 ## State Persistence
 
-- Run metadata lives in `.codex-composer/runs/<run-id>/`.
 - Human-readable files:
   - `requirements.md`
   - `clarifications.md`
@@ -36,13 +48,17 @@ This repository defines a protocol-first Codex workflow for existing repositorie
   - `sessions.json`
   - `verify/*.json`
 
-Persist user decisions with `./scripts/composer-checkpoint.sh`. `composer-chat-control.sh` is fallback-only and not required for the main flow.
+Persist decisions with the repository launcher, for example:
+
+- `./codex-composer checkpoint --run <run-id> --checkpoint clarify --decision clarified --note "<summary>"`
+
+If this repository had to fall back to `./composer-next`, use that launcher name instead.
 
 ## Working Model
 
 - `A`: the current repository root and the current Codex thread.
-- `B`: an optional git worktree created by `composer-split.sh`; the user may open a separate Codex thread there.
-- `composer-run-task.sh`, `composer-chat-control.sh`, and `composer-integrate.sh` are compatibility helpers, not the primary path.
+- `B`: an optional git worktree created by `split`; the user may open a separate Codex thread there.
+- Compatibility helpers such as `composer-chat-control`, `composer-run-task`, and `composer-integrate` exist, but they are not the primary path.
 
 ## Task Boundaries
 
@@ -61,13 +77,15 @@ Persist user decisions with `./scripts/composer-checkpoint.sh`. `composer-chat-c
 
 ## Prompt Sources
 
-- Planner: `prompts/planner.md` or `skills/planner/SKILL.md`
-- Task execution: `prompts/task-owner.md` or `skills/task-owner/SKILL.md`
-- Merge readiness review: `prompts/integrator-reviewer.md` or `skills/integrator-reviewer/SKILL.md`
+- Planner: `.codex-composer/protocol/prompts/planner.md` or `.codex-composer/protocol/skills/planner/SKILL.md`
+- Task execution: `.codex-composer/protocol/prompts/task-owner.md` or `.codex-composer/protocol/skills/task-owner/SKILL.md`
+- Merge readiness review: `.codex-composer/protocol/prompts/integrator-reviewer.md` or `.codex-composer/protocol/skills/integrator-reviewer/SKILL.md`
+
+In the source repository, the same files also exist at the flat root for maintenance and testing.
 
 ## Approval Rules
 
-- `composer-split.sh` requires an approved mode in `status.json`.
-- `composer-commit.sh` requires branch verification to pass before it records a commit.
+- `split` requires an approved mode in `status.json`.
+- `commit` requires branch verification to pass before it records a commit snapshot.
 - `merge-review` only declares manual merge readiness. It never performs the merge.
-- `composer-verify.sh --target main` is the final explicit gate after the user merges branches manually.
+- `verify --target main` is the final explicit gate after the user merges branches manually.

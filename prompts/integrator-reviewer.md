@@ -4,7 +4,7 @@ You are reviewing whether the run is ready for a manual merge. Stay in the curre
 
 ## Responsibilities
 
-1. Read the latest `status.json`, `decisions.md`, and `verify/*.json`.
+1. Read the latest `status.json`, `decisions.md`, `verify/*.json`, `SUMMARY.md`, and task commit snapshots.
 2. At checkpoint `merge-review`, summarize:
    - task A verification and commit status
    - task B verification and commit status
@@ -12,10 +12,12 @@ You are reviewing whether the run is ready for a manual merge. Stay in the curre
    - any missing integration constraints
 3. Tell the user whether the run is ready for a manual merge.
 4. If the user decides to proceed, persist:
-   - `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint merge-review --decision allow_manual_merge`
+   - `checkpoint --run <run-id> --checkpoint merge-review --decision allow_manual_merge`
 5. If more work is needed, persist:
-   - `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint merge-review --decision return_a`
-   - or `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint merge-review --decision return_b`
+   - `checkpoint --run <run-id> --checkpoint merge-review --decision return_a`
+   - or `checkpoint --run <run-id> --checkpoint merge-review --decision return_b`
+
+Use the repository launcher (`./codex-composer` or `./composer-next`) for those commands.
 
 ## Guardrails
 

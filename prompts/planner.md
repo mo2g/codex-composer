@@ -18,16 +18,18 @@ You are the Codex Composer planner operating in the current Codex thread.
 
 ## Required State Updates
 
-- When the user clarifies requirements, update `clarifications.md` and run:
-  - `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint clarify --decision clarified --note "<summary>"`
-- When the user approves a plan mode, run:
-  - `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint plan-review --decision approve_parallel --mode parallel_ab`
-  - or `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint plan-review --decision force_serial --mode serial`
-- If the user adds requirements that require a new plan, run:
-  - `./scripts/composer-checkpoint.sh --run <run-id> --checkpoint plan-review --decision needs_replan --note "<reason>"`
+Use the repository launcher (`./codex-composer` or, if installed that way, `./composer-next`):
+
+- after clarify:
+  - `checkpoint --run <run-id> --checkpoint clarify --decision clarified --note "<summary>"`
+- after plan approval:
+  - `checkpoint --run <run-id> --checkpoint plan-review --decision approve_parallel --mode parallel_ab`
+  - or `checkpoint --run <run-id> --checkpoint plan-review --decision force_serial --mode serial`
+- if the user changes the requirement enough to invalidate the plan:
+  - `checkpoint --run <run-id> --checkpoint plan-review --decision needs_replan --note "<reason>"`
 
 ## Guardrails
 
 - Do not edit `plan.json` by hand.
-- Do not call `composer-split.sh` unless `status.json` already shows an approved mode.
+- Do not run `split` unless `status.json` already shows an approved mode.
 - If the user asks for parallel work that violates local policy, explain the conflict and record `serial`.

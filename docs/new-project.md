@@ -1,71 +1,76 @@
 # Existing Repo Quickstart
 
-Codex Composer is intended to be installed directly into an existing git repository.
+Codex Composer is installed directly into a repository that is already open in Codex.
 
 ## 1. Install
 
-From the repository you already opened in Codex:
+From the target repository root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/codex-composer/main/install.sh | bash -s -- --repo . --template existing
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 ```
 
-If you are testing locally from the source checkout:
+For local testing from the source checkout:
 
 ```bash
 bash /path/to/codex-composer/install.sh --repo . --template existing --source /path/to/codex-composer
 ```
 
-This installs:
+Installed layout:
 
 - `AGENTS.md`
-- `prompts/`
-- `skills/`
-- `schemas/`
-- `scripts/`
-- `tools/`
-- `.codex-composer.toml`
+- `./codex-composer`
+- `.codex-composer/config.toml`
+- `.codex-composer/protocol/`
+- `.codex-composer/runs/`
+- `.codex-composer/worktrees/`
+
+If `./codex-composer` is already occupied, the installer falls back to `./composer-next`.
 
 ## 2. Start A Run
 
 ```bash
-./scripts/composer-start.sh --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+./codex-composer start --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+./codex-composer next --run login
 ```
 
-Then stay in the current Codex thread and follow the printed instructions.
+The current Codex thread remains the planner/control thread.
 
 ## 3. Clarify And Plan
 
 Use:
 
 - `AGENTS.md`
-- `skills/planner/SKILL.md`
+- `.codex-composer/protocol/skills/planner/SKILL.md`
 - `.codex-composer/runs/<run-id>/clarifications.md`
 
 When the user has clarified enough:
 
 ```bash
-./scripts/composer-checkpoint.sh --run login --checkpoint clarify --decision clarified --note "..."
-./scripts/composer-plan.sh --run login
+./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
+./codex-composer plan --run login
+./codex-composer next --run login
 ```
 
 At `plan-review`, record either:
 
 ```bash
-./scripts/composer-checkpoint.sh --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
+./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
 ```
 
 or:
 
 ```bash
-./scripts/composer-checkpoint.sh --run login --checkpoint plan-review --decision force_serial --mode serial
+./codex-composer checkpoint --run login --checkpoint plan-review --decision force_serial --mode serial
 ```
 
 ## 4. Split Only If Needed
 
+After plan approval:
+
 ```bash
-./scripts/composer-split.sh --run login
-./scripts/composer-status.sh --run login
+./codex-composer next --run login
+./codex-composer status --run login
 ```
 
 - `A` stays in the current repository root.
@@ -76,8 +81,8 @@ or:
 After task implementation:
 
 ```bash
-./scripts/composer-verify.sh --run login --target a
-./scripts/composer-commit.sh --run login --task a
+./codex-composer verify --run login --target a
+./codex-composer commit --run login --task a
 ```
 
 If `B` exists, repeat for `b`.
@@ -86,25 +91,22 @@ If `B` exists, repeat for `b`.
 
 When status reaches `merge-review`, use:
 
-- `skills/integrator-reviewer/SKILL.md`
+- `.codex-composer/protocol/skills/integrator-reviewer/SKILL.md`
 
 Then record the result:
 
 ```bash
-./scripts/composer-checkpoint.sh --run login --checkpoint merge-review --decision allow_manual_merge
+./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
 ```
 
-Merge branches manually, run:
+Merge branches manually, then run:
 
 ```bash
-./scripts/composer-verify.sh --run login --target main
-./scripts/composer-summarize.sh --run login
+./codex-composer verify --run login --target main
+./codex-composer summarize --run login
 ```
 
-## Compatibility Helpers
+## Notes
 
-These are not the default onboarding path anymore:
-
-- `composer-chat-control.sh`
-- `composer-run-task.sh`
-- `composer-integrate.sh`
+- `next` is the recommended main entry. It never auto-decides checkpoints, verify, commit, or merge.
+- Compatibility helpers still exist in the source repository, but launcher commands are the supported onboarding path.

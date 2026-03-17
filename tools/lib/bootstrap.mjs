@@ -1,12 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { collectRepoFiles, protocolRoot, git, runCommand, branchExists, currentBranch } from "./runtime.mjs";
+import { collectRepoFiles, protocolRoot, git, runCommand, branchExists, currentBranch, ensureRuntimeIgnoreEntries } from "./runtime.mjs";
 import { ensureDir, pathExists, readText, toPosixPath, writeText } from "./fs.mjs";
 
-const PROTOCOL_BUNDLE_ENTRIES = ["AGENTS.md", "prompts", "skills", "schemas", "scripts", "tools"];
+const PROTOCOL_BUNDLE_ENTRIES = ["prompts", "skills", "schemas", "tools"];
 const COPY_IGNORE = new Set([".DS_Store"]);
 const FRONTEND_CANDIDATES = ["frontend", "web", "ui", "client", "apps/web"];
 const BACKEND_CANDIDATES = ["backend", "api", "server", "apps/api"];
+const MANAGED_BLOCK_START = "<!-- CODEX COMPOSER START -->";
+const MANAGED_BLOCK_END = "<!-- CODEX COMPOSER END -->";
+const MANAGED_LAUNCHER_MARKER = "# Codex Composer Launcher";
 
 function quoteTomlString(value) {
   return JSON.stringify(String(value));
@@ -262,12 +265,6 @@ func IssueToken(userID string) string {
   ];
 }
 
-async function ensureFileAbsent(targetPath) {
-  if (await pathExists(targetPath)) {
-    throw new Error(`Target already contains ${targetPath}; bootstrap expects a fresh path for protocol assets`);
-  }
-}
-
 async function ensureGitIgnoreEntry(repoRoot, entry) {
   const ignorePath = path.join(repoRoot, ".gitignore");
   const existing = await readText(ignorePath, "");
@@ -322,7 +319,7 @@ async function copyEntry(sourcePath, targetPath) {
     return;
   }
 
-  await ensureFileAbsent(targetPath);
+  await ensureDir(path.dirname(targetPath));
   await fs.copyFile(sourcePath, targetPath);
 }
 
@@ -333,14 +330,7 @@ async function copyBundle(targetRoot) {
 }
 
 async function ensureExecutableBits(targetRoot) {
-  const scriptsDir = path.join(targetRoot, "scripts");
   const toolsDir = path.join(targetRoot, "tools");
-  const scriptEntries = await fs.readdir(scriptsDir);
-
-  for (const entry of scriptEntries) {
-    await fs.chmod(path.join(scriptsDir, entry), 0o755);
-  }
-
   await fs.chmod(path.join(toolsDir, "composer.mjs"), 0o755);
 }
 
@@ -366,6 +356,80 @@ async function collectBootstrapFacts(repoRoot, template) {
   };
 }
 
+function renderManagedAgentsBlock(launcherName) {
+  return `${MANAGED_BLOCK_START}
+## Codex Composer
+
+- Current thread: planner/control thread
+- Main entry: \`./${launcherName} next\`
+- Protocol files: \`.codex-composer/protocol/\`
+- Runtime state: \`.codex-composer/runs/<run-id>/\`
+- Optional parallel split: keep the current repo as task \`A\`; create task \`B\` with \`./${launcherName} split --run <run-id>\`
+
+Use the launcher instead of calling root-level protocol directories directly.
+${MANAGED_BLOCK_END}`;
+}
+
+function upsertManagedBlock(existing, block) {
+  const pattern = new RegExp(`${MANAGED_BLOCK_START}[\\s\\S]*?${MANAGED_BLOCK_END}`, "m");
+  if (pattern.test(existing)) {
+    return existing.replace(pattern, block);
+  }
+
+  const trimmed = existing.trimEnd();
+  if (!trimmed) {
+    return `${block}\n`;
+  }
+
+  return `${trimmed}\n\n${block}\n`;
+}
+
+async function writeAgentsFile(repoRoot, launcherName) {
+  const agentsPath = path.join(repoRoot, "AGENTS.md");
+  if (!(await pathExists(agentsPath))) {
+    const sourceAgents = await readText(path.join(protocolRoot, "AGENTS.md"));
+    await writeText(agentsPath, sourceAgents);
+    return;
+  }
+
+  const existing = await readText(agentsPath, "");
+  await writeText(agentsPath, upsertManagedBlock(existing, renderManagedAgentsBlock(launcherName)));
+}
+
+async function chooseLauncherName(repoRoot) {
+  for (const name of ["codex-composer", "composer-next"]) {
+    const filePath = path.join(repoRoot, name);
+    if (!(await pathExists(filePath))) {
+      return name;
+    }
+
+    const content = await readText(filePath, "");
+    if (content.includes(MANAGED_LAUNCHER_MARKER)) {
+      return name;
+    }
+  }
+
+  throw new Error("Target already contains both codex-composer and composer-next; unable to install launcher safely");
+}
+
+function renderLauncherScript(launcherName) {
+  return `#!/usr/bin/env bash
+${MANAGED_LAUNCHER_MARKER}
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+node "$ROOT_DIR/.codex-composer/protocol/tools/composer.mjs" "$@"
+`;
+}
+
+async function writeLauncher(repoRoot) {
+  const launcherName = await chooseLauncherName(repoRoot);
+  const launcherPath = path.join(repoRoot, launcherName);
+  await writeText(launcherPath, renderLauncherScript(launcherName));
+  await fs.chmod(launcherPath, 0o755);
+  return launcherName;
+}
+
 export async function bootstrapProtocolRepo({ repoRoot, template = "existing", codexBinary = "codex" }) {
   if (!["existing", "empty", "react-go-minimal"].includes(template)) {
     throw new Error(`Unsupported template: ${template}`);
@@ -374,14 +438,17 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "existing", c
   await ensureDir(repoRoot);
   const initializedGit = await ensureGitRepository(repoRoot, "main");
   const facts = await collectBootstrapFacts(repoRoot, template);
+  const stateRoot = path.join(repoRoot, ".codex-composer");
+  const protocolTargetRoot = path.join(stateRoot, "protocol");
 
-  await copyBundle(repoRoot);
-  await ensureExecutableBits(repoRoot);
+  await copyBundle(protocolTargetRoot);
+  await ensureExecutableBits(protocolTargetRoot);
 
-  const configPath = path.join(repoRoot, ".codex-composer.toml");
+  const configPath = path.join(stateRoot, "config.toml");
   if (await pathExists(configPath)) {
     throw new Error(`Target already contains ${configPath}`);
   }
+  await ensureDir(path.dirname(configPath));
   await writeText(configPath, templateConfig({
     template,
     codexBinary,
@@ -389,12 +456,16 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "existing", c
     layout: facts.layout
   }));
   await writeTemplateFiles(repoRoot, template);
-  await ensureGitIgnoreEntry(repoRoot, ".codex-composer/");
-  await ensureGitExcludeEntry(repoRoot, ".codex-composer/");
+  await ensureDir(path.join(stateRoot, "runs"));
+  await ensureDir(path.join(stateRoot, "worktrees"));
+  await ensureRuntimeIgnoreEntries(repoRoot);
+  const launcherName = await writeLauncher(repoRoot);
+  await writeAgentsFile(repoRoot, launcherName);
 
   return {
     repoRoot,
     template,
-    initializedGit
+    initializedGit,
+    launcher: launcherName
   };
 }

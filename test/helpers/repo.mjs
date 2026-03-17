@@ -67,7 +67,8 @@ export async function writeDefaultRepoFiles(repoRoot, { includeAuthCore = true }
   }
 }
 
-export async function writeConfig(repoRoot) {
+export async function writeConfig(repoRoot, options = {}) {
+  const { hybrid = false } = options;
   const config = `[project]
 main_branch = "main"
 branch_prefix = "codex/"
@@ -115,8 +116,12 @@ action = "deny"
 when_component = "auth-core"
 reason = "auth-core work must be serialized."
 `;
-  await fs.writeFile(path.join(repoRoot, ".codex-composer.toml"), config, "utf8");
-  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/\n", "utf8");
+  const configPath = hybrid
+    ? path.join(repoRoot, ".codex-composer", "config.toml")
+    : path.join(repoRoot, ".codex-composer.toml");
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, config, "utf8");
+  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/runs/\n.codex-composer/worktrees/\n", "utf8");
 }
 
 export async function initialCommit(repoRoot) {
@@ -217,6 +222,23 @@ export async function runRepoTool(repoRoot, args, options = {}) {
     ...options.env
   };
   return run("node", [path.join(repoRoot, "tools", "composer.mjs"), ...args], {
+    cwd: repoRoot,
+    env,
+    allowFailure: options.allowFailure ?? false
+  });
+}
+
+export async function runRepoLauncher(repoRoot, args, options = {}) {
+  const env = {
+    ...process.env,
+    ...options.env
+  };
+  const launcherPath = await fs.access(path.join(repoRoot, "codex-composer")).then(() => path.join(repoRoot, "codex-composer")).catch(async () => {
+    await fs.access(path.join(repoRoot, "composer-next"));
+    return path.join(repoRoot, "composer-next");
+  });
+
+  return run(launcherPath, args, {
     cwd: repoRoot,
     env,
     allowFailure: options.allowFailure ?? false

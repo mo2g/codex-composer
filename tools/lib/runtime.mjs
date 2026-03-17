@@ -39,7 +39,18 @@ const DEFAULT_CONFIG = {
 
 export const sourceProtocolRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const protocolRoot = sourceProtocolRoot;
-const PROTOCOL_REQUIRED_ENTRIES = ["AGENTS.md", "prompts", "skills", "schemas", "scripts", "tools"];
+const PROTOCOL_REQUIRED_ENTRIES = ["prompts", "skills", "schemas", "tools"];
+const HYBRID_PROTOCOL_ROOT = [".codex-composer", "protocol"];
+const HYBRID_CONFIG_PATH = [".codex-composer", "config.toml"];
+const FALLBACK_CONFIG = ".codex-composer.toml";
+const RUNTIME_IGNORE_ENTRIES = [".codex-composer/runs/", ".codex-composer/worktrees/"];
+
+async function hasProtocolEntries(root) {
+  const checks = await Promise.all(
+    PROTOCOL_REQUIRED_ENTRIES.map((entry) => pathExists(path.join(root, entry)))
+  );
+  return checks.every(Boolean);
+}
 
 function deepMerge(base, override) {
   if (Array.isArray(base) || Array.isArray(override)) {
@@ -62,29 +73,75 @@ export async function resolveRepoRoot(repoArg) {
 }
 
 export async function resolveProtocolRoot(repoRoot) {
-  const checks = await Promise.all(
-    PROTOCOL_REQUIRED_ENTRIES.map((entry) => pathExists(path.join(repoRoot, entry)))
-  );
+  const hybridRoot = path.join(repoRoot, ...HYBRID_PROTOCOL_ROOT);
+  if (await hasProtocolEntries(hybridRoot)) {
+    return hybridRoot;
+  }
 
-  if (checks.every(Boolean)) {
+  if (await hasProtocolEntries(repoRoot)) {
     return repoRoot;
   }
 
   return sourceProtocolRoot;
 }
 
+export async function resolveConfigPath(repoRoot) {
+  const hybridConfig = path.join(repoRoot, ...HYBRID_CONFIG_PATH);
+  if (await pathExists(hybridConfig)) {
+    return hybridConfig;
+  }
+
+  return path.join(repoRoot, FALLBACK_CONFIG);
+}
+
 export async function resolveProtocolPaths(repoRoot) {
   const root = await resolveProtocolRoot(repoRoot);
+  const agents = await pathExists(path.join(repoRoot, "AGENTS.md"))
+    ? path.join(repoRoot, "AGENTS.md")
+    : path.join(sourceProtocolRoot, "AGENTS.md");
+  const mode = root === sourceProtocolRoot
+    ? "source"
+    : root === repoRoot
+      ? "flat"
+      : "hybrid";
+
   return {
     root,
-    agents: path.join(root, "AGENTS.md"),
+    mode,
+    agents,
     promptsDir: path.join(root, "prompts"),
     skillsDir: path.join(root, "skills"),
     schemasDir: path.join(root, "schemas"),
-    scriptsDir: path.join(root, "scripts"),
     toolsDir: path.join(root, "tools"),
-    composerTool: path.join(root, "tools", "composer.mjs")
+    composerTool: path.join(root, "tools", "composer.mjs"),
+    configPath: await resolveConfigPath(repoRoot)
   };
+}
+
+export async function resolvePublicInterface(repoRoot) {
+  for (const launcher of ["codex-composer", "composer-next"]) {
+    if (await pathExists(path.join(repoRoot, launcher))) {
+      return {
+        type: "launcher",
+        launcher,
+        commandPrefix: `./${launcher}`
+      };
+    }
+  }
+
+  return {
+    type: "scripts",
+    launcher: null,
+    commandPrefix: "./scripts"
+  };
+}
+
+export async function publicCommand(repoRoot, subcommand) {
+  const ui = await resolvePublicInterface(repoRoot);
+  if (ui.type === "launcher") {
+    return `${ui.commandPrefix} ${subcommand}`;
+  }
+  return `./scripts/composer-${subcommand}.sh`;
 }
 
 export function runPaths(repoRoot, runId) {
@@ -110,7 +167,7 @@ export function runPaths(repoRoot, runId) {
 }
 
 export async function loadConfig(repoRoot) {
-  const configPath = path.join(repoRoot, ".codex-composer.toml");
+  const configPath = await resolveConfigPath(repoRoot);
   const raw = await readText(configPath, "");
   const parsed = raw ? parseToml(raw) : {};
   const merged = deepMerge(DEFAULT_CONFIG, parsed);
@@ -142,6 +199,10 @@ function initialTaskState(runId, role) {
     launch_strategy: role === "a" ? "current_thread" : "manual_thread",
     status: "pending",
     commit: null,
+    commit_sha: null,
+    commit_message: null,
+    changed_files: [],
+    committed_at: null,
     last_run_at: null
   };
 }
@@ -207,8 +268,13 @@ export async function loadStatus(repoRoot, runId) {
     marker: `CC:${runId}:control`
   };
   status.tasks ||= {};
-  status.tasks.a ||= initialTaskState(runId, "a");
-  status.tasks.b ||= initialTaskState(runId, "b");
+  status.tasks.a = { ...initialTaskState(runId, "a"), ...status.tasks.a };
+  status.tasks.b = { ...initialTaskState(runId, "b"), ...status.tasks.b };
+  for (const taskId of ["a", "b"]) {
+    if (!status.tasks[taskId].commit_sha && status.tasks[taskId].commit) {
+      status.tasks[taskId].commit_sha = status.tasks[taskId].commit;
+    }
+  }
   status.verification ||= {};
   status.verification.a ||= { status: "pending", report: null };
   status.verification.b ||= { status: "pending", report: null };
@@ -246,8 +312,7 @@ export async function createRun(repoRoot, runId, requirement) {
   ]);
 
   const status = initialStatus(repoRoot, runId);
-  await ensureGitExcludeEntry(repoRoot, ".codex-composer/");
-  await ensureGitIgnoreEntry(repoRoot, ".codex-composer/");
+  await ensureRuntimeIgnoreEntries(repoRoot);
 
   await writeText(paths.requirements, `${requirement.trim()}\n`);
   await writeText(paths.clarifications, "# Clarifications\n\n- Pending checkpoint 1.\n");
@@ -284,6 +349,32 @@ async function ensureGitIgnoreEntry(repoRoot, entry) {
 
   const suffix = existing.endsWith("\n") || existing.length === 0 ? "" : "\n";
   await writeText(ignorePath, `${existing}${suffix}${entry}\n`);
+}
+
+async function removeIgnoreEntry(filePath, entry) {
+  if (!(await pathExists(filePath))) {
+    return;
+  }
+
+  const existing = await readText(filePath, "");
+  const filtered = existing
+    .split(/\r?\n/)
+    .filter((line) => line !== entry);
+  const normalized = filtered.join("\n").replace(/\n+$/u, "");
+  await writeText(filePath, normalized ? `${normalized}\n` : "");
+}
+
+export async function ensureRuntimeIgnoreEntries(repoRoot) {
+  const excludePath = path.join(repoRoot, ".git", "info", "exclude");
+  const ignorePath = path.join(repoRoot, ".gitignore");
+
+  await removeIgnoreEntry(ignorePath, ".codex-composer/");
+  await removeIgnoreEntry(excludePath, ".codex-composer/");
+
+  for (const entry of RUNTIME_IGNORE_ENTRIES) {
+    await ensureGitIgnoreEntry(repoRoot, entry);
+    await ensureGitExcludeEntry(repoRoot, entry);
+  }
 }
 
 export function validatePlan(plan) {
@@ -614,6 +705,7 @@ export async function renderControlPrompt(repoRoot, runId, checkpoint) {
     : path.join(protocol.promptsDir, "integrator-reviewer.md");
   const template = await readText(templatePath);
   const promptPath = path.join(paths.logsDir, `control-${checkpoint}.md`);
+  const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
   const content = `# Codex Composer Control Session
 
 - run_id: ${runId}
@@ -637,7 +729,7 @@ ${template}
 
 When the user makes a decision, persist it with:
 
-- ${path.join(protocol.scriptsDir, "composer-checkpoint.sh")} --run ${runId} --checkpoint ${checkpoint} --decision <decision> [--mode <serial|parallel_ab>] [--note "<summary>"]
+- ${checkpointCommand} --run ${runId} --checkpoint ${checkpoint} --decision <decision> [--mode <serial|parallel_ab>] [--note "<summary>"]
   `;
   await writeText(promptPath, content);
   return promptPath;
@@ -687,6 +779,8 @@ export async function renderTaskPrompt(repoRoot, runId, taskId, plan) {
   }
 
   const promptPath = path.join(paths.tasksDir, `${taskId}.md`);
+  const verifyCommand = await publicCommand(repoRoot, "verify");
+  const commitCommand = await publicCommand(repoRoot, "commit");
   const content = `# Task ${taskId.toUpperCase()}
 
 - run_id: ${runId}
@@ -707,7 +801,12 @@ Read:
 3. ${paths.planMd}
 4. ${paths.status}
 
-Stay inside the task boundary. After implementation, run verification and commit from the repository scripts. Do not merge branches from this prompt.
+Stay inside the task boundary. After implementation, run:
+
+- ${verifyCommand} --run ${runId} --target ${taskId}
+- ${commitCommand} --run ${runId} --task ${taskId}
+
+Do not merge branches from this prompt.
   `;
   await writeText(promptPath, content);
   return promptPath;
@@ -805,6 +904,10 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
       status.current_checkpoint = "merge-review";
       status.tasks.a.status = "needs-rework";
       status.tasks.a.commit = null;
+      status.tasks.a.commit_sha = null;
+      status.tasks.a.commit_message = null;
+      status.tasks.a.changed_files = [];
+      status.tasks.a.committed_at = null;
       status.verification.a.status = "pending";
       status.verification.a.report = null;
     } else if (decision === "return_b") {
@@ -812,6 +915,10 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
       status.current_checkpoint = "merge-review";
       status.tasks.b.status = "needs-rework";
       status.tasks.b.commit = null;
+      status.tasks.b.commit_sha = null;
+      status.tasks.b.commit_message = null;
+      status.tasks.b.changed_files = [];
+      status.tasks.b.committed_at = null;
       status.verification.b.status = "pending";
       status.verification.b.report = null;
     } else if (decision === "hold_merge" || decision === "hold_publish") {
@@ -973,9 +1080,15 @@ export async function commitTask(repoRoot, runId, taskId, message = null) {
   const taskPlan = taskById(plan, taskId);
   const commitMessage = message || `feat(${taskId}): ${taskPlan?.title ?? `complete task ${taskId}`}`;
   await git(task.worktree, ["add", "-A"]);
+  const changedFilesResult = await git(task.worktree, ["diff", "--cached", "--name-only"], { allowFailure: true });
+  const changedFiles = changedFilesResult.stdout.trim().split(/\r?\n/).filter(Boolean);
   await git(task.worktree, ["commit", "-m", commitMessage]);
   const head = await git(task.worktree, ["rev-parse", "HEAD"]);
   task.commit = head.stdout.trim();
+  task.commit_sha = task.commit;
+  task.commit_message = commitMessage;
+  task.changed_files = changedFiles;
+  task.committed_at = isoNow();
   task.status = "committed";
   advanceMergeReviewIfReady(status);
   await saveStatus(repoRoot, runId, status);
@@ -985,9 +1098,7 @@ export async function commitTask(repoRoot, runId, taskId, message = null) {
 export async function generateSummary(repoRoot, runId) {
   const status = await loadStatus(repoRoot, runId);
   const paths = runPaths(repoRoot, runId);
-  const config = await loadConfig(repoRoot);
-  const mainBranch = config.project.main_branch;
-  const branchSummaries = [];
+  const taskSummaries = [];
 
   for (const taskId of ["a", "b"]) {
     const task = status.tasks[taskId];
@@ -995,11 +1106,13 @@ export async function generateSummary(repoRoot, runId) {
       continue;
     }
 
-    const diff = await git(repoRoot, ["diff", "--name-only", `${mainBranch}...${task.branch}`], { allowFailure: true });
-    branchSummaries.push({
+    taskSummaries.push({
       task: taskId,
       branch: task.branch,
-      files: diff.stdout.trim().split(/\r?\n/).filter(Boolean)
+      commit_sha: task.commit_sha ?? task.commit ?? null,
+      commit_message: task.commit_message ?? null,
+      committed_at: task.committed_at ?? null,
+      files: Array.isArray(task.changed_files) ? task.changed_files : []
     });
   }
 
@@ -1013,9 +1126,9 @@ export async function generateSummary(repoRoot, runId) {
 
 ${status.decisions.map((entry) => `- ${entry.at}: ${entry.checkpoint} -> ${entry.decision}${entry.mode ? ` (${entry.mode})` : ""}`).join("\n") || "- none"}
 
-## Branch Deltas
+## Task Snapshots
 
-${branchSummaries.map((entry) => `### ${entry.task.toUpperCase()} (${entry.branch})\n${entry.files.map((file) => `- ${file}`).join("\n") || "- no diff detected"}`).join("\n\n") || "No branch deltas yet."}
+${taskSummaries.map((entry) => `### ${entry.task.toUpperCase()} (${entry.branch})\n- commit_sha: ${entry.commit_sha ?? "pending"}\n- commit_message: ${entry.commit_message ?? "pending"}\n- committed_at: ${entry.committed_at ?? "pending"}\n- changed_files:\n${entry.files.map((file) => `  - ${file}`).join("\n") || "  - no files captured"}`).join("\n\n") || "No committed task snapshots yet."}
 
 ## Verification
 
@@ -1035,7 +1148,7 @@ Run: ${runId}
 
 ## What Changed
 
-${branchSummaries.map((entry) => `- ${entry.task.toUpperCase()}: ${entry.files.join(", ") || "no diff detected"}`).join("\n") || "- pending"}
+${taskSummaries.map((entry) => `- ${entry.task.toUpperCase()} (${entry.branch} @ ${entry.commit_sha ?? "pending"}): ${entry.files.join(", ") || "no files captured"}`).join("\n") || "- pending"}
 
 ## Verification
 

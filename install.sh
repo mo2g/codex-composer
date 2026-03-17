@@ -14,7 +14,7 @@ Usage: install.sh [--repo <path>] [--template existing|empty|react-go-minimal] [
 
 Examples:
   bash install.sh --repo . --template existing
-  curl -fsSL https://raw.githubusercontent.com/<owner>/codex-composer/main/install.sh | bash -s -- --repo . --template existing
+  curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 EOF
 }
 
@@ -83,11 +83,9 @@ download_source() {
 }
 
 if [[ -z "$SOURCE_DIR" ]]; then
-  if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [[ -f "$SCRIPT_DIR/tools/composer.mjs" ]]; then
-      SOURCE_DIR="$SCRIPT_DIR"
-    fi
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [[ -f "$SCRIPT_DIR/tools/composer.mjs" ]]; then
+    SOURCE_DIR="$SCRIPT_DIR"
   fi
 fi
 

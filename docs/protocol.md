@@ -7,14 +7,26 @@ Codex Composer treats Codex as a planning and implementation engine, not as an a
 Preferred path:
 
 1. Open the target repository in Codex.
-2. Bootstrap the protocol files into that repository.
+2. Install Codex Composer into that repository.
 3. Stay in the current Codex thread for `clarify` and `plan-review`.
 
 Example bootstrap:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/codex-composer/main/install.sh | bash -s -- --repo . --template existing
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 ```
+
+## Hybrid Layout
+
+Installed repositories keep only three top-level protocol affordances:
+
+- `AGENTS.md`
+- `./codex-composer`
+- `.codex-composer/`
+
+Managed protocol content lives under `.codex-composer/protocol/`. Runtime state lives under `.codex-composer/runs/` and `.codex-composer/worktrees/`.
+
+The source repository keeps its flat layout for maintenance and tests. Runtime resolution prefers the installed hybrid layout and falls back to the flat source layout for compatibility.
 
 ## Run Layout
 
@@ -30,8 +42,10 @@ Each run lives in `.codex-composer/runs/<run-id>/`.
 - `tasks/`: per-task prompt material
 - `verify/`: hook results
 - `logs/`: raw Codex command output
+- `SUMMARY.md`: handoff summary generated from commit snapshots
+- `PR_BODY.md`: PR draft generated from commit snapshots
 
-New runs automatically add `.codex-composer/` to `.gitignore` and `.git/info/exclude`.
+The installer and runtime ignore only `.codex-composer/runs/` and `.codex-composer/worktrees/`, not the entire `.codex-composer/` directory.
 
 ## Current-Thread Control
 
@@ -42,12 +56,12 @@ The current Codex thread is the control/planner thread by default. That thread i
 - recording plan approval or re-plan requests
 - reviewing merge readiness after A/B verification and commit
 
-`composer-chat-control.sh` still exists, but it is fallback-only.
+`composer-chat-control` still exists in the source repository, but it is fallback-only.
 
 ## Execution Model
 
 - `A`: the current repository root and current Codex thread
-- `B`: an optional git worktree created by `composer-split.sh`
+- `B`: an optional git worktree created by `split`
 
 If the user approves `parallel_ab`, Codex Composer creates only the `B` worktree. The user then opens a separate Codex thread manually in that worktree.
 
@@ -62,16 +76,27 @@ The planner may recommend `parallel_ab`, but the final mode remains pending unti
 
 ## Verification And Commit
 
-Verification is always explicit. `composer-verify.sh` runs the configured shell hooks for task `a`, task `b`, or `main`.
+Verification is always explicit. `verify` runs the configured shell hooks for task `a`, task `b`, or `main`.
 
-`composer-commit.sh` only succeeds after the corresponding task verification passes.
+`commit` only succeeds after the corresponding task verification passes. At commit time, Codex Composer stores task snapshots in `status.json`:
 
-## Merge Review
+- `commit_sha`
+- `commit_message`
+- `changed_files`
+- `committed_at`
 
-Codex Composer does not merge branches automatically in the main MVP path. Instead:
+`summarize` uses those snapshots instead of recomputing branch diffs after merge.
 
-1. A and B finish implementation.
-2. A and B each pass verification.
-3. A and B are committed.
-4. The current Codex thread uses the integrator-reviewer prompt/skill to decide whether the run is ready for a manual merge.
-5. The user merges manually, then runs `composer-verify.sh --target main`.
+## `next` As Main Entry
+
+`next` is the recommended command for guiding the user through the workflow:
+
+- `clarify` / `clarified`: prints what to edit and which commands to run
+- `plan-review`: prints the approval commands
+- `plan-approved`: runs `split`, then prints updated status
+- `execute`: prints A/B worktree and verify/commit guidance
+- `merge-review`: prints the merge-readiness checklist
+- `ready-to-merge`: prints the manual merge checklist
+- `completed`: prints summary and PR body paths
+
+`next` does not auto-decide checkpoints, verify, commit, or merge.

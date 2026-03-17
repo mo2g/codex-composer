@@ -1,13 +1,13 @@
 # Codex Composer
 
-Codex Composer is a protocol-first workflow for using Codex inside an existing repository. The default MVP keeps planning in the current Codex thread, uses skills and prompts for consistency, and only creates an optional `B` worktree when the user explicitly approves a parallel split.
+Codex Composer is a protocol-first workflow for using Codex inside an existing repository. The MVP keeps planning in the current Codex thread, uses explicit checkpoints, and only creates an optional `B` worktree when the user approves a parallel split.
 
-## What The MVP Optimizes For
+## What It Optimizes For
 
-- existing repositories, not greenfield demos only
+- existing repositories, not only demos
 - the current Codex thread as planner/control
 - optional `A/B` parallel work without subagents
-- explicit verification and commit gates
+- explicit verify and commit gates
 - manual merge, never hidden auto-merge
 
 ## Install Into An Existing Repository
@@ -15,88 +15,116 @@ Codex Composer is a protocol-first workflow for using Codex inside an existing r
 From the target repository root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/codex-composer/main/install.sh | bash -s -- --repo . --template existing
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 ```
 
-During local development of this repository, the same bootstrap works without GitHub:
+For local development of this repository:
 
 ```bash
 bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template existing --source /path/to/codex-composer
 ```
 
-## Main Flow
+The installed layout is:
 
-1. In the target repo, create a run:
+- root `AGENTS.md`
+- root launcher `./codex-composer`
+- hidden `.codex-composer/`
+  - `protocol/`
+  - `runs/`
+  - `worktrees/`
+  - `config.toml`
 
-```bash
-./scripts/composer-start.sh --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
-```
+If the target repository already has a `codex-composer` file, the installer falls back to `./composer-next`.
 
-2. Stay in the current Codex thread and use the planner guidance from:
-   - `AGENTS.md`
-   - `skills/planner/SKILL.md`
-
-3. Record clarify and plan-review decisions with:
-
-```bash
-./scripts/composer-checkpoint.sh --run login --checkpoint clarify --decision clarified --note "..."
-./scripts/composer-plan.sh --run login
-./scripts/composer-checkpoint.sh --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
-```
-
-4. Prepare execution:
+## Happy Path
 
 ```bash
-./scripts/composer-split.sh --run login
-./scripts/composer-status.sh --run login
+./codex-composer start --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+./codex-composer next --run login
 ```
 
-5. Execution model:
-   - `A`: keep working in the current repository and current Codex thread.
-   - `B`: if enabled, open a new Codex thread manually in the printed `B` worktree path.
+Then stay in the current Codex thread:
 
-6. After each task is implemented:
+1. Read `AGENTS.md` and `.codex-composer/protocol/skills/planner/SKILL.md`.
+2. Update `.codex-composer/runs/login/clarifications.md`.
+3. Record decisions and advance the run with the launcher:
 
 ```bash
-./scripts/composer-verify.sh --run login --target a
-./scripts/composer-commit.sh --run login --task a
-./scripts/composer-verify.sh --run login --target b
-./scripts/composer-commit.sh --run login --task b
+./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
+./codex-composer plan --run login
+./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
+./codex-composer next --run login
 ```
 
-7. When status reaches `merge-review`, use `skills/integrator-reviewer/SKILL.md` in the current thread, then record:
+After `next` performs the approved split:
+
+- `A` stays in the current repository and current Codex thread.
+- `B` is an optional worktree under `.codex-composer/worktrees/<run-id>/b`; open a new Codex thread there manually.
+
+When each task is ready:
 
 ```bash
-./scripts/composer-checkpoint.sh --run login --checkpoint merge-review --decision allow_manual_merge
+./codex-composer verify --run login --target a
+./codex-composer commit --run login --task a
+./codex-composer verify --run login --target b
+./codex-composer commit --run login --task b
 ```
 
-8. Merge branches manually, then verify main and generate the handoff text:
+When status reaches `merge-review`, use `.codex-composer/protocol/skills/integrator-reviewer/SKILL.md` in the current thread, then record:
 
 ```bash
-./scripts/composer-verify.sh --run login --target main
-./scripts/composer-summarize.sh --run login
+./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
 ```
 
-## Key Scripts
+Merge branches manually, then finish with:
 
-- `install.sh`: one-command bootstrap into an existing repository
-- `scripts/composer-start.sh`: create a run and print the current-thread planner instructions
-- `scripts/composer-plan.sh`: generate `plan.json` and `PLAN.md`
-- `scripts/composer-split.sh`: keep the current repo as `A`, and create `B` worktree only when needed
-- `scripts/composer-status.sh`: print the next step, worktree paths, task prompt paths, and verify/commit status
-- `scripts/composer-verify.sh`: run explicit verification hooks
-- `scripts/composer-commit.sh`: commit only after verification passes
-- `scripts/composer-summarize.sh`: generate `SUMMARY.md` and `PR_BODY.md`
+```bash
+./codex-composer verify --run login --target main
+./codex-composer summarize --run login
+```
+
+## Main Commands
+
+- `./codex-composer start`
+- `./codex-composer next`
+- `./codex-composer plan`
+- `./codex-composer checkpoint`
+- `./codex-composer split`
+- `./codex-composer status`
+- `./codex-composer verify`
+- `./codex-composer commit`
+- `./codex-composer summarize`
+
+## What `next` Does
+
+- `clarify` / `clarified`: prints what to edit and which checkpoint/plan command to run
+- `plan-review`: prints the approval commands
+- `plan-approved`: runs `split` automatically, then prints the new status
+- `execute`: prints A/B worktree locations and verify/commit commands
+- `merge-review`: prints the merge-readiness checklist
+- `ready-to-merge`: prints the manual merge checklist plus `verify main` / `summarize`
+- `completed`: prints the summary and PR body paths
+
+## Summary Snapshots
+
+`commit` stores task snapshots in `status.json`:
+
+- `commit_sha`
+- `commit_message`
+- `changed_files`
+- `committed_at`
+
+`SUMMARY.md` and `PR_BODY.md` are generated from those snapshots, so they remain useful even after the user has already merged A and B back to `main`.
 
 ## Compatibility Helpers
 
-These remain available but are not the primary path:
+These still exist in the source repository for compatibility and testing, but they are not the recommended onboarding path:
 
 - `scripts/composer-chat-control.sh`
 - `scripts/composer-run-task.sh`
 - `scripts/composer-integrate.sh`
 
-## Documents
+## Docs
 
 - `docs/new-project.md`
 - `docs/protocol.md`

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
+import fs from "node:fs/promises";
 import path from "node:path";
 import { bootstrapProtocolRepo } from "./lib/bootstrap.mjs";
-import { createRun, loadConfig, resolveRepoRoot, runPaths, renderControlPrompt, loadStatus, bindSession, renderPlanRequest, validatePlan, evaluateParallelPolicy, writePlanArtifacts, updateStatusForPlan, recordCheckpoint, resolveProtocolPaths, saveStatus, git, ensureCleanWorktree, currentBranch, sanitizeBranchFragment, branchExists, renderTaskPrompt, runCodexInteractive, runCodexExec, runHooks, commitTask, generateSummary } from "./lib/runtime.mjs";
+import { createRun, loadConfig, resolveRepoRoot, runPaths, renderControlPrompt, loadStatus, bindSession, renderPlanRequest, validatePlan, evaluateParallelPolicy, writePlanArtifacts, updateStatusForPlan, recordCheckpoint, resolveProtocolPaths, saveStatus, git, ensureCleanWorktree, currentBranch, sanitizeBranchFragment, branchExists, renderTaskPrompt, runCodexInteractive, runCodexExec, runHooks, commitTask, generateSummary, publicCommand } from "./lib/runtime.mjs";
 import { readJson, pathExists } from "./lib/fs.mjs";
 
 function parseArgs(argv) {
@@ -66,37 +67,45 @@ function taskSummaryLines(repoRoot, runId, taskId, taskState) {
   return lines;
 }
 
-function recommendedNextSteps(repoRoot, runId, status) {
+async function recommendedNextSteps(repoRoot, runId, status) {
+  const protocol = await resolveProtocolPaths(repoRoot);
+  const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
+  const planCommand = await publicCommand(repoRoot, "plan");
+  const splitCommand = await publicCommand(repoRoot, "split");
+  const verifyCommand = await publicCommand(repoRoot, "verify");
+  const commitCommand = await publicCommand(repoRoot, "commit");
+  const summarizeCommand = await publicCommand(repoRoot, "summarize");
+
   switch (status.phase) {
     case "clarify":
     case "clarified":
       return [
         "Stay in the current Codex thread. This thread is the planner/control thread.",
-        `Read AGENTS.md and skills/planner/SKILL.md, then update ${runPaths(repoRoot, runId).clarifications}.`,
-        `Record clarify with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
-        `Generate the plan with ./scripts/composer-plan.sh --run ${runId}.`
+        `Read AGENTS.md and ${path.join(protocol.skillsDir, "planner", "SKILL.md")}, then update ${runPaths(repoRoot, runId).clarifications}.`,
+        `Record clarify with ${checkpointCommand} --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
+        `Generate the plan with ${planCommand} --run ${runId}.`
       ];
     case "plan-review":
       return [
         "Stay in the current Codex thread and review PLAN.md with the planner skill.",
-        `Choose parallel or serial with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint plan-review --decision approve_parallel --mode parallel_ab`,
-        `Or keep it serial with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint plan-review --decision force_serial --mode serial`,
-        `If the requirement changed, record needs_replan and rerun ./scripts/composer-plan.sh --run ${runId}.`
+        `Choose parallel or serial with ${checkpointCommand} --run ${runId} --checkpoint plan-review --decision approve_parallel --mode parallel_ab`,
+        `Or keep it serial with ${checkpointCommand} --run ${runId} --checkpoint plan-review --decision force_serial --mode serial`,
+        `If the requirement changed, record needs_replan and rerun ${planCommand} --run ${runId}.`
       ];
     case "plan-approved":
       return [
-        `Run ./scripts/composer-split.sh --run ${runId}.`,
+        `${splitCommand} --run ${runId} will prepare task A in the current repo and create the optional B worktree.`,
         "After split, continue task A in the current repo. If B is enabled, open a new Codex thread in the B worktree."
       ];
     case "execute": {
       const steps = [];
       if (status.tasks.a.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.a.status)) {
         steps.push(`Continue task A in the current Codex thread at ${status.tasks.a.worktree ?? repoRoot} and use ${promptPathForTask(repoRoot, runId, "a")}.`);
-        steps.push(`When task A is ready, run ./scripts/composer-verify.sh --run ${runId} --target a and then ./scripts/composer-commit.sh --run ${runId} --task a.`);
+        steps.push(`When task A is ready, run ${verifyCommand} --run ${runId} --target a and then ${commitCommand} --run ${runId} --task a.`);
       }
       if (status.tasks.b.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.b.status)) {
         steps.push(`Open a new Codex thread in ${status.tasks.b.worktree ?? "<pending split>"} for task B and use ${promptPathForTask(repoRoot, runId, "b")}.`);
-        steps.push(`When task B is ready, run ./scripts/composer-verify.sh --run ${runId} --target b and then ./scripts/composer-commit.sh --run ${runId} --task b.`);
+        steps.push(`When task B is ready, run ${verifyCommand} --run ${runId} --target b and then ${commitCommand} --run ${runId} --task b.`);
       }
       if (steps.length > 0) {
         return steps;
@@ -105,24 +114,28 @@ function recommendedNextSteps(repoRoot, runId, status) {
     }
     case "merge-review":
       return [
-        "Return to the current Codex thread and use the integrator-reviewer skill to inspect status.json and verify reports.",
-        `If merge-ready, record ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint merge-review --decision allow_manual_merge.`,
-        `If a task needs more work, record ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint merge-review --decision return_a|return_b.`
+        "Return to the current Codex thread and use the integrator-reviewer skill to inspect status.json, verify reports, and committed task snapshots.",
+        `If merge-ready, record ${checkpointCommand} --run ${runId} --checkpoint merge-review --decision allow_manual_merge.`,
+        `If a task needs more work, record ${checkpointCommand} --run ${runId} --checkpoint merge-review --decision return_a|return_b.`
       ];
     case "ready-to-merge":
       return [
         "Manually merge the verified task branches into your chosen integration target or main branch.",
-        `After merging to main, run ./scripts/composer-verify.sh --run ${runId} --target main.`,
-        `Generate handoff text with ./scripts/composer-summarize.sh --run ${runId}.`
+        `After merging to main, run ${verifyCommand} --run ${runId} --target main.`,
+        `Generate handoff text with ${summarizeCommand} --run ${runId}.`
       ];
     case "completed":
-      return [`Run ./scripts/composer-summarize.sh --run ${runId} if SUMMARY.md or PR_BODY.md need regeneration.`];
+      return [
+        `Summary: ${runPaths(repoRoot, runId).summary}`,
+        `PR body: ${runPaths(repoRoot, runId).prBody}`,
+        `Run ${summarizeCommand} --run ${runId} if SUMMARY.md or PR_BODY.md need regeneration.`
+      ];
     default:
       return ["Inspect status.json and continue from the latest approved checkpoint."];
   }
 }
 
-function renderStatusOutput(repoRoot, runId, status) {
+async function renderStatusOutput(repoRoot, runId, status) {
   const lines = [
     `run_id: ${runId}`,
     `repo_root: ${repoRoot}`,
@@ -149,11 +162,47 @@ function renderStatusOutput(repoRoot, runId, status) {
     "next_steps:"
   );
 
-  for (const step of recommendedNextSteps(repoRoot, runId, status)) {
+  for (const step of await recommendedNextSteps(repoRoot, runId, status)) {
     lines.push(`- ${step}`);
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+async function resolveRunIdForNext(repoRoot, explicitRunId = null) {
+  if (explicitRunId) {
+    return explicitRunId;
+  }
+
+  const startCommand = await publicCommand(repoRoot, "start");
+  const runsRoot = path.join(repoRoot, ".codex-composer", "runs");
+  if (!(await pathExists(runsRoot))) {
+    throw new Error(`No runs found. Start one first with ${startCommand} --run <id> --requirement "..."`);
+  }
+
+  const entries = await fs.readdir(runsRoot, { withFileTypes: true });
+  const unfinished = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const status = await readJson(path.join(runsRoot, entry.name, "status.json"));
+    if (status && status.phase !== "completed") {
+      unfinished.push(entry.name);
+    }
+  }
+
+  if (unfinished.length === 1) {
+    return unfinished[0];
+  }
+
+  if (unfinished.length === 0) {
+    throw new Error(`No unfinished runs found. Start a run with ${startCommand} --run <id> --requirement "..."`);
+  }
+
+  throw new Error(`Multiple unfinished runs found: ${unfinished.join(", ")}. Re-run with --run <id>.`);
 }
 
 async function commandNewRun(args) {
@@ -170,6 +219,10 @@ async function commandStart(args) {
   const requirement = requireArg(args, "requirement");
   await createRun(repoRoot, runId, requirement);
   const paths = runPaths(repoRoot, runId);
+  const protocol = await resolveProtocolPaths(repoRoot);
+  const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
+  const planCommand = await publicCommand(repoRoot, "plan");
+  const nextCommand = await publicCommand(repoRoot, "next");
 
   process.stdout.write([
     `run_id: ${runId}`,
@@ -178,10 +231,11 @@ async function commandStart(args) {
     "",
     "next_steps:",
     "- Stay in the current Codex thread. This thread is the planner/control thread.",
-    "- Read AGENTS.md and skills/planner/SKILL.md.",
+    `- Read AGENTS.md and ${path.join(protocol.skillsDir, "planner", "SKILL.md")}.`,
     `- Update ${paths.clarifications} with any missing acceptance criteria or constraints.`,
-    `- Record checkpoint 1 with ./scripts/composer-checkpoint.sh --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
-    `- Generate the plan with ./scripts/composer-plan.sh --run ${runId}.`
+    `- Record checkpoint 1 with ${checkpointCommand} --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
+    `- Generate the plan with ${planCommand} --run ${runId}.`,
+    `- Use ${nextCommand} --run ${runId} after each checkpoint for the recommended next step.`
   ].join("\n"));
   process.stdout.write("\n");
 }
@@ -193,7 +247,7 @@ async function commandInitRepo(args) {
     template: args.template ?? "existing",
     codexBinary: args.codex_binary ?? "codex"
   });
-  console.log(`${result.repoRoot}\ninitialized_git=${result.initializedGit}\ntemplate=${result.template}`);
+  console.log(`${result.repoRoot}\ninitialized_git=${result.initializedGit}\ntemplate=${result.template}\nlauncher=${result.launcher}`);
 }
 
 async function commandChatControl(args) {
@@ -361,7 +415,7 @@ async function commandSplit(args) {
   status.phase = "execute";
   status.current_checkpoint = "execute";
   await saveStatus(repoRoot, runId, status);
-  console.log(renderStatusOutput(repoRoot, runId, status));
+  process.stdout.write(await renderStatusOutput(repoRoot, runId, status));
 }
 
 async function commandRunTask(args) {
@@ -460,6 +514,8 @@ async function commandIntegrate(args) {
   const repoRoot = await resolveRepoRoot(args.repo);
   const runId = requireArg(args, "run");
   const status = await loadStatus(repoRoot, runId);
+  const verifyCommand = await publicCommand(repoRoot, "verify");
+  const summarizeCommand = await publicCommand(repoRoot, "summarize");
   const steps = [
     "composer-integrate.sh is now a compatibility helper.",
     "Preferred MVP flow: review merge readiness in the current Codex thread, then merge manually.",
@@ -471,8 +527,8 @@ async function commandIntegrate(args) {
     `1. git checkout ${status.plan.approved_mode === "parallel_ab" ? "main" : status.tasks.a.branch ?? "main"}`,
     status.tasks.a.branch ? `2. git merge --no-ff ${status.tasks.a.branch}` : "2. prepare task A first",
     status.tasks.b.enabled && status.tasks.b.branch ? `3. git merge --no-ff ${status.tasks.b.branch}` : "3. skip B or merge it manually if enabled",
-    `4. ./scripts/composer-verify.sh --run ${runId} --target main`,
-    `5. ./scripts/composer-summarize.sh --run ${runId}`
+    `4. ${verifyCommand} --run ${runId} --target main`,
+    `5. ${summarizeCommand} --run ${runId}`
   ];
 
   process.stdout.write(`${steps.join("\n")}\n`);
@@ -488,13 +544,31 @@ async function commandStatus(args) {
   const repoRoot = await resolveRepoRoot(args.repo);
   const runId = requireArg(args, "run");
   const status = await loadStatus(repoRoot, runId);
-  process.stdout.write(renderStatusOutput(repoRoot, runId, status));
+  process.stdout.write(await renderStatusOutput(repoRoot, runId, status));
+}
+
+async function commandNext(args) {
+  const repoRoot = await resolveRepoRoot(args.repo);
+  const runId = await resolveRunIdForNext(repoRoot, args.run ?? null);
+  const status = await loadStatus(repoRoot, runId);
+
+  if (status.phase === "plan-approved") {
+    await commandSplit({ repo: repoRoot, run: runId });
+    return;
+  }
+
+  if (status.phase === "completed" && args.refresh) {
+    await generateSummary(repoRoot, runId);
+  }
+
+  process.stdout.write(await renderStatusOutput(repoRoot, runId, await loadStatus(repoRoot, runId)));
 }
 
 const commands = {
   "init-repo": commandInitRepo,
   "new-run": commandNewRun,
   start: commandStart,
+  next: commandNext,
   "chat-control": commandChatControl,
   plan: commandPlan,
   checkpoint: commandCheckpoint,
