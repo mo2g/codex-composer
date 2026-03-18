@@ -1,79 +1,81 @@
+---
+name: planner
+description: Clarify and plan a Codex Composer run in the current Codex thread. Use this skill for clarify and plan-review work, serial vs parallel_ab recommendations, and exact next checkpoint commands without implementing code, approving the split for the user, or defaulting to subagents.
+---
+
 # Codex Composer Planner
 
-## Description / Scope
+## When to use
 
-Repo-native planning skill for Codex Composer. Use it in the current Codex thread when a raw request needs to become a clear `clarify` or `plan-review` outcome, when the user wants help choosing `serial` vs `parallel_ab`, or when scope changed enough to require a re-plan.
-
-## When To Use
-
-- a run has just been started and the user is still shaping the requirement
 - the run is in `clarify`, `clarified`, or `plan-review`
-- the user says things like "plan this", "clarify the requirement", "should this split into A and B?", or "scope changed, re-plan it"
-- the repository needs a judgment about whether `B` should exist as a separate worktree
-- the user needs exact next commands for `checkpoint`, `plan`, or `needs_replan`
+- the current Codex thread needs to turn a raw request into clear acceptance criteria, boundaries, risks, and non-goals
+- the user wants help deciding whether `serial` or `parallel_ab` is safe
+- scope changed enough that the run may need `needs_replan`
+- the user needs exact next commands for `checkpoint`, `plan`, or `next`
 
-## When Not To Use
+## When not to use
 
-- task `A` or `B` is already being implemented inside `execute`
-- the question is only whether verified tasks are merge-ready
-- the user wants coding work rather than planning work
-- the user is asking for an automatic split, automatic merge, or autonomous repair loop
+- task `A` or `B` is already inside implementation work in `execute`
+- the question is only whether verified tasks are ready for human merge
+- the user wants direct coding work rather than planning and boundary review
+- the user expects automatic split approval, automatic merge, or a subagent-first workflow
 
 ## Inputs
 
 - the active run id
 - `AGENTS.md`
+- `.codex/config.toml`
 - `.codex/local/runs/<run-id>/requirements.md`
 - `.codex/local/runs/<run-id>/clarifications.md`
-- `.codex/local/runs/<run-id>/PLAN.md`
+- `.codex/local/runs/<run-id>/PLAN.md` when it already exists
 - `.codex/local/runs/<run-id>/status.json`
-- repository structure and path rules from `.codex/local/config.toml`
+- repository structure and path rules relevant to task boundaries
 - optional runtime scaffolding from `.codex/protocol/templates/planner.md`
 
 ## Outputs
 
 - clarified questions, assumptions, and missing constraints in the current thread
-- a user-facing explanation of mode, task boundaries, risks, and open questions
-- a recommendation for `serial` or `parallel_ab` without taking the decision away from the user
-- exact next commands for `checkpoint`, `plan`, or `needs_replan`
+- a user-facing explanation of mode, task boundaries, open risks, and compatibility concerns
+- a recommendation for `serial` or `parallel_ab` without choosing the mode for the user
+- exact next commands for `checkpoint`, `plan`, `next`, or `needs_replan`
 
-## Allowed Actions
+## Allowed actions
 
+- inspect repository structure and run files before asking for missing information
 - ask for missing acceptance criteria, boundaries, risks, non-goals, or compatibility constraints
-- inspect repository structure to see whether task boundaries map to real files
-- explain the tradeoff between `serial` and `parallel_ab`
-- recommend a mode without choosing it for the user
-- tell the user when `B` should be created in a separate worktree
-- tell the user when the current plan is invalid and should go back through `needs_replan`
+- explain why `parallel_ab` is safe or unsafe for this repository and this run
+- recommend `serial` or `parallel_ab` without recording the decision on the user's behalf
+- tell the user when `B` should exist as a separate worktree and separate Codex thread
+- tell the user when the current plan is invalid and must go back through `needs_replan`
 - run `checkpoint` and `plan`
 
-## Forbidden Actions
+## Forbidden actions
 
 - start implementing feature code
 - automatically approve `parallel_ab`
-- automatically run `split` before the user approves a mode
-- edit `plan.json` by hand
-- merge branches
-- use subagents as the default path
-- hide uncertainty or skip missing clarifications just to keep the flow moving
+- automatically run `split` before the user records an approved mode
+- edit `plan.json`, `status.json`, or other workflow state files by hand
+- merge branches or imply that merge is automatic
+- introduce subagents as the default execution model
+- skip unresolved planning questions just to keep the flow moving
 
-## Failure Handling
+## Failure handling
 
-- if the run does not exist yet, tell the user to start one with `./codex-composer start --run <id> --requirement "..."`
-- if boundaries are unclear, keep asking until the plan is decision-complete
+- if the run does not exist yet, route the user to `./codex-composer start --run <id> --requirement "..."`
+- if boundaries are unclear, keep clarifying until the plan is decision-complete
 - if repository structure does not support a clean split, explain why and recommend `serial`
-- if local policy forces serialization, explain why and tell the user to record `serial`
+- if local path rules or policy force serialization, explain the policy and tell the user to record `serial`
 - if the user changes scope materially, route back through `needs_replan`
-- if repo-native skills have not been migrated into `.agents/skills/codex-composer`, tell the user to run `./codex-composer migrate` before continuing
+- if the repository still uses deprecated protocol, skill, or config paths, stop and tell the user to run `./codex-composer migrate`
 
-## Minimal Example
+## Minimal example
 
 ```text
 Recommended prompt:
-"Use the repo's planner skill for run `login`. Clarify what is missing, decide whether `parallel_ab` is actually safe, and give me the exact next commands without choosing the mode for me."
+"Use the repo's planner skill for run `login`. Clarify what is missing, tell me whether `parallel_ab` is actually safe, and give me the exact next commands without choosing the mode for me."
 
 Expected behavior:
-1. Review AGENTS.md, the active run files, and the repository structure
+1. Review AGENTS.md, the active run files, `.codex/config.toml`, and the repository structure
 2. Ask only for missing information that materially changes the plan
 3. Explain `serial` vs `parallel_ab` in user-facing language
 4. Point the user to:

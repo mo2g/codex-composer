@@ -14,7 +14,7 @@ Codex Composer is a protocol-first, worktree-first workflow template for using C
 
 ## How To Work On This Repository
 
-- Prefer canonical assets under `.agents/skills/`, `.codex/protocol/`, and `.codex/local/`.
+- Prefer canonical assets under `.agents/skills/`, `.codex/protocol/`, `.codex/config.toml`, and `.codex/local/`.
 - Treat root `scripts/` and `tools/` as compatibility wrappers for source-repo maintenance, not as the primary user-facing workflow.
 - Keep `README.md`, `AGENTS.md`, repo-native skills, state-machine docs, and merge guidance aligned when changing workflow wording.
 - Before considering a change polished, run `npm test` and `make validate-tmp`. Use a custom `BASE_DIR` if the default tmp path is already populated from an earlier smoke run.
@@ -43,10 +43,13 @@ Codex Composer is a protocol-first, worktree-first workflow template for using C
   - `.codex/protocol/templates/`
   - `.codex/protocol/schemas/`
   - `.codex/protocol/tools/`
-- Runtime state:
-  - `.codex/local/config.toml`
+- Repo-level shared config:
+  - `.codex/config.toml`
+- Runtime-local state:
   - `.codex/local/runs/<run-id>/`
   - `.codex/local/worktrees/<run-id>/`
+
+`.codex/config.toml` is the shared repo configuration layer. `.codex/local/` is runtime-local generated state and is not the canonical config location.
 
 ## Checkpoints
 

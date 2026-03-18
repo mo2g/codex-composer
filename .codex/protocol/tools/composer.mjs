@@ -89,7 +89,7 @@ async function recommendedNextSteps(repoRoot, runId, status) {
 
   if (protocol.deprecated) {
     return [
-      `Run ${migrateCommand} before continuing so protocol/runtime assets and repo-native skills move to the canonical .codex + .agents layout.`,
+      `Run ${migrateCommand} before continuing so protocol assets, repo-native skills, and shared repo config move to the canonical .codex + .agents layout.`,
       "After migration, rerun the same command in the same repository."
     ];
   }
@@ -297,6 +297,7 @@ async function commandMigrate(args) {
     `repo_root: ${result.repoRoot}`,
     `launcher: ${result.launcher ?? "unchanged"}`,
     `migrated: ${result.migrated ? "true" : "false"}`,
+    `backups: ${result.backups?.join(", ") || "none"}`,
     `moved: ${result.moved.join(", ") || "none"}`,
     `remaining: ${result.remaining.join(", ") || "none"}`
   ].join("\n"));

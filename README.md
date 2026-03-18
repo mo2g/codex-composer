@@ -11,7 +11,7 @@ The default model is deliberately conservative:
 
 ## Design Principles
 
-- `protocol-first`: skills, protocol assets, runtime state, and command behavior stay inspectable and versioned
+- `protocol-first`: skills, protocol assets, repo config, runtime state, and command behavior stay inspectable and versioned
 - `non-subagent-default`: the main path does not depend on subagents
 - `thread/worktree-first parallelism`: A stays in the current thread; B is an optional second Codex thread in a worktree
 - `explicit gates`: `verify`, `commit`, and `merge-review` are deliberate checkpoints
@@ -39,8 +39,9 @@ The default model is deliberately conservative:
   - `.codex/protocol/templates/`
   - `.codex/protocol/schemas/`
   - `.codex/protocol/tools/`
-- Runtime-only state:
-  - `.codex/local/config.toml`
+- Repo-level shared config:
+  - `.codex/config.toml`
+- Runtime-local generated state:
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
 
@@ -50,8 +51,15 @@ The source repository still keeps root `scripts/` and `tools/` as thin compatibi
 
 - `.agents/skills` is the discoverable repo-native layer Codex can match against directly
 - `.codex/protocol` is the internal workflow layer for templates, schemas, and tooling
-- `.codex/local` keeps runtime state separate from both discoverable skills and reusable protocol assets
-- This split keeps role discovery, orchestration logic, and runtime state from blurring together
+- `.codex/config.toml` stores repo-level shared Codex Composer configuration
+- `.codex/local` keeps runtime-local generated state separate from both discoverable skills and reusable protocol assets
+- This split keeps role discovery, orchestration logic, shared configuration, and runtime state from blurring together
+
+## Repo Config Vs Runtime State
+
+- `.codex/config.toml` is the canonical repo-level shared configuration file. It is part of the installed template layout and is the only active config input.
+- `.codex/local/runs/` and `.codex/local/worktrees/` are runtime-scoped local state generated as runs execute.
+- `.codex/local/` is not the repo-level config layer. Older `.codex/local/config.toml` installs should be upgraded with `./codex-composer migrate`.
 
 ## Install
 
@@ -93,7 +101,7 @@ Recommended role flow:
 4. If B exists, open a new Codex thread in `.codex/local/worktrees/<run-id>/b` and use `task-owner` there for B.
 5. Verify and commit each enabled task explicitly.
 6. Return to the current thread and use `integrator-reviewer` for `merge-review`.
-7. Merge manually, then verify `main` and generate the final handoff text.
+7. Follow `docs/manual-merge-checklist.md`, merge manually, then verify `main` and generate the final handoff text.
 
 Verification and commit remain explicit:
 
@@ -170,15 +178,16 @@ For realistic prompt examples, see `docs/skill-invocation-examples.md`.
 - New installs write only:
   - `.agents/skills/codex-composer/*`
   - `.codex/protocol/*`
+  - `.codex/config.toml`
   - `.codex/local/*`
-- Existing `.codex-composer` or intermediate `.codex/skills/*` repos should run:
+- Existing `.codex-composer` repos, intermediate `.codex/skills/*` repos, and repositories that still keep shared config at `.codex/local/config.toml` should run:
 
 ```bash
 ./codex-composer migrate
 ```
 
-- Compatibility with `.codex-composer` and `.codex/skills` is deprecated and only kept long enough for migration.
-- Once `.agents` and `.codex/local` exist, new writes go only to the canonical layout.
+- Compatibility with `.codex-composer`, `.codex/skills`, and `.codex/local/config.toml` is deprecated and only kept long enough for migration.
+- Once `.agents`, `.codex/config.toml`, and `.codex/local` exist, new writes go only to the canonical layout.
 
 ## Docs
 

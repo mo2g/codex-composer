@@ -120,6 +120,9 @@ reason = "auth-core work must be serialized."
   let gitIgnoreEntries;
 
   if (layout === "canonical") {
+    configPath = path.join(repoRoot, ".codex", "config.toml");
+    gitIgnoreEntries = [".codex/local/runs/", ".codex/local/worktrees/"];
+  } else if (layout === "deprecated-local") {
     configPath = path.join(repoRoot, ".codex", "local", "config.toml");
     gitIgnoreEntries = [".codex/local/runs/", ".codex/local/worktrees/"];
   } else if (layout === "legacy") {

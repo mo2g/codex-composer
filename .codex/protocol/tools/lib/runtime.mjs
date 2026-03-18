@@ -49,11 +49,12 @@ const NEW_PROTOCOL_ROOT = [".codex", "protocol"];
 const NEW_SKILLS_ROOT = [".agents", "skills", "codex-composer"];
 const INTERIM_SKILLS_ROOT = [".codex", "skills"];
 const NEW_LOCAL_ROOT = [".codex", "local"];
-const NEW_CONFIG_PATH = [".codex", "local", "config.toml"];
+const NEW_CONFIG_PATH = [".codex", "config.toml"];
 const LEGACY_PROTOCOL_ROOT = [".codex-composer", "protocol"];
 const LEGACY_SKILLS_ROOT = [".codex-composer", "protocol", "skills"];
 const LEGACY_LOCAL_ROOT = [".codex-composer"];
-const LEGACY_CONFIG_PATHS = [[".codex-composer", "config.toml"], [".codex-composer.toml"]];
+const LEGACY_LOCAL_CONFIG_PATHS = [[".codex-composer", "config.toml"], [".codex-composer.toml"]];
+const DEPRECATED_CONFIG_PATHS = [[".codex", "local", "config.toml"], ...LEGACY_LOCAL_CONFIG_PATHS];
 const LEGACY_RUNTIME_IGNORE_ENTRIES = [".codex-composer/runs/", ".codex-composer/worktrees/"];
 const RUNTIME_IGNORE_ENTRIES = [".codex/local/runs/", ".codex/local/worktrees/"];
 
@@ -162,7 +163,7 @@ export function resolveLocalRoot(repoRoot) {
     return canonicalRoot;
   }
 
-  for (const configPath of LEGACY_CONFIG_PATHS) {
+  for (const configPath of LEGACY_LOCAL_CONFIG_PATHS) {
     if (existsSync(path.join(repoRoot, ...configPath))) {
       return legacyRoot;
     }
@@ -176,19 +177,18 @@ export function resolveLocalRoot(repoRoot) {
 }
 
 export async function resolveConfigPath(repoRoot) {
-  const canonicalConfig = path.join(repoRoot, ...NEW_CONFIG_PATH);
-  if (await pathExists(canonicalConfig)) {
-    return canonicalConfig;
-  }
+  return path.join(repoRoot, ...NEW_CONFIG_PATH);
+}
 
-  for (const configPath of LEGACY_CONFIG_PATHS) {
+async function findDeprecatedConfigPath(repoRoot) {
+  for (const configPath of DEPRECATED_CONFIG_PATHS) {
     const resolved = path.join(repoRoot, ...configPath);
     if (await pathExists(resolved)) {
       return resolved;
     }
   }
 
-  return canonicalConfig;
+  return null;
 }
 
 export async function resolveProtocolPaths(repoRoot) {
@@ -198,6 +198,9 @@ export async function resolveProtocolPaths(repoRoot) {
   const legacySkillsRoot = await findLegacySkillsRoot(repoRoot);
   const canonicalRoot = path.join(repoRoot, ...NEW_PROTOCOL_ROOT);
   const legacyRoot = path.join(repoRoot, ...LEGACY_PROTOCOL_ROOT);
+  const canonicalConfigPath = path.join(repoRoot, ...NEW_CONFIG_PATH);
+  const deprecatedConfigPath = await findDeprecatedConfigPath(repoRoot);
+  const configMigrationRequired = !(await pathExists(canonicalConfigPath)) && Boolean(deprecatedConfigPath);
   const agents = await pathExists(path.join(repoRoot, "AGENTS.md"))
     ? path.join(repoRoot, "AGENTS.md")
     : path.join(sourceRepoRoot, "AGENTS.md");
@@ -219,13 +222,19 @@ export async function resolveProtocolPaths(repoRoot) {
     warnings.push("legacy skill layout detected; run ./codex-composer migrate to move repo-native skills into .agents/skills/codex-composer");
   }
 
+  if (configMigrationRequired) {
+    warnings.push(`deprecated config path detected at ${deprecatedConfigPath}; run ./codex-composer migrate to move shared config into .codex/config.toml`);
+  }
+
   return {
     root,
     skillsRoot,
     mode,
-    deprecated: mode === "legacy" || skillMigrationRequired,
+    deprecated: mode === "legacy" || skillMigrationRequired || configMigrationRequired,
     warnings,
     skillMigrationRequired,
+    configMigrationRequired,
+    deprecatedConfigPath,
     legacySkillsRoot,
     agents,
     templatesDir: path.join(root, "templates"),
@@ -288,6 +297,12 @@ export function runPaths(repoRoot, runId) {
 
 export async function loadConfig(repoRoot) {
   const configPath = await resolveConfigPath(repoRoot);
+  if (!(await pathExists(configPath))) {
+    const deprecatedConfigPath = await findDeprecatedConfigPath(repoRoot);
+    if (deprecatedConfigPath) {
+      throw new Error(`Deprecated config path detected at ${deprecatedConfigPath}. Run ./codex-composer migrate to move shared config to .codex/config.toml before continuing.`);
+    }
+  }
   const raw = await readText(configPath, "");
   const parsed = raw ? parseToml(raw) : {};
   const merged = deepMerge(DEFAULT_CONFIG, parsed);

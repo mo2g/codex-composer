@@ -27,6 +27,24 @@ function renderArray(values) {
   return `[${values.map((value) => quoteTomlString(value)).join(", ")}]`;
 }
 
+function backupTimestamp() {
+  return new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "").replace("T", "");
+}
+
+async function backupFileIfPresent(targetPath, results = null) {
+  if (!(await pathExists(targetPath))) {
+    return null;
+  }
+
+  const backupPath = `${targetPath}.bak.${backupTimestamp()}`;
+  await ensureDir(path.dirname(backupPath));
+  await fs.copyFile(targetPath, backupPath);
+  if (results) {
+    results.backups.push(path.relative(results.repoRoot, backupPath) || backupPath);
+  }
+  return backupPath;
+}
+
 async function detectMainBranch(repoRoot) {
   for (const candidate of ["main", "master"]) {
     if (await branchExists(repoRoot, candidate)) {
@@ -381,8 +399,9 @@ function renderManagedAgentsBlock(launcherName) {
 - Current thread: planner/control thread
 - Main entry: \`./${launcherName} next\`
 - Protocol files: \`.codex/protocol/\`
+- Repo config: \`.codex/config.toml\`
 - Skills: \`.agents/skills/codex-composer/\`
-- Runtime state: \`.codex/local/runs/<run-id>/\`
+- Runtime state: \`.codex/local/runs/<run-id>/\` and \`.codex/local/worktrees/<run-id>/\`
 - Optional parallel split: keep the current repo as task \`A\`; create task \`B\` with \`./${launcherName} split --run <run-id>\`
 
 Use the launcher instead of calling root-level protocol directories directly.
@@ -463,6 +482,33 @@ async function renameIfPresent(sourcePath, targetPath) {
   return true;
 }
 
+async function moveConfigIntoCanonical(repoRoot, results) {
+  const targetPath = path.join(repoRoot, ".codex", "config.toml");
+  const candidateSources = [
+    path.join(repoRoot, ".codex", "local", "config.toml"),
+    path.join(repoRoot, ".codex-composer", "config.toml"),
+    path.join(repoRoot, ".codex-composer.toml")
+  ];
+
+  for (const sourcePath of candidateSources) {
+    if (!(await pathExists(sourcePath)) || sourcePath === targetPath) {
+      continue;
+    }
+
+    if (await pathExists(targetPath)) {
+      await backupFileIfPresent(targetPath, results);
+      await fs.rm(targetPath, { force: true });
+    }
+
+    await ensureDir(path.dirname(targetPath));
+    await fs.rename(sourcePath, targetPath);
+    results.moved.push(path.relative(repoRoot, targetPath) || targetPath);
+    return true;
+  }
+
+  return false;
+}
+
 async function removeDirIfEmpty(targetPath) {
   if (!(await pathExists(targetPath))) {
     return;
@@ -538,6 +584,7 @@ export async function migrateLegacyRepo({ repoRoot }) {
     migrated: false,
     moved: [],
     remaining: [],
+    backups: [],
     launcher: null
   };
 
@@ -552,8 +599,7 @@ export async function migrateLegacyRepo({ repoRoot }) {
   await renameIfPresent(path.join(legacyRoot, "protocol", "tools"), path.join(newProtocolRoot, "tools")) && results.moved.push("protocol/tools");
   await migrateLegacySkills(repoRoot, results);
   await migrateInterimSkills(repoRoot, results);
-  await renameIfPresent(path.join(legacyRoot, "config.toml"), path.join(newLocalRoot, "config.toml")) && results.moved.push("local/config.toml");
-  await renameIfPresent(path.join(repoRoot, ".codex-composer.toml"), path.join(newLocalRoot, "config.toml")) && results.moved.push("root-config");
+  await moveConfigIntoCanonical(repoRoot, results);
   await renameIfPresent(path.join(legacyRoot, "runs"), path.join(newLocalRoot, "runs")) && results.moved.push("local/runs");
   await renameIfPresent(path.join(legacyRoot, "worktrees"), path.join(newLocalRoot, "worktrees")) && results.moved.push("local/worktrees");
 
@@ -594,10 +640,8 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "existing", c
   await copySkillsBundle(skillsTargetRoot);
   await ensureExecutableBits(protocolTargetRoot);
 
-  const configPath = path.join(localRoot, "config.toml");
-  if (await pathExists(configPath)) {
-    throw new Error(`Target already contains ${configPath}`);
-  }
+  const configPath = path.join(stateRoot, "config.toml");
+  await backupFileIfPresent(configPath);
   await ensureDir(path.dirname(configPath));
   await writeText(configPath, templateConfig({
     template,

@@ -92,7 +92,7 @@ test("install.sh bootstraps an existing non-empty repo into the hybrid layout wi
   await fs.access(path.join(repoRoot, "codex-composer"));
   await fs.access(path.join(repoRoot, "scripts", "existing.sh"));
   await fs.access(path.join(repoRoot, "tools", "existing.mjs"));
-  await fs.access(path.join(repoRoot, ".codex", "local", "config.toml"));
+  await fs.access(path.join(repoRoot, ".codex", "config.toml"));
   await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
   await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
   await fs.access(path.join(repoRoot, "README.md"));
@@ -104,9 +104,30 @@ test("install.sh bootstraps an existing non-empty repo into the hybrid layout wi
   await assert.rejects(fs.access(path.join(repoRoot, "schemas")));
   await assert.rejects(fs.access(path.join(repoRoot, "frontend", "src", "App.jsx")));
 
-  const config = await readText(path.join(repoRoot, ".codex", "local", "config.toml"));
+  const config = await readText(path.join(repoRoot, ".codex", "config.toml"));
   assert.match(config, /repo_type = "existing"/);
   assert.doesNotMatch(config, /profile = "default"/);
+});
+
+test("start/next warn when only deprecated local config exists and plan refuses to load it as active config", async () => {
+  const repoRoot = await createExistingRepo();
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
+  await fs.rename(
+    path.join(repoRoot, ".codex", "config.toml"),
+    path.join(repoRoot, ".codex", "local", "config.toml")
+  );
+
+  const startResult = await runRepoLauncher(repoRoot, ["start", "--run", "login", "--requirement", "Implement login"], { allowFailure: true });
+  assert.match(startResult.stdout, /deprecated config path detected/);
+  assert.match(startResult.stdout, /Run \.\/codex-composer migrate before using planner\/task skills in this repository/);
+
+  const nextResult = await runRepoLauncher(repoRoot, ["next", "--run", "login"], { allowFailure: true });
+  assert.match(nextResult.stdout, /deprecated config path detected/);
+  assert.match(nextResult.stdout, /Run \.\/codex-composer migrate before continuing/);
+
+  const planResult = await runRepoLauncher(repoRoot, ["plan", "--run", "login"], { allowFailure: true });
+  assert.notEqual(planResult.code, 0);
+  assert.match(planResult.stderr, /Deprecated config path detected/);
 });
 
 test("install.sh updates an existing AGENTS.md with a managed Codex Composer block", async () => {
@@ -451,6 +472,27 @@ test("legacy layout remains readable, warns as deprecated, and migrate is idempo
 
   const secondMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
   assert.match(secondMigrate.stdout, /migrated: false/);
+});
+
+test("migrate upgrades deprecated local config into repo-level config and backs up an existing target", async () => {
+  const repoRoot = await createExistingRepo();
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
+
+  await fs.writeFile(
+    path.join(repoRoot, ".codex", "local", "config.toml"),
+    '[project]\nmain_branch = "main"\nbranch_prefix = "codex/"\nrepo_type = "deprecated-local"\n',
+    "utf8"
+  );
+
+  const migrateResult = await runRepoLauncher(repoRoot, ["migrate"]);
+  const config = await readText(path.join(repoRoot, ".codex", "config.toml"));
+  const codexEntries = await fs.readdir(path.join(repoRoot, ".codex"));
+
+  assert.match(migrateResult.stdout, /migrated: true/);
+  assert.match(migrateResult.stdout, /backups: .*\.codex\/config\.toml\.bak\.\d{14}/);
+  assert.match(config, /repo_type = "deprecated-local"/);
+  assert.ok(codexEntries.some((entry) => /^config\.toml\.bak\.\d{14}$/.test(entry)));
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "config.toml")));
 });
 
 test("intermediate .codex skills layout requires migration and moves into .agents", async () => {

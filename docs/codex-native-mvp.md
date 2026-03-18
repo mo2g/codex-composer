@@ -11,7 +11,9 @@ The Codex Composer MVP is current-thread first, launcher first, and manual-merge
 
 - `AGENTS.md`: defines checkpoints and guardrails
 - `.agents/skills/codex-composer/`: repo-native skills discoverable by Codex
+- `.codex/config.toml`: repo-level shared Codex Composer configuration
 - `.codex/protocol/`: internal templates, schemas, and tools
+- `.codex/local/`: runtime-local run state and worktrees
 - `./codex-composer start`: creates a run
 - `./codex-composer next`: recommends the next human action and auto-runs `split` after approval
 - `./codex-composer status`: prints the current run state, worktrees, and verify/commit readiness

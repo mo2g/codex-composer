@@ -22,9 +22,11 @@ Installed layout:
 - `./codex-composer`
 - `.agents/skills/codex-composer/`
 - `.codex/protocol/`
-- `.codex/local/config.toml`
+- `.codex/config.toml`
 - `.codex/local/runs/`
 - `.codex/local/worktrees/`
+
+`.codex/config.toml` is the repo-level shared configuration file. `.codex/local/` is runtime-local generated state.
 
 If `./codex-composer` is already occupied, the installer falls back to `./composer-next`.
 
@@ -42,6 +44,7 @@ The current Codex thread remains the planner/control thread.
 Use the current Codex thread in the `planner` role. The main supporting files are:
 
 - `AGENTS.md`
+- `.codex/config.toml`
 - `.codex/local/runs/<run-id>/clarifications.md`
 - `.codex/local/runs/<run-id>/PLAN.md`
 
@@ -109,6 +112,8 @@ The merge itself is manual. After merging, run:
 ./codex-composer summarize --run login
 ```
 
+Use `docs/manual-merge-checklist.md` for the full pre-merge and post-merge checklist.
+
 ## Migration
 
 If the repository still uses a deprecated layout:
@@ -117,8 +122,9 @@ If the repository still uses a deprecated layout:
 ./codex-composer migrate
 ```
 
-This applies to both:
+This applies to:
 
+- `.codex/local/config.toml`
 - `.codex-composer/...`
 - `.codex/skills/...`
 

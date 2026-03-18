@@ -20,8 +20,8 @@ ensure_absent() {
 
 write_fake_config() {
   local repo_root="$1"
-  mkdir -p "$repo_root/.codex/local"
-  cat > "$repo_root/.codex/local/config.toml" <<EOF
+  mkdir -p "$repo_root/.codex"
+  cat > "$repo_root/.codex/config.toml" <<EOF
 [project]
 main_branch = "main"
 branch_prefix = "codex/"

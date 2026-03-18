@@ -11,8 +11,9 @@ Codex Composer treats Codex as a planning and implementation engine, not as an a
   - `.agents/skills/codex-composer/`
 - Internal protocol layer:
   - `.codex/protocol/`
-- Runtime-only state:
-  - `.codex/local/config.toml`
+- Repo-level shared config:
+  - `.codex/config.toml`
+- Runtime-local generated state:
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
 
@@ -22,15 +23,16 @@ The source repository keeps root `scripts/` and `tools/` as thin compatibility w
 
 Resolution order is fixed:
 
-1. `.codex/protocol` + `.agents/skills/codex-composer` + `.codex/local/config.toml`
+1. `.codex/protocol` + `.agents/skills/codex-composer` + `.codex/config.toml`
 2. source-repo fallback only for development compatibility
 
-Deprecated layouts are not treated as normal canonical inputs:
+Deprecated layouts and config paths are not treated as normal canonical inputs:
 
+- `.codex/local/config.toml`
 - `.codex-composer/...`
 - `.codex/skills/...`
 
-If either deprecated layout is detected, `status/start/next` should point the user to:
+If any deprecated layout or config path is detected, `status/start/next` should point the user to:
 
 ```bash
 ./codex-composer migrate
@@ -53,9 +55,16 @@ Each run lives in `.codex/local/runs/<run-id>/`.
 - `SUMMARY.md`
 - `PR_BODY.md`
 
+## Repo Config Vs Runtime State
+
+- `.codex/config.toml` is the canonical repo-level shared configuration for branch naming, hooks, path rules, and other install-time defaults
+- `.codex/local/runs/` and `.codex/local/worktrees/` are runtime-local generated state for active runs
+- `.codex/local/config.toml` is no longer an active config input; it is a deprecated migration source only
+
 ## Discovery Layer Vs Protocol Layer
 
 - `.agents/skills/codex-composer/*/SKILL.md` defines reusable, discoverable Codex-native skills
+- `.codex/config.toml` defines repo-level shared Codex Composer configuration
 - `.codex/protocol/templates/*` defines internal workflow templates consumed by launcher/tooling
 - `.codex/protocol/schemas/*` defines structured protocol outputs
 - `.codex/protocol/tools/*` implements the workflow
