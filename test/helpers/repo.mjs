@@ -68,7 +68,7 @@ export async function writeDefaultRepoFiles(repoRoot, { includeAuthCore = true }
 }
 
 export async function writeConfig(repoRoot, options = {}) {
-  const { hybrid = false } = options;
+  const { layout = "canonical" } = options;
   const config = `[project]
 main_branch = "main"
 branch_prefix = "codex/"
@@ -116,12 +116,25 @@ action = "deny"
 when_component = "auth-core"
 reason = "auth-core work must be serialized."
 `;
-  const configPath = hybrid
-    ? path.join(repoRoot, ".codex-composer", "config.toml")
-    : path.join(repoRoot, ".codex-composer.toml");
+  let configPath;
+  let gitIgnoreEntries;
+
+  if (layout === "canonical") {
+    configPath = path.join(repoRoot, ".codex", "local", "config.toml");
+    gitIgnoreEntries = [".codex/local/runs/", ".codex/local/worktrees/"];
+  } else if (layout === "legacy") {
+    configPath = path.join(repoRoot, ".codex-composer", "config.toml");
+    gitIgnoreEntries = [".codex-composer/runs/", ".codex-composer/worktrees/"];
+  } else if (layout === "legacy-root") {
+    configPath = path.join(repoRoot, ".codex-composer.toml");
+    gitIgnoreEntries = [".codex-composer/runs/", ".codex-composer/worktrees/"];
+  } else {
+    throw new Error(`Unsupported config layout: ${layout}`);
+  }
+
   await fs.mkdir(path.dirname(configPath), { recursive: true });
   await fs.writeFile(configPath, config, "utf8");
-  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/runs/\n.codex-composer/worktrees/\n", "utf8");
+  await fs.writeFile(path.join(repoRoot, ".gitignore"), `${gitIgnoreEntries.join("\n")}\n`, "utf8");
 }
 
 export async function initialCommit(repoRoot) {

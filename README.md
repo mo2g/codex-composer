@@ -1,16 +1,64 @@
 # Codex Composer
 
-Codex Composer is a protocol-first workflow for using Codex inside an existing repository. The MVP keeps planning in the current Codex thread, uses explicit checkpoints, and only creates an optional `B` worktree when the user approves a parallel split.
+Codex Composer is a protocol-first workflow template for using Codex inside an existing repository. It keeps planning in the current Codex thread, treats worktrees as the primary parallelism mechanism, and forces verification and commit gates before any human merge.
 
-## What It Optimizes For
+## Design Principles
 
-- existing repositories, not only demos
-- the current Codex thread as planner/control
-- optional `A/B` parallel work without subagents
-- explicit verify and commit gates
-- manual merge, never hidden auto-merge
+- `protocol-first`: prompts, skills, state files, and CLI behavior should be inspectable and versioned
+- `non-subagent-default`: the main path does not depend on subagents
+- `thread/worktree-first parallelism`: parallel work means current thread for A, optional new thread in a B worktree
+- `explicit gates`: `verify`, `commit`, and `merge-review` are never implicit
+- `manual merge only`: the framework prepares branches for merge; it never merges them for the user
 
-## Install Into An Existing Repository
+## Design Tradeoffs
+
+- More explicit checkpoints means slightly more ceremony, but far less hidden agent behavior
+- Worktree-first parallelism is slower to automate than subagents, but easier to audit and recover
+- A launcher plus state files is less magical than a fully autonomous agent, but much more predictable for Codex app users
+- Compatibility is handled by an explicit migration command, not by permanent dual-write logic
+
+## Architecture
+
+- Root-visible control surface:
+  - `AGENTS.md`
+  - `./codex-composer`
+  - `./composer-next` only when the primary launcher name is already taken
+- Canonical managed assets:
+  - `.codex/protocol/prompts/`
+  - `.codex/protocol/schemas/`
+  - `.codex/protocol/tools/`
+  - `.codex/skills/codex-composer-planner/`
+  - `.codex/skills/codex-composer-task-owner/`
+  - `.codex/skills/codex-composer-integrator-reviewer/`
+- Runtime-only state:
+  - `.codex/local/config.toml`
+  - `.codex/local/runs/`
+  - `.codex/local/worktrees/`
+
+The root `scripts/` and `tools/` directories remain as compatibility wrappers in the source repository. The canonical implementation lives under `.codex/`.
+
+## Why `.codex` Instead Of `.codex-composer`
+
+- It is closer to Codex’s native ecosystem shape
+- It makes repo-local protocol assets feel like first-class Codex assets, not an external add-on
+- It separates canonical Codex assets from runtime-local state more cleanly
+- It avoids teaching users a parallel hidden directory convention that differs from the broader Codex mental model
+
+## When To Use This
+
+- You want Codex to work inside an existing multi-language repository
+- You want optional A/B parallel development without adopting subagents as the default model
+- You care about explicit review, reproducibility, and recovery after interruption
+- You want a shareable open-source template rather than a private prompt bundle
+
+## When Not To Use This
+
+- You want fully autonomous branch integration or auto-merge
+- You want subagents to be the primary implementation model
+- Your workflow depends on Codex making irreversible decisions without human checkpoints
+- Your repository cannot tolerate launcher scripts or repo-local workflow state
+
+## Install
 
 From the target repository root:
 
@@ -24,18 +72,6 @@ For local development of this repository:
 bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template existing --source /path/to/codex-composer
 ```
 
-The installed layout is:
-
-- root `AGENTS.md`
-- root launcher `./codex-composer`
-- hidden `.codex-composer/`
-  - `protocol/`
-  - `runs/`
-  - `worktrees/`
-  - `config.toml`
-
-If the target repository already has a `codex-composer` file, the installer falls back to `./composer-next`.
-
 ## Happy Path
 
 ```bash
@@ -45,9 +81,9 @@ If the target repository already has a `codex-composer` file, the installer fall
 
 Then stay in the current Codex thread:
 
-1. Read `AGENTS.md` and `.codex-composer/protocol/skills/planner/SKILL.md`.
-2. Update `.codex-composer/runs/login/clarifications.md`.
-3. Record decisions and advance the run with the launcher:
+1. Read `AGENTS.md` and `.codex/skills/codex-composer-planner/SKILL.md`
+2. Update `.codex/local/runs/login/clarifications.md`
+3. Advance the run with explicit commands:
 
 ```bash
 ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
@@ -58,8 +94,8 @@ Then stay in the current Codex thread:
 
 After `next` performs the approved split:
 
-- `A` stays in the current repository and current Codex thread.
-- `B` is an optional worktree under `.codex-composer/worktrees/<run-id>/b`; open a new Codex thread there manually.
+- `A` stays in the current repository and current Codex thread
+- `B` is an optional worktree under `.codex/local/worktrees/<run-id>/b`; open a new Codex thread there manually
 
 When each task is ready:
 
@@ -70,20 +106,20 @@ When each task is ready:
 ./codex-composer commit --run login --task b
 ```
 
-When status reaches `merge-review`, use `.codex-composer/protocol/skills/integrator-reviewer/SKILL.md` in the current thread, then record:
+When status reaches `merge-review`, use `.codex/skills/codex-composer-integrator-reviewer/SKILL.md` in the current thread, then record:
 
 ```bash
 ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
 ```
 
-Merge branches manually, then finish with:
+The user merges manually. The required post-merge finish is:
 
 ```bash
 ./codex-composer verify --run login --target main
 ./codex-composer summarize --run login
 ```
 
-## Main Commands
+## Commands
 
 - `./codex-composer start`
 - `./codex-composer next`
@@ -94,38 +130,45 @@ Merge branches manually, then finish with:
 - `./codex-composer verify`
 - `./codex-composer commit`
 - `./codex-composer summarize`
+- `./codex-composer migrate`
 
-## What `next` Does
+## State Model
 
-- `clarify` / `clarified`: prints what to edit and which checkpoint/plan command to run
-- `plan-review`: prints the approval commands
-- `plan-approved`: runs `split` automatically, then prints the new status
-- `execute`: prints A/B worktree locations and verify/commit commands
-- `merge-review`: prints the merge-readiness checklist
-- `ready-to-merge`: prints the manual merge checklist plus `verify main` / `summarize`
-- `completed`: prints the summary and PR body paths
+- `clarify`
+- `clarified`
+- `plan-review`
+- `plan-approved`
+- `execute`
+- `merge-review`
+- `ready-to-merge`
+- `completed`
 
-## Summary Snapshots
+`next` never decides checkpoints, never runs `verify`, never runs `commit`, and never merges. It only performs the already-approved `split` step automatically.
 
-`commit` stores task snapshots in `status.json`:
+## Migration Notes
 
-- `commit_sha`
-- `commit_message`
-- `changed_files`
-- `committed_at`
+- New installs only write `.codex`
+- Existing `.codex-composer` repos should run:
 
-`SUMMARY.md` and `PR_BODY.md` are generated from those snapshots, so they remain useful even after the user has already merged A and B back to `main`.
+```bash
+./codex-composer migrate
+```
 
-## Compatibility Helpers
+- Compatibility with `.codex-composer` is deprecated and only kept as a transition path
+- Once `.codex` exists, new writes go only to `.codex`
 
-These still exist in the source repository for compatibility and testing, but they are not the recommended onboarding path:
+## Subagents
 
-- `scripts/composer-chat-control.sh`
-- `scripts/composer-run-task.sh`
-- `scripts/composer-integrate.sh`
+- Subagents are **not** the default execution model
+- Default parallelism is current thread + optional new Codex thread + git worktree
+- Experimental subagents are documented separately and limited to future read-only review/research scenarios
+- Subagents must not auto-merge, must not write to `main`, and must not independently close cross-task work
 
 ## Docs
 
 - `docs/new-project.md`
 - `docs/protocol.md`
+- `docs/state-machine.md`
+- `docs/manual-merge-checklist.md`
+- `docs/experimental-subagents.md`
 - `docs/codex-native-mvp.md`

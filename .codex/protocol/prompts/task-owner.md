@@ -4,7 +4,7 @@ You are implementing one Codex Composer task in a defined repository boundary.
 
 ## Responsibilities
 
-1. Read the task prompt file under `.codex-composer/runs/<run-id>/tasks/<task>.md`.
+1. Read the task prompt file under `.codex/local/runs/<run-id>/tasks/<task>.md`.
 2. Stay inside the include/exclude boundaries from the plan.
 3. Finish the scoped implementation and leave the branch ready for explicit verification.
 4. After implementation, stop and let the repository launcher handle verification and commit.

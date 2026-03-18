@@ -20,10 +20,11 @@ Installed layout:
 
 - `AGENTS.md`
 - `./codex-composer`
-- `.codex-composer/config.toml`
-- `.codex-composer/protocol/`
-- `.codex-composer/runs/`
-- `.codex-composer/worktrees/`
+- `.codex/protocol/`
+- `.codex/skills/`
+- `.codex/local/config.toml`
+- `.codex/local/runs/`
+- `.codex/local/worktrees/`
 
 If `./codex-composer` is already occupied, the installer falls back to `./composer-next`.
 
@@ -41,8 +42,8 @@ The current Codex thread remains the planner/control thread.
 Use:
 
 - `AGENTS.md`
-- `.codex-composer/protocol/skills/planner/SKILL.md`
-- `.codex-composer/runs/<run-id>/clarifications.md`
+- `.codex/skills/codex-composer-planner/SKILL.md`
+- `.codex/local/runs/<run-id>/clarifications.md`
 
 When the user has clarified enough:
 
@@ -91,7 +92,7 @@ If `B` exists, repeat for `b`.
 
 When status reaches `merge-review`, use:
 
-- `.codex-composer/protocol/skills/integrator-reviewer/SKILL.md`
+- `.codex/skills/codex-composer-integrator-reviewer/SKILL.md`
 
 Then record the result:
 
@@ -99,14 +100,17 @@ Then record the result:
 ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
 ```
 
-Merge branches manually, then run:
+The merge itself is manual. After merging, run:
 
 ```bash
 ./codex-composer verify --run login --target main
 ./codex-composer summarize --run login
 ```
 
-## Notes
+## Migration
 
-- `next` is the recommended main entry. It never auto-decides checkpoints, verify, commit, or merge.
-- Compatibility helpers still exist in the source repository, but launcher commands are the supported onboarding path.
+If the repository still uses the deprecated `.codex-composer` layout:
+
+```bash
+./codex-composer migrate
+```

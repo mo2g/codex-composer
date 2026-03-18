@@ -9,50 +9,32 @@ Codex Composer defines a worktree-first workflow for using Codex inside an exist
 3. If information is missing, ask questions before generating a plan.
 4. If task boundaries match no repository files, do not recommend blind parallel work.
 5. If the user approves a split, the current repository root becomes task `A`. Create only the optional `B` worktree.
-6. Do not use subagents as the default execution model for this MVP.
+6. Do not use subagents as the default execution model.
 7. Do not merge branches automatically. Only move toward manual merge after tasks are complete, verified, and committed.
 8. If verification fails, stop and return to the current Codex thread. Do not loop autonomously.
+
+## Canonical Layout
+
+- Root-visible control surface:
+  - `AGENTS.md`
+  - repository launcher: `./codex-composer` or, if occupied, `./composer-next`
+- Canonical managed assets:
+  - `.codex/protocol/prompts/`
+  - `.codex/protocol/schemas/`
+  - `.codex/protocol/tools/`
+  - `.codex/skills/codex-composer-planner/`
+  - `.codex/skills/codex-composer-task-owner/`
+  - `.codex/skills/codex-composer-integrator-reviewer/`
+- Runtime state:
+  - `.codex/local/config.toml`
+  - `.codex/local/runs/<run-id>/`
+  - `.codex/local/worktrees/<run-id>/`
 
 ## Checkpoints
 
 - `clarify`: gather acceptance criteria, boundaries, non-goals, risks, and compatibility constraints.
 - `plan-review`: present `serial` and `parallel_ab`, explain the recommendation, and wait for the user's choice.
 - `merge-review`: summarize whether A and B are actually ready for a human merge.
-
-## Hybrid Install Layout
-
-- Root files kept visible to Codex:
-  - `AGENTS.md`
-  - repository launcher: `./codex-composer` or, if occupied, `./composer-next`
-- Hidden managed protocol:
-  - `.codex-composer/protocol/prompts/`
-  - `.codex-composer/protocol/skills/`
-  - `.codex-composer/protocol/schemas/`
-  - `.codex-composer/protocol/tools/`
-- Runtime state:
-  - `.codex-composer/runs/<run-id>/`
-  - `.codex-composer/worktrees/<run-id>/`
-
-## State Persistence
-
-- Human-readable files:
-  - `requirements.md`
-  - `clarifications.md`
-  - `PLAN.md`
-  - `decisions.md`
-  - `SUMMARY.md`
-  - `PR_BODY.md`
-- Machine-readable files:
-  - `plan.json`
-  - `status.json`
-  - `sessions.json`
-  - `verify/*.json`
-
-Persist decisions with the repository launcher, for example:
-
-- `./codex-composer checkpoint --run <run-id> --checkpoint clarify --decision clarified --note "<summary>"`
-
-If this repository had to fall back to `./composer-next`, use that launcher name instead.
 
 ## Working Model
 
@@ -75,13 +57,14 @@ If this repository had to fall back to `./composer-next`, use that launcher name
   - tightly coupled refactors in one subsystem
   - work that requires simultaneous edits in the same critical directory
 
-## Prompt Sources
+## Prompt And Skill Sources
 
-- Planner: `.codex-composer/protocol/prompts/planner.md` or `.codex-composer/protocol/skills/planner/SKILL.md`
-- Task execution: `.codex-composer/protocol/prompts/task-owner.md` or `.codex-composer/protocol/skills/task-owner/SKILL.md`
-- Merge readiness review: `.codex-composer/protocol/prompts/integrator-reviewer.md` or `.codex-composer/protocol/skills/integrator-reviewer/SKILL.md`
-
-In the source repository, the same files also exist at the flat root for maintenance and testing.
+- Planner prompt: `.codex/protocol/prompts/planner.md`
+- Task prompt: `.codex/protocol/prompts/task-owner.md`
+- Merge prompt: `.codex/protocol/prompts/integrator-reviewer.md`
+- Planner skill: `.codex/skills/codex-composer-planner/SKILL.md`
+- Task skill: `.codex/skills/codex-composer-task-owner/SKILL.md`
+- Integrator skill: `.codex/skills/codex-composer-integrator-reviewer/SKILL.md`
 
 ## Approval Rules
 
@@ -89,3 +72,10 @@ In the source repository, the same files also exist at the flat root for mainten
 - `commit` requires branch verification to pass before it records a commit snapshot.
 - `merge-review` only declares manual merge readiness. It never performs the merge.
 - `verify --target main` is the final explicit gate after the user merges branches manually.
+
+## Subagents
+
+- Subagents are not the default path.
+- Default parallelism is current thread + optional new Codex thread + worktree.
+- Experimental subagent usage is limited to future read-only review/research scenarios.
+- Subagents must not auto-merge, write to `main`, or close cross-task work on their own.

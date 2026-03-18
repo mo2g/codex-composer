@@ -13,8 +13,39 @@ async function initLocalRepo(template) {
   const repoRoot = await makeTempDir(`codex-composer-${template}-`);
   await runScript("composer-init-repo.sh", ["--repo", repoRoot, "--template", template]);
   await setGitUser(repoRoot);
-  await writeConfig(repoRoot, { hybrid: true });
+  await writeConfig(repoRoot, { layout: "canonical" });
   await commitAll(repoRoot);
+  return repoRoot;
+}
+
+async function createLegacyInstalledRepo() {
+  const repoRoot = await createExistingRepo();
+  const legacyRoot = path.join(repoRoot, ".codex-composer");
+  const legacySkillsRoot = path.join(legacyRoot, "protocol", "skills");
+  const sourceRoot = path.resolve(".");
+
+  await fs.mkdir(legacySkillsRoot, { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".codex", "protocol"), path.join(legacyRoot, "protocol"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".codex", "skills", "codex-composer-planner"), path.join(legacySkillsRoot, "planner"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".codex", "skills", "codex-composer-task-owner"), path.join(legacySkillsRoot, "task-owner"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".codex", "skills", "codex-composer-integrator-reviewer"), path.join(legacySkillsRoot, "integrator-reviewer"), { recursive: true });
+  await fs.mkdir(path.join(legacyRoot, "runs"), { recursive: true });
+  await fs.mkdir(path.join(legacyRoot, "worktrees"), { recursive: true });
+  await writeConfig(repoRoot, { layout: "legacy" });
+
+  await fs.writeFile(
+    path.join(repoRoot, "codex-composer"),
+    `#!/usr/bin/env bash
+# Codex Composer Launcher
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+node "$ROOT_DIR/.codex-composer/protocol/tools/composer.mjs" "$@"
+`,
+    "utf8"
+  );
+  await fs.chmod(path.join(repoRoot, "codex-composer"), 0o755);
+  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/runs/\n.codex-composer/worktrees/\n", "utf8");
   return repoRoot;
 }
 
@@ -37,17 +68,18 @@ test("install.sh bootstraps an existing non-empty repo into the hybrid layout wi
   await fs.access(path.join(repoRoot, "codex-composer"));
   await fs.access(path.join(repoRoot, "scripts", "existing.sh"));
   await fs.access(path.join(repoRoot, "tools", "existing.mjs"));
-  await fs.access(path.join(repoRoot, ".codex-composer", "config.toml"));
-  await fs.access(path.join(repoRoot, ".codex-composer", "protocol", "tools", "composer.mjs"));
-  await fs.access(path.join(repoRoot, ".codex-composer", "protocol", "skills", "planner", "SKILL.md"));
+  await fs.access(path.join(repoRoot, ".codex", "local", "config.toml"));
+  await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
+  await fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md"));
   await fs.access(path.join(repoRoot, "README.md"));
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex-composer")));
   await assert.rejects(fs.access(path.join(repoRoot, "scripts", "composer-start.sh")));
   await assert.rejects(fs.access(path.join(repoRoot, "prompts")));
   await assert.rejects(fs.access(path.join(repoRoot, "skills")));
   await assert.rejects(fs.access(path.join(repoRoot, "schemas")));
   await assert.rejects(fs.access(path.join(repoRoot, "frontend", "src", "App.jsx")));
 
-  const config = await readText(path.join(repoRoot, ".codex-composer", "config.toml"));
+  const config = await readText(path.join(repoRoot, ".codex", "local", "config.toml"));
   assert.match(config, /repo_type = "existing"/);
   assert.doesNotMatch(config, /profile = "default"/);
 });
@@ -80,11 +112,11 @@ test("chat-control falls back cleanly in a dumb terminal", async () => {
 test("composer-start creates a run and prints current-thread planner guidance", async () => {
   const repoRoot = await createTestRepo();
   const result = await runScript("composer-start.sh", ["--repo", repoRoot, "--run", "login", "--requirement", "Implement login"]);
-  const status = await readJson(path.join(repoRoot, ".codex-composer", "runs", "login", "status.json"));
+  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", "login", "status.json"));
 
   assert.equal(status.phase, "clarify");
   assert.match(result.stdout, /current Codex thread/);
-  assert.match(result.stdout, /skills\/planner\/SKILL\.md/);
+  assert.match(result.stdout, /codex-composer-planner\/SKILL\.md/);
 });
 
 test("next auto-selects the only unfinished run and prints clarify guidance", async () => {
@@ -104,7 +136,7 @@ test("plan recommends parallel_ab for the React + Go layout and local policy can
     env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
   });
 
-  const parallelPlan = await readJson(path.join(repoRoot, ".codex-composer", "runs", "parallel-plan", "plan.json"));
+  const parallelPlan = await readJson(path.join(repoRoot, ".codex", "local", "runs", "parallel-plan", "plan.json"));
   assert.equal(parallelPlan.recommended_mode, "parallel_ab");
   assert.equal(parallelPlan.policy_evaluation.forced_mode, null);
 
@@ -113,7 +145,7 @@ test("plan recommends parallel_ab for the React + Go layout and local policy can
     env: { FAKE_CODEX_PLAN_SCENARIO: "core_conflict" }
   });
 
-  const corePlan = await readJson(path.join(repoRoot, ".codex-composer", "runs", "core-plan", "plan.json"));
+  const corePlan = await readJson(path.join(repoRoot, ".codex", "local", "runs", "core-plan", "plan.json"));
   assert.equal(corePlan.policy_evaluation.forced_mode, "serial");
   assert.ok(corePlan.policy_evaluation.reasons.some((entry) => entry.includes("auth-core")));
 });
@@ -146,8 +178,8 @@ test("split requires a recorded plan-review decision and serial mode does not cr
   ]);
 
   const splitResult = await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId]);
-  const status = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
-  const worktreeB = path.join(repoRoot, ".codex-composer", "worktrees", runId, "b");
+  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
+  const worktreeB = path.join(repoRoot, ".codex", "local", "worktrees", runId, "b");
 
   assert.equal(status.tasks.a.worktree, repoRoot);
   assert.equal(status.tasks.b.status, "skipped");
@@ -178,10 +210,10 @@ test("next auto-runs split after plan approval and status points A to the curren
 
   const nextResult = await runTool(["next", "--repo", repoRoot, "--run", runId]);
   const statusResult = await runTool(["status", "--repo", repoRoot, "--run", runId]);
-  const status = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
+  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
 
   assert.equal(status.tasks.a.worktree, repoRoot);
-  assert.ok(status.tasks.b.worktree.endsWith(`.codex-composer/worktrees/${runId}/b`));
+  assert.ok(status.tasks.b.worktree.endsWith(`.codex/local/worktrees/${runId}/b`));
   assert.equal(status.phase, "execute");
   assert.match(nextResult.stdout, /phase: execute/);
   assert.match(statusResult.stdout, /A: ready/);
@@ -206,8 +238,8 @@ test("repo-local empty template safely downgrades the login request to serial", 
   ]);
   await runRepoLauncher(repoRoot, ["plan", "--run", runId]);
 
-  const plan = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "plan.json"));
-  const planMd = await readText(path.join(repoRoot, ".codex-composer", "runs", runId, "PLAN.md"));
+  const plan = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "plan.json"));
+  const planMd = await readText(path.join(repoRoot, ".codex", "local", "runs", runId, "PLAN.md"));
   assert.equal(plan.recommended_mode, "serial");
   assert.ok(plan.policy_evaluation.reasons.some((entry) => entry.includes("matched no repository files")));
   assert.match(planMd, /stable parallel boundaries are not established yet/);
@@ -243,10 +275,10 @@ test("hybrid launcher drives start to split in an installed repo without root pr
   ]);
 
   const nextResult = await runRepoLauncher(repoRoot, ["next", "--run", runId]);
-  const status = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
+  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
 
   assert.equal(status.phase, "execute");
-  assert.ok(status.tasks.b.worktree.endsWith(`.codex-composer/worktrees/${runId}/b`));
+  assert.ok(status.tasks.b.worktree.endsWith(`.codex/local/worktrees/${runId}/b`));
   await fs.access(path.join(repoRoot, "codex-composer"));
   await assert.rejects(fs.access(path.join(repoRoot, "prompts")));
   await assert.rejects(fs.access(path.join(repoRoot, "skills")));
@@ -283,7 +315,7 @@ test("manual merge flow reaches completed after verify, commit, merge-review, an
   await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
   await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "b"]);
 
-  let status = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
+  let status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
   assert.equal(status.phase, "merge-review");
   assert.match(status.tasks.a.commit_message, /feat\(a\)/);
   assert.ok(status.tasks.a.changed_files.includes("frontend/src/LoginPage.jsx"));
@@ -301,7 +333,7 @@ test("manual merge flow reaches completed after verify, commit, merge-review, an
     "allow_manual_merge"
   ]);
 
-  status = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
+  status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
   assert.equal(status.phase, "ready-to-merge");
 
   const branchA = status.tasks.a.branch;
@@ -313,9 +345,9 @@ test("manual merge flow reaches completed after verify, commit, merge-review, an
   await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "main"]);
   await runScript("composer-summarize.sh", ["--repo", repoRoot, "--run", runId]);
 
-  const completed = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
-  const summary = await readText(path.join(repoRoot, ".codex-composer", "runs", runId, "SUMMARY.md"));
-  const prBody = await readText(path.join(repoRoot, ".codex-composer", "runs", runId, "PR_BODY.md"));
+  const completed = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
+  const summary = await readText(path.join(repoRoot, ".codex", "local", "runs", runId, "SUMMARY.md"));
+  const prBody = await readText(path.join(repoRoot, ".codex", "local", "runs", runId, "PR_BODY.md"));
   assert.equal(completed.phase, "completed");
   assert.match(summary, /approved_mode: parallel_ab/);
   assert.match(summary, /frontend\/src\/LoginPage\.jsx/);
@@ -364,8 +396,34 @@ test("merge-review return_b keeps task A intact and only marks B for rework", as
     "return_b"
   ]);
 
-  const status = await readJson(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
+  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
   assert.equal(status.tasks.a.status, "committed");
   assert.equal(status.tasks.b.status, "needs-rework");
   assert.equal(status.phase, "execute");
+});
+
+test("legacy layout remains readable, warns as deprecated, and migrate is idempotent", async () => {
+  const repoRoot = await createLegacyInstalledRepo();
+  const runId = "legacy-run";
+
+  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
+
+  let statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
+  assert.match(statusResult.stdout, /legacy \.codex-composer layout detected/);
+  assert.match(statusResult.stdout, /\.codex-composer\/protocol\/skills\/planner\/SKILL\.md/);
+  await fs.access(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
+
+  const firstMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
+  assert.match(firstMigrate.stdout, /migrated: true/);
+  await fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
+  await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
+  await fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md"));
+
+  statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
+  assert.match(statusResult.stdout, /layout_mode: codex/);
+  assert.match(statusResult.stdout, /\.codex\/skills\/codex-composer-planner\/SKILL\.md/);
+  assert.doesNotMatch(statusResult.stdout, /legacy \.codex-composer layout detected/);
+
+  const secondMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
+  assert.match(secondMigrate.stdout, /migrated: false/);
 });

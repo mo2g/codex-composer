@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_DIR="/tmp/codex-composer"
+BASE_DIR="${BASE_DIR:-/tmp/codex-composer}"
 EMPTY_REPO="$BASE_DIR/empty-login"
 REACT_REPO="$BASE_DIR/react-go-login"
 EMPTY_HOME="$BASE_DIR/home-empty"
@@ -20,8 +20,8 @@ ensure_absent() {
 
 write_fake_config() {
   local repo_root="$1"
-  mkdir -p "$repo_root/.codex-composer"
-  cat > "$repo_root/.codex-composer/config.toml" <<EOF
+  mkdir -p "$repo_root/.codex/local"
+  cat > "$repo_root/.codex/local/config.toml" <<EOF
 [project]
 main_branch = "main"
 branch_prefix = "codex/"
@@ -108,7 +108,7 @@ run_empty_validation() {
     if (!reasons.some((entry) => entry.includes("matched no repository files"))) {
       throw new Error("empty-login missing boundary-evidence downgrade reason");
     }
-  ' "$EMPTY_REPO/.codex-composer/runs/login/plan.json"
+  ' "$EMPTY_REPO/.codex/local/runs/login/plan.json"
 }
 
 run_react_validation() {
@@ -121,8 +121,8 @@ run_react_validation() {
     ./codex-composer plan --run login >/dev/null
     ./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
     ./codex-composer next --run login >/dev/null
-    node ./.codex-composer/protocol/tools/composer.mjs run-task --run login --task a >/dev/null
-    node ./.codex-composer/protocol/tools/composer.mjs run-task --run login --task b >/dev/null
+    node ./.codex/protocol/tools/composer.mjs run-task --run login --task a >/dev/null
+    node ./.codex/protocol/tools/composer.mjs run-task --run login --task b >/dev/null
     ./codex-composer verify --run login --target a >/dev/null
     ./codex-composer verify --run login --target b >/dev/null
     ./codex-composer commit --run login --task a >/dev/null
@@ -146,8 +146,8 @@ run_react_validation() {
       throw new Error(`react-go-login expected completed phase, received ${status.phase}`);
     }
   ' \
-    "$REACT_REPO/.codex-composer/runs/login/plan.json" \
-    "$REACT_REPO/.codex-composer/runs/login/status.json"
+    "$REACT_REPO/.codex/local/runs/login/plan.json" \
+    "$REACT_REPO/.codex/local/runs/login/status.json"
 }
 
 write_report() {
@@ -156,10 +156,10 @@ write_report() {
   local react_mode
   local react_phase
 
-  empty_mode="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(plan.recommended_mode);' "$EMPTY_REPO/.codex-composer/runs/login/plan.json")"
-  empty_reasons="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write((plan.policy_evaluation?.reasons ?? []).join(" | "));' "$EMPTY_REPO/.codex-composer/runs/login/plan.json")"
-  react_mode="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(plan.recommended_mode);' "$REACT_REPO/.codex-composer/runs/login/plan.json")"
-  react_phase="$(node --input-type=module -e 'import fs from "node:fs/promises"; const status = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(status.phase);' "$REACT_REPO/.codex-composer/runs/login/status.json")"
+  empty_mode="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(plan.recommended_mode);' "$EMPTY_REPO/.codex/local/runs/login/plan.json")"
+  empty_reasons="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write((plan.policy_evaluation?.reasons ?? []).join(" | "));' "$EMPTY_REPO/.codex/local/runs/login/plan.json")"
+  react_mode="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(plan.recommended_mode);' "$REACT_REPO/.codex/local/runs/login/plan.json")"
+  react_phase="$(node --input-type=module -e 'import fs from "node:fs/promises"; const status = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(status.phase);' "$REACT_REPO/.codex/local/runs/login/status.json")"
 
   cat > "$BASE_DIR/validation-report.md" <<EOF
 # Validation Report
@@ -177,8 +177,8 @@ write_report() {
 
 - recommended_mode: $react_mode
 - final_phase: $react_phase
-- summary: $REACT_REPO/.codex-composer/runs/login/SUMMARY.md
-- pr_body: $REACT_REPO/.codex-composer/runs/login/PR_BODY.md
+- summary: $REACT_REPO/.codex/local/runs/login/SUMMARY.md
+- pr_body: $REACT_REPO/.codex/local/runs/login/PR_BODY.md
 EOF
 }
 
