@@ -21,10 +21,12 @@ The Codex Composer MVP is current-thread first, launcher first, and manual-merge
 
 1. Install Codex Composer into the target repository.
 2. Run `./codex-composer start`.
-3. Use the current Codex thread plus `.agents/skills/codex-composer/planner/SKILL.md` to finish `clarify` and `plan-review`.
+3. Use the current Codex thread in the `planner` role to finish `clarify` and `plan-review`.
 4. If the user approves a split, run `./codex-composer next`; it will execute `split` and print the updated status.
-5. Continue `A` in the current repository.
-6. If `B` exists, open a second Codex thread manually in the `B` worktree.
+5. Continue `A` in the current repository with the `task-owner` role.
+6. If `B` exists, open a second Codex thread manually in the `B` worktree and use `task-owner` there.
 7. Verify and commit each task explicitly.
-8. Use the current thread plus `.agents/skills/codex-composer/integrator-reviewer/SKILL.md` to decide whether the run is ready for manual merge.
+8. Use the current thread in the `integrator-reviewer` role to decide whether the run is ready for manual merge.
 9. Merge manually, verify `main`, and generate the summary.
+
+For prompt phrasing examples, see `docs/skill-invocation-examples.md`.

@@ -62,6 +62,14 @@ Each run lives in `.codex/local/runs/<run-id>/`.
 
 Skills define role behavior. Templates provide thin runtime scaffolding. They are intentionally not the same layer.
 
+Users should primarily think in terms of roles:
+
+- `planner`
+- `task-owner`
+- `integrator-reviewer`
+
+File paths remain useful for inspection and contributor maintenance, but they are not the primary user-facing entrypoint.
+
 ## Current-Thread Control
 
 The current Codex thread is the planner/control thread by default. That thread is responsible for:

@@ -20,7 +20,8 @@ Subagents are not the default execution model for Codex Composer.
 The default path remains:
 
 - planner in the current Codex thread
-- task `A` in the current repository
-- optional task `B` in a user-opened thread inside a separate worktree
+- task `A` in the current repository with the `task-owner` skill
+- optional task `B` in a user-opened thread inside a separate worktree, also using `task-owner`
+- merge readiness back in the current thread with `integrator-reviewer`
 
 If subagents are explored in the future, they remain optional and non-default.

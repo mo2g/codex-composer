@@ -7,6 +7,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 - Entry conditions:
   - `start` created the run
   - no accepted clarify decision yet
+- Recommended skill:
+  - `planner` in the current Codex thread
 - Allowed commands:
   - `checkpoint --checkpoint clarify --decision clarified`
   - `status`
@@ -21,6 +23,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 
 - Entry conditions:
   - clarify decision recorded
+- Recommended skill:
+  - `planner` in the current Codex thread
 - Allowed commands:
   - `plan`
   - `next`
@@ -35,6 +39,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 
 - Entry conditions:
   - `plan.json` and `PLAN.md` exist
+- Recommended skill:
+  - `planner` in the current Codex thread
 - Allowed commands:
   - `checkpoint --decision approve_parallel --mode parallel_ab`
   - `checkpoint --decision force_serial --mode serial`
@@ -52,6 +58,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 
 - Entry conditions:
   - a plan-review decision approved `serial` or `parallel_ab`
+- Recommended skill:
+  - `planner` in the current Codex thread until `split` is done
 - Allowed commands:
   - `split`
   - `next`
@@ -66,6 +74,9 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 - Entry conditions:
   - A is prepared in the current repo
   - B worktree exists only if `parallel_ab` was approved
+- Recommended skill:
+  - `task-owner` in the current thread for A
+  - `task-owner` in a separate B worktree thread for B, if enabled
 - Allowed commands:
   - `verify --target a|b`
   - `commit --task a|b`
@@ -81,6 +92,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 
 - Entry conditions:
   - all enabled tasks are verified and committed
+- Recommended skill:
+  - `integrator-reviewer` in the current Codex thread
 - Allowed commands:
   - `checkpoint --decision allow_manual_merge`
   - `checkpoint --decision return_a`
@@ -97,6 +110,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 
 - Entry conditions:
   - integrator-reviewer has allowed manual merge
+- Recommended skill:
+  - no new execution skill; the user performs the merge manually
 - Allowed commands:
   - manual `git merge`
   - `verify --target main`
@@ -112,6 +127,8 @@ If `start`, `status`, or `next` warns that the repository is still using a depre
 
 - Entry conditions:
   - `verify --target main` passed
+- Recommended skill:
+  - no required role; `integrator-reviewer` may be revisited only if handoff text needs another review pass
 - Allowed commands:
   - `summarize`
   - `status`

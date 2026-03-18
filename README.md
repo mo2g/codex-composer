@@ -1,21 +1,29 @@
 # Codex Composer
 
-Codex Composer is a protocol-first workflow template for using Codex inside an existing repository. It keeps planning in the current Codex thread, treats worktrees as the primary parallelism mechanism, and forces explicit verification and commit gates before any human merge.
+Codex Composer is a protocol-first workflow template for using Codex inside an existing repository. It is built for Codex app users who want explicit planning, optional worktree-based parallelism, and auditable human gates before anything lands on `main`.
+
+The default model is deliberately conservative:
+
+- the current Codex thread is the planner/control thread
+- optional parallel work happens through a user-opened B thread inside a git worktree
+- `verify` and `commit` stay explicit
+- merge stays manual
 
 ## Design Principles
 
-- `protocol-first`: workflow assets, prompts, state, and command behavior stay inspectable and versioned
+- `protocol-first`: skills, protocol assets, runtime state, and command behavior stay inspectable and versioned
 - `non-subagent-default`: the main path does not depend on subagents
-- `thread/worktree-first parallelism`: parallel work means current thread for A and an optional new thread in a B worktree
-- `explicit gates`: `verify`, `commit`, and `merge-review` are always deliberate
-- `manual merge only`: the framework prepares branches for merge readiness; it never merges for the user
+- `thread/worktree-first parallelism`: A stays in the current thread; B is an optional second Codex thread in a worktree
+- `explicit gates`: `verify`, `commit`, and `merge-review` are deliberate checkpoints
+- `manual merge only`: the framework prepares merge readiness; it never merges for the user
 
-## Design Tradeoffs
+## How This Maps To Codex App Usage
 
-- More explicit checkpoints adds ceremony, but removes hidden agent behavior
-- Worktree-first parallelism is less automatic than subagents, but easier to audit and recover
-- Splitting Codex-native discovery from internal protocol assets adds structure, but makes the repository semantics much clearer
-- Migration is handled explicitly through `migrate`, not through permanent multi-path writes
+- In the current Codex thread, use the repo-native `planner` skill to clarify scope and review the plan.
+- Task `A` usually continues in the same thread with the `task-owner` skill.
+- If `parallel_ab` is approved, `next` creates only the optional B worktree. You then open a second Codex thread there and use the same `task-owner` skill for B.
+- When A and B are verified and committed, return to the current thread and use `integrator-reviewer` for merge readiness.
+- The actual merge still happens manually in git, followed by `verify --target main` and `summarize`.
 
 ## Architecture
 
@@ -36,28 +44,14 @@ Codex Composer is a protocol-first workflow template for using Codex inside an e
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
 
-The root `scripts/` and `tools/` directories remain as compatibility wrappers in the source repository. The canonical implementation lives under `.codex/` and `.agents/`.
+The source repository still keeps root `scripts/` and `tools/` as thin compatibility wrappers for maintenance and legacy installs. The canonical implementation lives under `.agents/` and `.codex/`.
 
 ## Why `.agents/skills` And `.codex/protocol`
 
-- `.agents/skills` is the Codex-native discovery layer for repo-local skills
+- `.agents/skills` is the discoverable repo-native layer Codex can match against directly
 - `.codex/protocol` is the internal workflow layer for templates, schemas, and tooling
-- This split keeps skill discovery separate from runtime orchestration
-- It avoids teaching users that internal workflow assets and discoverable skills live in the same directory tree
-
-## When To Use This
-
-- You want Codex to work inside an existing multi-language repository
-- You want optional A/B parallel development without making subagents the default model
-- You care about explicit review, reproducibility, and interruption recovery
-- You want a shareable open-source template instead of a private prompt bundle
-
-## When Not To Use This
-
-- You want automatic merge or autonomous branch integration
-- You want subagents to be the primary implementation path
-- You want Codex to make irreversible decisions without human checkpoints
-- Your repository cannot tolerate launcher scripts or repo-local workflow state
+- `.codex/local` keeps runtime state separate from both discoverable skills and reusable protocol assets
+- This split keeps role discovery, orchestration logic, and runtime state from blurring together
 
 ## Install
 
@@ -75,16 +69,14 @@ bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template exi
 
 ## Happy Path
 
+Start a run:
+
 ```bash
 ./codex-composer start --run login --requirement "Develop a login module using React and Golang"
 ./codex-composer next --run login
 ```
 
-Then stay in the current Codex thread:
-
-1. Read `AGENTS.md` and `.agents/skills/codex-composer/planner/SKILL.md`
-2. Update `.codex/local/runs/login/clarifications.md`
-3. Advance the run with explicit commands:
+Then keep the current Codex thread in the `planner` role:
 
 ```bash
 ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
@@ -93,32 +85,50 @@ Then stay in the current Codex thread:
 ./codex-composer next --run login
 ```
 
-After `next` performs the approved split:
+Recommended role flow:
 
-- `A` stays in the current repository and current Codex thread
-- `B` is an optional worktree under `.codex/local/worktrees/<run-id>/b`; open a new Codex thread there manually
+1. Current thread uses `planner` for `clarify` and `plan-review`.
+2. After approval, `next` prepares A in the current repo and creates B only if `parallel_ab` was approved.
+3. Current thread uses `task-owner` for A.
+4. If B exists, open a new Codex thread in `.codex/local/worktrees/<run-id>/b` and use `task-owner` there for B.
+5. Verify and commit each enabled task explicitly.
+6. Return to the current thread and use `integrator-reviewer` for `merge-review`.
+7. Merge manually, then verify `main` and generate the final handoff text.
 
-When each task is ready:
+Verification and commit remain explicit:
 
 ```bash
 ./codex-composer verify --run login --target a
 ./codex-composer commit --run login --task a
 ./codex-composer verify --run login --target b
 ./codex-composer commit --run login --task b
-```
-
-When status reaches `merge-review`, use `.agents/skills/codex-composer/integrator-reviewer/SKILL.md` in the current thread, then record:
-
-```bash
 ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
-```
-
-The user merges manually. The required post-merge finish is:
-
-```bash
 ./codex-composer verify --run login --target main
 ./codex-composer summarize --run login
 ```
+
+For realistic prompt examples, see `docs/skill-invocation-examples.md`.
+
+## Why Subagents Are Not The Default
+
+- Worktree-first parallelism is easier to inspect, recover, and explain than hidden agent orchestration.
+- Current-thread control makes approval boundaries obvious.
+- Explicit `verify`, `commit`, and manual merge keep the workflow auditable.
+- Subagents remain a future experimental option for read-only review or research, not for default implementation or merge flow.
+
+## When To Use This
+
+- You want Codex to work inside an existing multi-language repository
+- You want optional A/B parallel development without making subagents the main model
+- You care about explicit review, reproducibility, and interruption recovery
+- You want a shareable open-source workflow template instead of a private prompt bundle
+
+## When Not To Use This
+
+- You want automatic merge or autonomous branch integration
+- You want subagents to be the primary implementation path
+- You want Codex to make irreversible decisions without human checkpoints
+- Your repository cannot tolerate launcher scripts or repo-local workflow state
 
 ## Commands
 
@@ -146,33 +156,29 @@ The user merges manually. The required post-merge finish is:
 
 `next` never decides checkpoints, never runs `verify`, never runs `commit`, and never merges. It only performs the already-approved `split` step automatically.
 
-## Migration Notes
+## Contributor Notes
 
-- New installs write:
+- Canonical files live under `.agents/` and `.codex/`. Root `scripts/` and `tools/` exist for compatibility and source-repo maintenance.
+- Use `npm test` or `make test` for the repository test suite.
+- Use `make validate-tmp` for the local smoke validation.
+- If `/tmp/codex-composer` is already populated, rerun smoke with `BASE_DIR=/tmp/codex-composer-<suffix> make validate-tmp`.
+- `make live-smoke` is opt-in only after real Codex auth is configured.
+- The repository does not currently define separate lint, format, or typecheck commands.
+
+## Migration / Compatibility Notes
+
+- New installs write only:
   - `.agents/skills/codex-composer/*`
   - `.codex/protocol/*`
   - `.codex/local/*`
-- Existing `.codex-composer` repos should run:
+- Existing `.codex-composer` or intermediate `.codex/skills/*` repos should run:
 
 ```bash
 ./codex-composer migrate
 ```
 
-- Existing intermediate repos with `.codex/skills/*` should also run:
-
-```bash
-./codex-composer migrate
-```
-
-- Compatibility with `.codex-composer` and `.codex/skills` is deprecated and only kept long enough for migration
-- Once `.agents` and `.codex/local` exist, new writes go only to the new layout
-
-## Subagents
-
-- Subagents are **not** the default execution model
-- Default parallelism is current thread + optional new Codex thread + git worktree
-- Experimental subagents are documented separately and limited to future read-only review/research scenarios
-- Subagents must not auto-merge, must not write to `main`, and must not independently close cross-task work
+- Compatibility with `.codex-composer` and `.codex/skills` is deprecated and only kept long enough for migration.
+- Once `.agents` and `.codex/local` exist, new writes go only to the canonical layout.
 
 ## Docs
 
@@ -180,5 +186,6 @@ The user merges manually. The required post-merge finish is:
 - `docs/protocol.md`
 - `docs/state-machine.md`
 - `docs/manual-merge-checklist.md`
+- `docs/skill-invocation-examples.md`
 - `docs/experimental-subagents.md`
 - `docs/codex-native-mvp.md`

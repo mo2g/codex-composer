@@ -39,11 +39,11 @@ The current Codex thread remains the planner/control thread.
 
 ## 3. Clarify And Plan
 
-Use:
+Use the current Codex thread in the `planner` role. The main supporting files are:
 
 - `AGENTS.md`
-- `.agents/skills/codex-composer/planner/SKILL.md`
 - `.codex/local/runs/<run-id>/clarifications.md`
+- `.codex/local/runs/<run-id>/PLAN.md`
 
 When the user has clarified enough:
 
@@ -77,6 +77,8 @@ After plan approval:
 - `A` stays in the current repository root.
 - `B` is created only when `parallel_ab` is approved.
 
+Use `task-owner` for A in the current thread. If B exists, open a new Codex thread inside the B worktree and use `task-owner` there.
+
 ## 5. Verify And Commit
 
 After task implementation:
@@ -92,7 +94,7 @@ If `B` exists, repeat for `b`.
 
 When status reaches `merge-review`, use:
 
-- `.agents/skills/codex-composer/integrator-reviewer/SKILL.md`
+- the `integrator-reviewer` role in the current Codex thread
 
 Then record the result:
 
@@ -119,3 +121,5 @@ This applies to both:
 
 - `.codex-composer/...`
 - `.codex/skills/...`
+
+For realistic prompt phrasing, see `docs/skill-invocation-examples.md`.

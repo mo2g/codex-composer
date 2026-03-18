@@ -99,13 +99,13 @@ async function recommendedNextSteps(repoRoot, runId, status) {
     case "clarified":
       return [
         "Stay in the current Codex thread. This thread is the planner/control thread.",
-        `Read AGENTS.md and ${await skillPath(protocol, "planner")}, then update ${runPaths(repoRoot, runId).clarifications}.`,
+        `Use the repo's planner skill in the current Codex thread. Supporting references: AGENTS.md, ${await skillPath(protocol, "planner")}, and ${runPaths(repoRoot, runId).clarifications}.`,
         `Record clarify with ${checkpointCommand} --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
         `Generate the plan with ${planCommand} --run ${runId}.`
       ];
     case "plan-review":
       return [
-        "Stay in the current Codex thread and review PLAN.md with the planner skill.",
+        "Stay in the current Codex thread and use the planner skill to review PLAN.md and choose the next checkpoint.",
         `Choose parallel or serial with ${checkpointCommand} --run ${runId} --checkpoint plan-review --decision approve_parallel --mode parallel_ab`,
         `Or keep it serial with ${checkpointCommand} --run ${runId} --checkpoint plan-review --decision force_serial --mode serial`,
         `If the requirement changed, record needs_replan and rerun ${planCommand} --run ${runId}.`
@@ -118,11 +118,11 @@ async function recommendedNextSteps(repoRoot, runId, status) {
     case "execute": {
       const steps = [];
       if (status.tasks.a.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.a.status)) {
-        steps.push(`Continue task A in the current Codex thread at ${status.tasks.a.worktree ?? repoRoot} and use ${promptPathForTask(repoRoot, runId, "a")}.`);
+        steps.push(`Continue task A in the current Codex thread with the task-owner skill. Task brief: ${promptPathForTask(repoRoot, runId, "a")}. Working tree: ${status.tasks.a.worktree ?? repoRoot}.`);
         steps.push(`When task A is ready, run ${verifyCommand} --run ${runId} --target a and then ${commitCommand} --run ${runId} --task a.`);
       }
       if (status.tasks.b.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.b.status)) {
-        steps.push(`Open a new Codex thread in ${status.tasks.b.worktree ?? "<pending split>"} for task B and use ${promptPathForTask(repoRoot, runId, "b")}.`);
+        steps.push(`Open a new Codex thread in ${status.tasks.b.worktree ?? "<pending split>"} for task B, then use the task-owner skill there. Task brief: ${promptPathForTask(repoRoot, runId, "b")}.`);
         steps.push(`When task B is ready, run ${verifyCommand} --run ${runId} --target b and then ${commitCommand} --run ${runId} --task b.`);
       }
       if (steps.length > 0) {
@@ -268,7 +268,7 @@ async function commandStart(args) {
   } else {
     lines.push(
       "- Stay in the current Codex thread. This thread is the planner/control thread.",
-      `- Read AGENTS.md and ${await skillPath(protocol, "planner")}.`,
+      `- Use the repo's planner skill in the current Codex thread. Supporting references: AGENTS.md and ${await skillPath(protocol, "planner")}.`,
       `- Update ${paths.clarifications} with any missing acceptance criteria or constraints.`,
       `- Record checkpoint 1 with ${checkpointCommand} --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
       `- Generate the plan with ${planCommand} --run ${runId}.`,

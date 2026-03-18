@@ -1,6 +1,23 @@
 # Codex Composer Protocol
 
-Codex Composer defines a worktree-first workflow for using Codex inside an existing repository. The current Codex thread is the planner/control thread by default.
+Codex Composer is a protocol-first, worktree-first workflow template for using Codex inside an existing repository. The current Codex thread is the planner/control thread by default.
+
+## Setup / Dev Commands
+
+- Install dependencies: `npm install`
+- Run unit and protocol tests: `npm test`
+- Alternate test entrypoint: `make test`
+- Run the local smoke validation: `make validate-tmp`
+- Override the default tmp location on repeated runs: `BASE_DIR=/tmp/codex-composer-<suffix> make validate-tmp`
+- Opt-in live smoke reminder: `make live-smoke`
+- Lint / format / typecheck: not defined in this repository today. Do not invent extra validation commands in automation, docs, or reviews.
+
+## How To Work On This Repository
+
+- Prefer canonical assets under `.agents/skills/`, `.codex/protocol/`, and `.codex/local/`.
+- Treat root `scripts/` and `tools/` as compatibility wrappers for source-repo maintenance, not as the primary user-facing workflow.
+- Keep `README.md`, `AGENTS.md`, repo-native skills, state-machine docs, and merge guidance aligned when changing workflow wording.
+- Before considering a change polished, run `npm test` and `make validate-tmp`. Use a custom `BASE_DIR` if the default tmp path is already populated from an earlier smoke run.
 
 ## Core Rules
 
@@ -41,6 +58,10 @@ Codex Composer defines a worktree-first workflow for using Codex inside an exist
 
 - `A`: the current repository root and the current Codex thread.
 - `B`: an optional git worktree created by `split`; the user may open a separate Codex thread there.
+- Default Codex app roles:
+  - `planner` in the current thread
+  - `task-owner` in the current thread for A and, if needed, in a separate B thread
+  - `integrator-reviewer` back in the current thread for merge readiness
 - Compatibility helpers such as `composer-chat-control`, `composer-run-task`, and `composer-integrate` exist, but they are not the primary path.
 
 ## Task Boundaries
@@ -58,14 +79,16 @@ Codex Composer defines a worktree-first workflow for using Codex inside an exist
   - tightly coupled refactors in one subsystem
   - work that requires simultaneous edits in the same critical directory
 
-## Template And Skill Sources
+## Skills And Templates
 
-- Planner template: `.codex/protocol/templates/planner.md`
-- Task template: `.codex/protocol/templates/task-owner.md`
-- Merge template: `.codex/protocol/templates/integrator-reviewer.md`
-- Planner skill: `.agents/skills/codex-composer/planner/SKILL.md`
-- Task skill: `.agents/skills/codex-composer/task-owner/SKILL.md`
-- Integrator skill: `.agents/skills/codex-composer/integrator-reviewer/SKILL.md`
+- Repo-native skills:
+  - planner: `.agents/skills/codex-composer/planner/SKILL.md`
+  - task-owner: `.agents/skills/codex-composer/task-owner/SKILL.md`
+  - integrator-reviewer: `.agents/skills/codex-composer/integrator-reviewer/SKILL.md`
+- Internal runtime templates:
+  - `.codex/protocol/templates/planner.md`
+  - `.codex/protocol/templates/task-owner.md`
+  - `.codex/protocol/templates/integrator-reviewer.md`
 
 ## Approval Rules
 
