@@ -18,13 +18,14 @@ Codex Composer defines a worktree-first workflow for using Codex inside an exist
 - Root-visible control surface:
   - `AGENTS.md`
   - repository launcher: `./codex-composer` or, if occupied, `./composer-next`
-- Canonical managed assets:
-  - `.codex/protocol/prompts/`
+- Codex-native discovery layer:
+  - `.agents/skills/codex-composer/planner/`
+  - `.agents/skills/codex-composer/task-owner/`
+  - `.agents/skills/codex-composer/integrator-reviewer/`
+- Internal protocol layer:
+  - `.codex/protocol/templates/`
   - `.codex/protocol/schemas/`
   - `.codex/protocol/tools/`
-  - `.codex/skills/codex-composer-planner/`
-  - `.codex/skills/codex-composer-task-owner/`
-  - `.codex/skills/codex-composer-integrator-reviewer/`
 - Runtime state:
   - `.codex/local/config.toml`
   - `.codex/local/runs/<run-id>/`
@@ -57,14 +58,14 @@ Codex Composer defines a worktree-first workflow for using Codex inside an exist
   - tightly coupled refactors in one subsystem
   - work that requires simultaneous edits in the same critical directory
 
-## Prompt And Skill Sources
+## Template And Skill Sources
 
-- Planner prompt: `.codex/protocol/prompts/planner.md`
-- Task prompt: `.codex/protocol/prompts/task-owner.md`
-- Merge prompt: `.codex/protocol/prompts/integrator-reviewer.md`
-- Planner skill: `.codex/skills/codex-composer-planner/SKILL.md`
-- Task skill: `.codex/skills/codex-composer-task-owner/SKILL.md`
-- Integrator skill: `.codex/skills/codex-composer-integrator-reviewer/SKILL.md`
+- Planner template: `.codex/protocol/templates/planner.md`
+- Task template: `.codex/protocol/templates/task-owner.md`
+- Merge template: `.codex/protocol/templates/integrator-reviewer.md`
+- Planner skill: `.agents/skills/codex-composer/planner/SKILL.md`
+- Task skill: `.agents/skills/codex-composer/task-owner/SKILL.md`
+- Integrator skill: `.agents/skills/codex-composer/integrator-reviewer/SKILL.md`
 
 ## Approval Rules
 

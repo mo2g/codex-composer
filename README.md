@@ -1,61 +1,62 @@
 # Codex Composer
 
-Codex Composer is a protocol-first workflow template for using Codex inside an existing repository. It keeps planning in the current Codex thread, treats worktrees as the primary parallelism mechanism, and forces verification and commit gates before any human merge.
+Codex Composer is a protocol-first workflow template for using Codex inside an existing repository. It keeps planning in the current Codex thread, treats worktrees as the primary parallelism mechanism, and forces explicit verification and commit gates before any human merge.
 
 ## Design Principles
 
-- `protocol-first`: prompts, skills, state files, and CLI behavior should be inspectable and versioned
+- `protocol-first`: workflow assets, prompts, state, and command behavior stay inspectable and versioned
 - `non-subagent-default`: the main path does not depend on subagents
-- `thread/worktree-first parallelism`: parallel work means current thread for A, optional new thread in a B worktree
-- `explicit gates`: `verify`, `commit`, and `merge-review` are never implicit
-- `manual merge only`: the framework prepares branches for merge; it never merges them for the user
+- `thread/worktree-first parallelism`: parallel work means current thread for A and an optional new thread in a B worktree
+- `explicit gates`: `verify`, `commit`, and `merge-review` are always deliberate
+- `manual merge only`: the framework prepares branches for merge readiness; it never merges for the user
 
 ## Design Tradeoffs
 
-- More explicit checkpoints means slightly more ceremony, but far less hidden agent behavior
-- Worktree-first parallelism is slower to automate than subagents, but easier to audit and recover
-- A launcher plus state files is less magical than a fully autonomous agent, but much more predictable for Codex app users
-- Compatibility is handled by an explicit migration command, not by permanent dual-write logic
+- More explicit checkpoints adds ceremony, but removes hidden agent behavior
+- Worktree-first parallelism is less automatic than subagents, but easier to audit and recover
+- Splitting Codex-native discovery from internal protocol assets adds structure, but makes the repository semantics much clearer
+- Migration is handled explicitly through `migrate`, not through permanent multi-path writes
 
 ## Architecture
 
 - Root-visible control surface:
   - `AGENTS.md`
   - `./codex-composer`
-  - `./composer-next` only when the primary launcher name is already taken
-- Canonical managed assets:
-  - `.codex/protocol/prompts/`
+  - `./composer-next` only if the primary launcher name is already taken
+- Codex-native discovery layer:
+  - `.agents/skills/codex-composer/planner/`
+  - `.agents/skills/codex-composer/task-owner/`
+  - `.agents/skills/codex-composer/integrator-reviewer/`
+- Internal protocol layer:
+  - `.codex/protocol/templates/`
   - `.codex/protocol/schemas/`
   - `.codex/protocol/tools/`
-  - `.codex/skills/codex-composer-planner/`
-  - `.codex/skills/codex-composer-task-owner/`
-  - `.codex/skills/codex-composer-integrator-reviewer/`
 - Runtime-only state:
   - `.codex/local/config.toml`
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
 
-The root `scripts/` and `tools/` directories remain as compatibility wrappers in the source repository. The canonical implementation lives under `.codex/`.
+The root `scripts/` and `tools/` directories remain as compatibility wrappers in the source repository. The canonical implementation lives under `.codex/` and `.agents/`.
 
-## Why `.codex` Instead Of `.codex-composer`
+## Why `.agents/skills` And `.codex/protocol`
 
-- It is closer to Codex’s native ecosystem shape
-- It makes repo-local protocol assets feel like first-class Codex assets, not an external add-on
-- It separates canonical Codex assets from runtime-local state more cleanly
-- It avoids teaching users a parallel hidden directory convention that differs from the broader Codex mental model
+- `.agents/skills` is the Codex-native discovery layer for repo-local skills
+- `.codex/protocol` is the internal workflow layer for templates, schemas, and tooling
+- This split keeps skill discovery separate from runtime orchestration
+- It avoids teaching users that internal workflow assets and discoverable skills live in the same directory tree
 
 ## When To Use This
 
 - You want Codex to work inside an existing multi-language repository
-- You want optional A/B parallel development without adopting subagents as the default model
-- You care about explicit review, reproducibility, and recovery after interruption
-- You want a shareable open-source template rather than a private prompt bundle
+- You want optional A/B parallel development without making subagents the default model
+- You care about explicit review, reproducibility, and interruption recovery
+- You want a shareable open-source template instead of a private prompt bundle
 
 ## When Not To Use This
 
-- You want fully autonomous branch integration or auto-merge
-- You want subagents to be the primary implementation model
-- Your workflow depends on Codex making irreversible decisions without human checkpoints
+- You want automatic merge or autonomous branch integration
+- You want subagents to be the primary implementation path
+- You want Codex to make irreversible decisions without human checkpoints
 - Your repository cannot tolerate launcher scripts or repo-local workflow state
 
 ## Install
@@ -75,13 +76,13 @@ bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template exi
 ## Happy Path
 
 ```bash
-./codex-composer start --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+./codex-composer start --run login --requirement "Develop a login module using React and Golang"
 ./codex-composer next --run login
 ```
 
 Then stay in the current Codex thread:
 
-1. Read `AGENTS.md` and `.codex/skills/codex-composer-planner/SKILL.md`
+1. Read `AGENTS.md` and `.agents/skills/codex-composer/planner/SKILL.md`
 2. Update `.codex/local/runs/login/clarifications.md`
 3. Advance the run with explicit commands:
 
@@ -106,7 +107,7 @@ When each task is ready:
 ./codex-composer commit --run login --task b
 ```
 
-When status reaches `merge-review`, use `.codex/skills/codex-composer-integrator-reviewer/SKILL.md` in the current thread, then record:
+When status reaches `merge-review`, use `.agents/skills/codex-composer/integrator-reviewer/SKILL.md` in the current thread, then record:
 
 ```bash
 ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
@@ -147,15 +148,24 @@ The user merges manually. The required post-merge finish is:
 
 ## Migration Notes
 
-- New installs only write `.codex`
+- New installs write:
+  - `.agents/skills/codex-composer/*`
+  - `.codex/protocol/*`
+  - `.codex/local/*`
 - Existing `.codex-composer` repos should run:
 
 ```bash
 ./codex-composer migrate
 ```
 
-- Compatibility with `.codex-composer` is deprecated and only kept as a transition path
-- Once `.codex` exists, new writes go only to `.codex`
+- Existing intermediate repos with `.codex/skills/*` should also run:
+
+```bash
+./codex-composer migrate
+```
+
+- Compatibility with `.codex-composer` and `.codex/skills` is deprecated and only kept long enough for migration
+- Once `.agents` and `.codex/local` exist, new writes go only to the new layout
 
 ## Subagents
 

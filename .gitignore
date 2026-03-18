@@ -1,5 +1,5 @@
 .DS_Store
-.codex/
+.codex/local/
 node_modules/
 coverage/
 *.log

@@ -3,7 +3,7 @@ import path from "node:path";
 import { collectRepoFiles, protocolRoot, sourceRepoRoot, sourceSkillsRoot, git, runCommand, branchExists, currentBranch, ensureRuntimeIgnoreEntries } from "./runtime.mjs";
 import { ensureDir, pathExists, readText, toPosixPath, writeText } from "./fs.mjs";
 
-const PROTOCOL_BUNDLE_ENTRIES = ["prompts", "schemas", "tools"];
+const PROTOCOL_BUNDLE_ENTRIES = ["templates", "schemas", "tools"];
 const COPY_IGNORE = new Set([".DS_Store"]);
 const FRONTEND_CANDIDATES = ["frontend", "web", "ui", "client", "apps/web"];
 const BACKEND_CANDIDATES = ["backend", "api", "server", "apps/api"];
@@ -11,9 +11,12 @@ const MANAGED_BLOCK_START = "<!-- CODEX COMPOSER START -->";
 const MANAGED_BLOCK_END = "<!-- CODEX COMPOSER END -->";
 const MANAGED_LAUNCHER_MARKER = "# Codex Composer Launcher";
 const LEGACY_SKILL_MAP = {
-  planner: "codex-composer-planner",
-  "task-owner": "codex-composer-task-owner",
-  "integrator-reviewer": "codex-composer-integrator-reviewer"
+  planner: "planner",
+  "task-owner": "task-owner",
+  "integrator-reviewer": "integrator-reviewer",
+  "codex-composer-planner": "planner",
+  "codex-composer-task-owner": "task-owner",
+  "codex-composer-integrator-reviewer": "integrator-reviewer"
 };
 
 function quoteTomlString(value) {
@@ -378,7 +381,7 @@ function renderManagedAgentsBlock(launcherName) {
 - Current thread: planner/control thread
 - Main entry: \`./${launcherName} next\`
 - Protocol files: \`.codex/protocol/\`
-- Skills: \`.codex/skills/\`
+- Skills: \`.agents/skills/codex-composer/\`
 - Runtime state: \`.codex/local/runs/<run-id>/\`
 - Optional parallel split: keep the current repo as task \`A\`; create task \`B\` with \`./${launcherName} split --run <run-id>\`
 
@@ -473,7 +476,7 @@ async function removeDirIfEmpty(targetPath) {
 
 async function migrateLegacySkills(repoRoot, results) {
   const legacySkillsRoot = path.join(repoRoot, ".codex-composer", "protocol", "skills");
-  const newSkillsRoot = path.join(repoRoot, ".codex", "skills");
+  const newSkillsRoot = path.join(repoRoot, ".agents", "skills", "codex-composer");
 
   if (!(await pathExists(legacySkillsRoot))) {
     return;
@@ -500,6 +503,35 @@ async function migrateLegacySkills(repoRoot, results) {
   await removeDirIfEmpty(legacySkillsRoot);
 }
 
+async function migrateInterimSkills(repoRoot, results) {
+  const interimSkillsRoot = path.join(repoRoot, ".codex", "skills");
+  const newSkillsRoot = path.join(repoRoot, ".agents", "skills", "codex-composer");
+
+  if (!(await pathExists(interimSkillsRoot))) {
+    return;
+  }
+
+  const entries = await fs.readdir(interimSkillsRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const mappedName = LEGACY_SKILL_MAP[entry.name] ?? entry.name;
+    const moved = await renameIfPresent(
+      path.join(interimSkillsRoot, entry.name),
+      path.join(newSkillsRoot, mappedName)
+    );
+    if (moved) {
+      results.moved.push(`agents-skills/${entry.name}`);
+    } else if (!(await pathExists(path.join(newSkillsRoot, mappedName)))) {
+      results.remaining.push(`agents-skills/${entry.name}`);
+    }
+  }
+
+  await removeDirIfEmpty(interimSkillsRoot);
+}
+
 export async function migrateLegacyRepo({ repoRoot }) {
   const results = {
     repoRoot,
@@ -514,10 +546,12 @@ export async function migrateLegacyRepo({ repoRoot }) {
   const newProtocolRoot = path.join(newRoot, "protocol");
   const newLocalRoot = path.join(newRoot, "local");
 
-  await renameIfPresent(path.join(legacyRoot, "protocol", "prompts"), path.join(newProtocolRoot, "prompts")) && results.moved.push("protocol/prompts");
+  await renameIfPresent(path.join(legacyRoot, "protocol", "templates"), path.join(newProtocolRoot, "templates")) && results.moved.push("protocol/templates");
+  await renameIfPresent(path.join(legacyRoot, "protocol", "prompts"), path.join(newProtocolRoot, "templates")) && results.moved.push("protocol/prompts->templates");
   await renameIfPresent(path.join(legacyRoot, "protocol", "schemas"), path.join(newProtocolRoot, "schemas")) && results.moved.push("protocol/schemas");
   await renameIfPresent(path.join(legacyRoot, "protocol", "tools"), path.join(newProtocolRoot, "tools")) && results.moved.push("protocol/tools");
   await migrateLegacySkills(repoRoot, results);
+  await migrateInterimSkills(repoRoot, results);
   await renameIfPresent(path.join(legacyRoot, "config.toml"), path.join(newLocalRoot, "config.toml")) && results.moved.push("local/config.toml");
   await renameIfPresent(path.join(repoRoot, ".codex-composer.toml"), path.join(newLocalRoot, "config.toml")) && results.moved.push("root-config");
   await renameIfPresent(path.join(legacyRoot, "runs"), path.join(newLocalRoot, "runs")) && results.moved.push("local/runs");
@@ -532,7 +566,7 @@ export async function migrateLegacyRepo({ repoRoot }) {
 
   if (await pathExists(legacyRoot)) {
     const leftover = await fs.readdir(legacyRoot);
-    results.remaining.push(...leftover.map((entry) => `.codex/${entry}`));
+    results.remaining.push(...leftover.map((entry) => `.codex-composer/${entry}`));
   }
 
   results.migrated = results.moved.length > 0;
@@ -551,8 +585,9 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "existing", c
   const initializedGit = await ensureGitRepository(repoRoot, "main");
   const facts = await collectBootstrapFacts(repoRoot, template);
   const stateRoot = path.join(repoRoot, ".codex");
+  const agentsRoot = path.join(repoRoot, ".agents");
   const protocolTargetRoot = path.join(stateRoot, "protocol");
-  const skillsTargetRoot = path.join(stateRoot, "skills");
+  const skillsTargetRoot = path.join(agentsRoot, "skills", "codex-composer");
   const localRoot = path.join(stateRoot, "local");
 
   await copyBundle(protocolTargetRoot);

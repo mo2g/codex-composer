@@ -1,5 +1,7 @@
 # State Machine
 
+If `start`, `status`, or `next` warns that the repository is still using a deprecated layout, run `./codex-composer migrate` first and then resume the state machine.
+
 ## `clarify`
 
 - Entry conditions:
@@ -12,6 +14,7 @@
 - Exit conditions:
   - clarify decision recorded
 - Recovery notes:
+  - if the repository still uses deprecated workflow assets, migrate first
   - edit `clarifications.md`, then re-run `checkpoint`
 
 ## `clarified`
@@ -25,6 +28,7 @@
 - Exit conditions:
   - `plan` writes `plan.json` and moves state to `plan-review`
 - Recovery notes:
+  - if status warns about deprecated skill or protocol paths, migrate first
   - if clarification changed, update `clarifications.md` before rerunning `plan`
 
 ## `plan-review`
@@ -41,6 +45,7 @@
   - approved mode moves to `plan-approved`
   - `needs_replan` moves back to `clarify`
 - Recovery notes:
+  - if status warns about deprecated paths, migrate first
   - re-open the planner skill in the current thread and record a new decision
 
 ## `plan-approved`

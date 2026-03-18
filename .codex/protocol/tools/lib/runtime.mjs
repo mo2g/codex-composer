@@ -40,19 +40,21 @@ const DEFAULT_CONFIG = {
 
 export const sourceRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 export const sourceCodexRoot = path.join(sourceRepoRoot, ".codex");
+export const sourceAgentsRoot = path.join(sourceRepoRoot, ".agents");
 export const sourceProtocolRoot = path.join(sourceCodexRoot, "protocol");
-export const sourceSkillsRoot = path.join(sourceCodexRoot, "skills");
+export const sourceSkillsRoot = path.join(sourceAgentsRoot, "skills", "codex-composer");
 export const protocolRoot = sourceProtocolRoot;
-const PROTOCOL_REQUIRED_ENTRIES = ["prompts", "schemas", "tools"];
+const PROTOCOL_REQUIRED_ENTRIES = ["templates", "schemas", "tools"];
 const NEW_PROTOCOL_ROOT = [".codex", "protocol"];
-const NEW_SKILLS_ROOT = [".codex", "skills"];
+const NEW_SKILLS_ROOT = [".agents", "skills", "codex-composer"];
+const INTERIM_SKILLS_ROOT = [".codex", "skills"];
 const NEW_LOCAL_ROOT = [".codex", "local"];
 const NEW_CONFIG_PATH = [".codex", "local", "config.toml"];
 const LEGACY_PROTOCOL_ROOT = [".codex-composer", "protocol"];
 const LEGACY_SKILLS_ROOT = [".codex-composer", "protocol", "skills"];
 const LEGACY_LOCAL_ROOT = [".codex-composer"];
 const LEGACY_CONFIG_PATHS = [[".codex-composer", "config.toml"], [".codex-composer.toml"]];
-const LEGACY_RUNTIME_IGNORE_ENTRIES = [".codex/runs/", ".codex/worktrees/"];
+const LEGACY_RUNTIME_IGNORE_ENTRIES = [".codex-composer/runs/", ".codex-composer/worktrees/"];
 const RUNTIME_IGNORE_ENTRIES = [".codex/local/runs/", ".codex/local/worktrees/"];
 
 async function hasEntries(root, entries) {
@@ -72,7 +74,33 @@ async function hasSkillEntries(root) {
   }
 
   const entries = await fs.readdir(root, { withFileTypes: true });
-  return entries.some((entry) => entry.isDirectory() && path.basename(entry.name).includes("codex-composer"));
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    if (await pathExists(path.join(root, entry.name, "SKILL.md"))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function findLegacySkillsRoot(repoRoot) {
+  const candidates = [
+    path.join(repoRoot, ...INTERIM_SKILLS_ROOT),
+    path.join(repoRoot, ...LEGACY_SKILLS_ROOT),
+    path.join(repoRoot, "skills")
+  ];
+
+  for (const candidate of candidates) {
+    if (await hasSkillEntries(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 function deepMerge(base, override) {
@@ -119,16 +147,11 @@ export async function resolveSkillsRoot(repoRoot) {
     return canonicalRoot;
   }
 
-  const legacyRoot = path.join(repoRoot, ...LEGACY_SKILLS_ROOT);
-  if (await pathExists(legacyRoot)) {
-    return legacyRoot;
+  if (await hasSkillEntries(sourceSkillsRoot)) {
+    return sourceSkillsRoot;
   }
 
-  if (await pathExists(path.join(repoRoot, "skills"))) {
-    return path.join(repoRoot, "skills");
-  }
-
-  return sourceSkillsRoot;
+  return canonicalRoot;
 }
 
 export function resolveLocalRoot(repoRoot) {
@@ -171,6 +194,8 @@ export async function resolveConfigPath(repoRoot) {
 export async function resolveProtocolPaths(repoRoot) {
   const root = await resolveProtocolRoot(repoRoot);
   const skillsRoot = await resolveSkillsRoot(repoRoot);
+  const canonicalSkillsRoot = path.join(repoRoot, ...NEW_SKILLS_ROOT);
+  const legacySkillsRoot = await findLegacySkillsRoot(repoRoot);
   const canonicalRoot = path.join(repoRoot, ...NEW_PROTOCOL_ROOT);
   const legacyRoot = path.join(repoRoot, ...LEGACY_PROTOCOL_ROOT);
   const agents = await pathExists(path.join(repoRoot, "AGENTS.md"))
@@ -183,14 +208,27 @@ export async function resolveProtocolPaths(repoRoot) {
       : root === repoRoot
         ? "flat"
         : "source";
+  const skillMigrationRequired = !(await hasSkillEntries(canonicalSkillsRoot)) && Boolean(legacySkillsRoot);
+  const warnings = [];
+
+  if (mode === "legacy") {
+    warnings.push("legacy .codex-composer layout detected; run ./codex-composer migrate to move protocol and runtime state into .codex");
+  }
+
+  if (skillMigrationRequired) {
+    warnings.push("legacy skill layout detected; run ./codex-composer migrate to move repo-native skills into .agents/skills/codex-composer");
+  }
 
   return {
     root,
     skillsRoot,
     mode,
-    deprecated: mode === "legacy",
+    deprecated: mode === "legacy" || skillMigrationRequired,
+    warnings,
+    skillMigrationRequired,
+    legacySkillsRoot,
     agents,
-    promptsDir: path.join(root, "prompts"),
+    templatesDir: path.join(root, "templates"),
     skillsDir: skillsRoot,
     schemasDir: path.join(root, "schemas"),
     toolsDir: path.join(root, "tools"),
@@ -524,7 +562,7 @@ export async function collectRepoFiles(repoRoot) {
     const entries = await fs.readdir(current, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (entry.name === ".git" || entry.name === ".codex" || entry.name === ".codex-composer" || entry.name === "node_modules") {
+      if (entry.name === ".git" || entry.name === ".codex" || entry.name === ".codex-composer" || entry.name === ".agents" || entry.name === "node_modules") {
         continue;
       }
 
@@ -786,8 +824,8 @@ export async function renderControlPrompt(repoRoot, runId, checkpoint) {
   const paths = runPaths(repoRoot, runId);
   const protocol = await resolveProtocolPaths(repoRoot);
   const templatePath = checkpoint === "clarify" || checkpoint === "plan-review"
-    ? path.join(protocol.promptsDir, "planner.md")
-    : path.join(protocol.promptsDir, "integrator-reviewer.md");
+    ? path.join(protocol.templatesDir, "planner.md")
+    : path.join(protocol.templatesDir, "integrator-reviewer.md");
   const template = await readText(templatePath);
   const promptPath = path.join(paths.logsDir, `control-${checkpoint}.md`);
   const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
@@ -834,7 +872,7 @@ Run id: ${runId}
 Read these files:
 
 1. ${protocol.agents}
-2. ${path.join(protocol.promptsDir, "planner.md")}
+2. ${path.join(protocol.templatesDir, "planner.md")}
 3. ${paths.requirements}
 4. ${paths.clarifications}
 5. ${paths.decisions}
@@ -882,7 +920,7 @@ export async function renderTaskPrompt(repoRoot, runId, taskId, plan) {
 Read:
 
 1. ${protocol.agents}
-2. ${path.join(protocol.promptsDir, "task-owner.md")}
+2. ${path.join(protocol.templatesDir, "task-owner.md")}
 3. ${paths.planMd}
 4. ${paths.status}
 

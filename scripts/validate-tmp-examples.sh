@@ -7,7 +7,7 @@ EMPTY_REPO="$BASE_DIR/empty-login"
 REACT_REPO="$BASE_DIR/react-go-login"
 EMPTY_HOME="$BASE_DIR/home-empty"
 REACT_HOME="$BASE_DIR/home-react"
-REQUIREMENT="做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+REQUIREMENT="Develop a login module using React and Golang"
 FAKE_CODEX="$ROOT_DIR/fixtures/fake-codex.mjs"
 
 ensure_absent() {

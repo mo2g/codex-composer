@@ -7,11 +7,6 @@ import { createRun, loadConfig, resolveRepoRoot, runPaths, renderControlPrompt, 
 import { readJson, pathExists } from "./lib/fs.mjs";
 
 const SKILL_DIRS = {
-  planner: "codex-composer-planner",
-  taskOwner: "codex-composer-task-owner",
-  integratorReviewer: "codex-composer-integrator-reviewer"
-};
-const LEGACY_SKILL_DIRS = {
   planner: "planner",
   taskOwner: "task-owner",
   integratorReviewer: "integrator-reviewer"
@@ -54,12 +49,7 @@ function promptPathForTask(repoRoot, runId, taskId) {
 }
 
 async function skillPath(protocol, skillKey) {
-  const canonicalPath = path.join(protocol.skillsDir, SKILL_DIRS[skillKey], "SKILL.md");
-  if (await pathExists(canonicalPath)) {
-    return canonicalPath;
-  }
-
-  return path.join(protocol.skillsDir, LEGACY_SKILL_DIRS[skillKey], "SKILL.md");
+  return path.join(protocol.skillsDir, SKILL_DIRS[skillKey], "SKILL.md");
 }
 
 function taskSummaryLines(repoRoot, runId, taskId, taskState) {
@@ -89,12 +79,20 @@ function taskSummaryLines(repoRoot, runId, taskId, taskState) {
 
 async function recommendedNextSteps(repoRoot, runId, status) {
   const protocol = await resolveProtocolPaths(repoRoot);
+  const migrateCommand = await publicCommand(repoRoot, "migrate");
   const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
   const planCommand = await publicCommand(repoRoot, "plan");
   const splitCommand = await publicCommand(repoRoot, "split");
   const verifyCommand = await publicCommand(repoRoot, "verify");
   const commitCommand = await publicCommand(repoRoot, "commit");
   const summarizeCommand = await publicCommand(repoRoot, "summarize");
+
+  if (protocol.deprecated) {
+    return [
+      `Run ${migrateCommand} before continuing so protocol/runtime assets and repo-native skills move to the canonical .codex + .agents layout.`,
+      "After migration, rerun the same command in the same repository."
+    ];
+  }
 
   switch (status.phase) {
     case "clarify":
@@ -170,8 +168,11 @@ async function renderStatusOutput(repoRoot, runId, status) {
     "tasks:"
   ];
 
-  if (protocol.deprecated) {
-    lines.push("deprecation: legacy .codex-composer layout detected; run ./codex-composer migrate to move to .codex", "");
+  if (protocol.warnings?.length) {
+    for (const warning of protocol.warnings) {
+      lines.push(`warning: ${warning}`);
+    }
+    lines.push("");
   }
 
   for (const taskId of ["a", "b"]) {
@@ -249,20 +250,33 @@ async function commandStart(args) {
   const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
   const planCommand = await publicCommand(repoRoot, "plan");
   const nextCommand = await publicCommand(repoRoot, "next");
+  const migrateCommand = await publicCommand(repoRoot, "migrate");
 
-  process.stdout.write([
+  const lines = [
     `run_id: ${runId}`,
     `repo_root: ${repoRoot}`,
     `run_root: ${paths.runRoot}`,
     "",
-    "next_steps:",
-    "- Stay in the current Codex thread. This thread is the planner/control thread.",
-    `- Read AGENTS.md and ${await skillPath(protocol, "planner")}.`,
-    `- Update ${paths.clarifications} with any missing acceptance criteria or constraints.`,
-    `- Record checkpoint 1 with ${checkpointCommand} --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
-    `- Generate the plan with ${planCommand} --run ${runId}.`,
-    `- Use ${nextCommand} --run ${runId} after each checkpoint for the recommended next step.`
-  ].join("\n"));
+    "next_steps:"
+  ];
+
+  if (protocol.deprecated) {
+    for (const warning of protocol.warnings ?? []) {
+      lines.push(`- ${warning}`);
+    }
+    lines.push(`- Run ${migrateCommand} before using planner/task skills in this repository.`);
+  } else {
+    lines.push(
+      "- Stay in the current Codex thread. This thread is the planner/control thread.",
+      `- Read AGENTS.md and ${await skillPath(protocol, "planner")}.`,
+      `- Update ${paths.clarifications} with any missing acceptance criteria or constraints.`,
+      `- Record checkpoint 1 with ${checkpointCommand} --run ${runId} --checkpoint clarify --decision clarified --note "<summary>".`,
+      `- Generate the plan with ${planCommand} --run ${runId}.`,
+      `- Use ${nextCommand} --run ${runId} after each checkpoint for the recommended next step.`
+    );
+  }
+
+  process.stdout.write(lines.join("\n"));
   process.stdout.write("\n");
 }
 

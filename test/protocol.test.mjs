@@ -26,9 +26,9 @@ async function createLegacyInstalledRepo() {
 
   await fs.mkdir(legacySkillsRoot, { recursive: true });
   await fs.cp(path.join(sourceRoot, ".codex", "protocol"), path.join(legacyRoot, "protocol"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".codex", "skills", "codex-composer-planner"), path.join(legacySkillsRoot, "planner"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".codex", "skills", "codex-composer-task-owner"), path.join(legacySkillsRoot, "task-owner"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".codex", "skills", "codex-composer-integrator-reviewer"), path.join(legacySkillsRoot, "integrator-reviewer"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "planner"), path.join(legacySkillsRoot, "planner"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "task-owner"), path.join(legacySkillsRoot, "task-owner"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "integrator-reviewer"), path.join(legacySkillsRoot, "integrator-reviewer"), { recursive: true });
   await fs.mkdir(path.join(legacyRoot, "runs"), { recursive: true });
   await fs.mkdir(path.join(legacyRoot, "worktrees"), { recursive: true });
   await writeConfig(repoRoot, { layout: "legacy" });
@@ -40,12 +40,36 @@ async function createLegacyInstalledRepo() {
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-node "$ROOT_DIR/.codex/protocol/tools/composer.mjs" "$@"
+node "$ROOT_DIR/.codex-composer/protocol/tools/composer.mjs" "$@"
 `,
     "utf8"
   );
   await fs.chmod(path.join(repoRoot, "codex-composer"), 0o755);
-  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex/runs/\n.codex/worktrees/\n", "utf8");
+  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/runs/\n.codex-composer/worktrees/\n", "utf8");
+  return repoRoot;
+}
+
+async function createInterimSkillsRepo() {
+  const repoRoot = await createExistingRepo();
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
+  await writeConfig(repoRoot, { layout: "canonical" });
+
+  await fs.mkdir(path.join(repoRoot, ".codex", "skills"), { recursive: true });
+  await fs.rename(
+    path.join(repoRoot, ".agents", "skills", "codex-composer", "planner"),
+    path.join(repoRoot, ".codex", "skills", "codex-composer-planner")
+  );
+  await fs.rename(
+    path.join(repoRoot, ".agents", "skills", "codex-composer", "task-owner"),
+    path.join(repoRoot, ".codex", "skills", "codex-composer-task-owner")
+  );
+  await fs.rename(
+    path.join(repoRoot, ".agents", "skills", "codex-composer", "integrator-reviewer"),
+    path.join(repoRoot, ".codex", "skills", "codex-composer-integrator-reviewer")
+  );
+  await fs.rmdir(path.join(repoRoot, ".agents", "skills", "codex-composer"));
+  await fs.rmdir(path.join(repoRoot, ".agents", "skills"));
+  await fs.rmdir(path.join(repoRoot, ".agents"));
   return repoRoot;
 }
 
@@ -70,9 +94,10 @@ test("install.sh bootstraps an existing non-empty repo into the hybrid layout wi
   await fs.access(path.join(repoRoot, "tools", "existing.mjs"));
   await fs.access(path.join(repoRoot, ".codex", "local", "config.toml"));
   await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
-  await fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md"));
+  await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
   await fs.access(path.join(repoRoot, "README.md"));
   await assert.rejects(fs.access(path.join(repoRoot, ".codex-composer")));
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "skills")));
   await assert.rejects(fs.access(path.join(repoRoot, "scripts", "composer-start.sh")));
   await assert.rejects(fs.access(path.join(repoRoot, "prompts")));
   await assert.rejects(fs.access(path.join(repoRoot, "skills")));
@@ -116,7 +141,7 @@ test("composer-start creates a run and prints current-thread planner guidance", 
 
   assert.equal(status.phase, "clarify");
   assert.match(result.stdout, /current Codex thread/);
-  assert.match(result.stdout, /codex-composer-planner\/SKILL\.md/);
+  assert.match(result.stdout, /\.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
 });
 
 test("next auto-selects the only unfinished run and prints clarify guidance", async () => {
@@ -224,7 +249,7 @@ test("next auto-runs split after plan approval and status points A to the curren
 test("repo-local empty template safely downgrades the login request to serial", async () => {
   const repoRoot = await initLocalRepo("empty");
   const runId = "empty-login";
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"]);
+  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Develop a login module using React and Golang"]);
   await runRepoLauncher(repoRoot, [
     "checkpoint",
     "--run",
@@ -410,20 +435,41 @@ test("legacy layout remains readable, warns as deprecated, and migrate is idempo
 
   let statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
   assert.match(statusResult.stdout, /legacy \.codex-composer layout detected/);
-  assert.match(statusResult.stdout, /\.codex-composer\/protocol\/skills\/planner\/SKILL\.md/);
+  assert.match(statusResult.stdout, /Run \.\/codex-composer migrate before continuing/);
   await fs.access(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
 
   const firstMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
   assert.match(firstMigrate.stdout, /migrated: true/);
   await fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
   await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
-  await fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md"));
+  await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
 
   statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
   assert.match(statusResult.stdout, /layout_mode: codex/);
-  assert.match(statusResult.stdout, /\.codex\/skills\/codex-composer-planner\/SKILL\.md/);
+  assert.match(statusResult.stdout, /\.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
   assert.doesNotMatch(statusResult.stdout, /legacy \.codex-composer layout detected/);
 
   const secondMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
   assert.match(secondMigrate.stdout, /migrated: false/);
+});
+
+test("intermediate .codex skills layout requires migration and moves into .agents", async () => {
+  const repoRoot = await createInterimSkillsRepo();
+  const runId = "interim-run";
+
+  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
+
+  let statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
+  assert.match(statusResult.stdout, /legacy skill layout detected/);
+  assert.match(statusResult.stdout, /Run \.\/codex-composer migrate before continuing/);
+  await fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md"));
+
+  const migrateResult = await runRepoLauncher(repoRoot, ["migrate"]);
+  assert.match(migrateResult.stdout, /migrated: true/);
+  await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md")));
+
+  statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
+  assert.match(statusResult.stdout, /\.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
+  assert.doesNotMatch(statusResult.stdout, /legacy skill layout detected/);
 });

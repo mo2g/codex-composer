@@ -7,24 +7,34 @@ Codex Composer treats Codex as a planning and implementation engine, not as an a
 - Root-visible control surface:
   - `AGENTS.md`
   - `./codex-composer`
-- Canonical managed assets:
+- Codex-native discovery layer:
+  - `.agents/skills/codex-composer/`
+- Internal protocol layer:
   - `.codex/protocol/`
-  - `.codex/skills/`
 - Runtime-only state:
   - `.codex/local/config.toml`
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
 
-The source repository keeps root `scripts/` and `tools/` as thin compatibility wrappers. The canonical implementation lives under `.codex/`.
+The source repository keeps root `scripts/` and `tools/` as thin compatibility wrappers. The canonical implementation lives under `.codex/` and `.agents/`.
 
 ## Runtime Resolution
 
 Resolution order is fixed:
 
-1. `.codex/protocol` + `.codex/skills` + `.codex/local/config.toml`
-2. flat root fallback only for source-repo development compatibility
+1. `.codex/protocol` + `.agents/skills/codex-composer` + `.codex/local/config.toml`
+2. source-repo fallback only for development compatibility
 
-Once `.codex` exists, new writes go only to `.codex`.
+Deprecated layouts are not treated as normal canonical inputs:
+
+- `.codex-composer/...`
+- `.codex/skills/...`
+
+If either deprecated layout is detected, `status/start/next` should point the user to:
+
+```bash
+./codex-composer migrate
+```
 
 ## Run Layout
 
@@ -42,6 +52,15 @@ Each run lives in `.codex/local/runs/<run-id>/`.
 - `logs/`
 - `SUMMARY.md`
 - `PR_BODY.md`
+
+## Discovery Layer Vs Protocol Layer
+
+- `.agents/skills/codex-composer/*/SKILL.md` defines reusable, discoverable Codex-native skills
+- `.codex/protocol/templates/*` defines internal workflow templates consumed by launcher/tooling
+- `.codex/protocol/schemas/*` defines structured protocol outputs
+- `.codex/protocol/tools/*` implements the workflow
+
+Skills define role behavior. Templates provide thin runtime scaffolding. They are intentionally not the same layer.
 
 ## Current-Thread Control
 
@@ -83,4 +102,4 @@ Verification is always explicit. `verify` runs the configured shell hooks for ta
 - `verify`: run branch or main verification
 - `commit`: record a verified task commit snapshot
 - `summarize`: generate `SUMMARY.md` and `PR_BODY.md`
-- `migrate`: move a deprecated `.codex-composer` install into `.codex`
+- `migrate`: move deprecated layouts into `.codex` + `.agents`

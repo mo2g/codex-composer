@@ -20,8 +20,8 @@ Installed layout:
 
 - `AGENTS.md`
 - `./codex-composer`
+- `.agents/skills/codex-composer/`
 - `.codex/protocol/`
-- `.codex/skills/`
 - `.codex/local/config.toml`
 - `.codex/local/runs/`
 - `.codex/local/worktrees/`
@@ -31,7 +31,7 @@ If `./codex-composer` is already occupied, the installer falls back to `./compos
 ## 2. Start A Run
 
 ```bash
-./codex-composer start --run login --requirement "做一个前后端分离的项目，前端用react，后端用golang,实现登录模块"
+./codex-composer start --run login --requirement "Develop a login module using React and Golang"
 ./codex-composer next --run login
 ```
 
@@ -42,7 +42,7 @@ The current Codex thread remains the planner/control thread.
 Use:
 
 - `AGENTS.md`
-- `.codex/skills/codex-composer-planner/SKILL.md`
+- `.agents/skills/codex-composer/planner/SKILL.md`
 - `.codex/local/runs/<run-id>/clarifications.md`
 
 When the user has clarified enough:
@@ -92,7 +92,7 @@ If `B` exists, repeat for `b`.
 
 When status reaches `merge-review`, use:
 
-- `.codex/skills/codex-composer-integrator-reviewer/SKILL.md`
+- `.agents/skills/codex-composer/integrator-reviewer/SKILL.md`
 
 Then record the result:
 
@@ -109,8 +109,13 @@ The merge itself is manual. After merging, run:
 
 ## Migration
 
-If the repository still uses the deprecated `.codex-composer` layout:
+If the repository still uses a deprecated layout:
 
 ```bash
 ./codex-composer migrate
 ```
+
+This applies to both:
+
+- `.codex-composer/...`
+- `.codex/skills/...`
