@@ -2,12 +2,71 @@
 
 Codex Composer is a protocol-first workflow template for using Codex inside an existing repository. It is built for Codex app users who want explicit planning, optional worktree-based parallelism, and auditable human gates before anything lands on `main`.
 
-The default model is deliberately conservative:
+## In Codex App
 
-- the current Codex thread is the planner/control thread
-- optional parallel work happens through a user-opened B thread inside a git worktree
-- `verify` and `commit` stay explicit
-- merge stays manual
+Treat the current Codex thread as the planner/control thread. Name the skill directly, let `AGENTS.md` provide the standing repo rules, and use commands only at the explicit human gates.
+
+Start a run:
+
+```bash
+./codex-composer start --run login --requirement "Develop a login module using React and Golang"
+./codex-composer next --run login
+```
+
+Say this in the current Codex thread for planning:
+
+```text
+Use the repo's planner skill for run `login`. Clarify what is missing, tell me whether `parallel_ab` is actually safe, and give me the exact next commands without choosing the mode for me.
+```
+
+Say this for task A after plan approval:
+
+```text
+Use the repo's task-owner skill for run `login`, task `a`. Stay inside the approved A boundary, implement the missing work, and stop when `verify --target a` and `commit --task a` should be the next explicit actions.
+```
+
+If `parallel_ab` is approved, open a new Codex thread in `.codex/local/worktrees/<run-id>/b` and use the same `task-owner` pattern for task `b`.
+
+Say this before any manual merge:
+
+```text
+Use the repo's integrator-reviewer skill for run `login`. Inspect status, verify reports, commit snapshots, required artifacts, and merge prerequisites, then tell me whether I should record `allow_manual_merge`, `return_a`, or `return_b`.
+```
+
+Human gates remain explicit:
+
+```bash
+./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
+./codex-composer plan --run login
+./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
+./codex-composer verify --run login --target a
+./codex-composer commit --run login --task a
+./codex-composer verify --run login --target b
+./codex-composer commit --run login --task b
+./codex-composer verify --run login --target main
+./codex-composer summarize --run login
+```
+
+If `integrator-reviewer` returns go, record:
+
+```bash
+./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
+```
+
+If merge review sends one task back, record:
+
+```bash
+./codex-composer checkpoint --run login --checkpoint merge-review --decision return_a
+./codex-composer checkpoint --run login --checkpoint merge-review --decision return_b
+```
+
+For full operator playbooks, see `docs/skill-invocation-examples.md`. For the human merge runbook, see `docs/manual-merge-checklist.md`.
+
+## Relationship To Codex App
+
+- Codex Composer leans into the App's skill, review, and worktree mental model.
+- It intentionally keeps repo-local worktrees, protocol files, and explicit human gates instead of relying on hidden orchestration or auto-merge.
+- Supporting files under `.codex/local/` and `.codex/protocol/` remain available for inspection, but they are not the primary prompt surface.
 
 ## Design Principles
 
@@ -17,19 +76,12 @@ The default model is deliberately conservative:
 - `explicit gates`: `verify`, `commit`, and `merge-review` are deliberate checkpoints
 - `manual merge only`: the framework prepares merge readiness; it never merges for the user
 
-## How This Maps To Codex App Usage
-
-- In the current Codex thread, use the repo-native `planner` skill to clarify scope and review the plan.
-- Task `A` usually continues in the same thread with the `task-owner` skill.
-- If `parallel_ab` is approved, `next` creates only the optional B worktree. You then open a second Codex thread there and use the same `task-owner` skill for B.
-- When A and B are verified and committed, return to the current thread and use `integrator-reviewer` for merge readiness.
-- The actual merge still happens manually in git, followed by `verify --target main` and `summarize`.
-
 ## Architecture
 
 - Root-visible control surface:
   - `AGENTS.md`
-  - `./codex`
+  - `./codex-composer`
+  - `./composer-next` only if the primary launcher name is already occupied
 - Codex-native discovery layer:
   - `.agents/skills/codex-composer/planner/`
   - `.agents/skills/codex-composer/task-owner/`
@@ -72,48 +124,6 @@ For local development of this repository:
 ```bash
 bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template existing --source /path/to/codex-composer
 ```
-
-## Happy Path
-
-Start a run:
-
-```bash
-./codex-composer start --run login --requirement "Develop a login module using React and Golang"
-./codex-composer next --run login
-```
-
-Then keep the current Codex thread in the `planner` role:
-
-```bash
-./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
-./codex-composer plan --run login
-./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
-./codex-composer next --run login
-```
-
-Recommended role flow:
-
-1. Current thread uses `planner` for `clarify` and `plan-review`.
-2. After approval, `next` prepares A in the current repo and creates B only if `parallel_ab` was approved.
-3. Current thread uses `task-owner` for A.
-4. If B exists, open a new Codex thread in `.codex/local/worktrees/<run-id>/b` and use `task-owner` there for B.
-5. Verify and commit each enabled task explicitly.
-6. Return to the current thread and use `integrator-reviewer` for `merge-review`.
-7. Follow `docs/manual-merge-checklist.md`, merge manually, then verify `main` and generate the final handoff text.
-
-Verification and commit remain explicit:
-
-```bash
-./codex-composer verify --run login --target a
-./codex-composer commit --run login --task a
-./codex-composer verify --run login --target b
-./codex-composer commit --run login --task b
-./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
-./codex-composer verify --run login --target main
-./codex-composer summarize --run login
-```
-
-For realistic prompt examples, see `docs/skill-invocation-examples.md`.
 
 ## Why Subagents Are Not The Default
 

@@ -33,15 +33,19 @@ description: Review merge readiness for verified, committed Codex Composer tasks
 
 - a go / no-go merge-readiness decision for the human user
 - a concise explanation of remaining risks or missing evidence
+- an explicit note about evidence completeness and whether App review should happen before merge
+- a merge order suggestion when more than one branch is in play
+- clear stop conditions for the human operator
 - the next `checkpoint` command the user should run
-- a manual merge checklist that ends with `verify --target main` and `summarize`
+- a manual merge runbook that ends with `verify --target main` and `summarize`
 
 ## Allowed actions
 
 - inspect verification reports, task briefs, plan boundaries, and task commit snapshots
 - explain whether A/B are merge-ready and whether scope still matches the approved plan
+- call out when App review, inline comments, or a `/review` pass should happen before merge
 - recommend `allow_manual_merge`, `return_a`, or `return_b`
-- provide the manual merge checklist and the required post-merge commands
+- provide the merge order suggestion, stop conditions, and the required post-merge commands
 - keep the current thread focused on evidence and readiness rather than implementation
 
 ## Forbidden actions
@@ -55,6 +59,7 @@ description: Review merge readiness for verified, committed Codex Composer tasks
 ## Failure handling
 
 - if evidence is incomplete, return a no-go result and say exactly what is missing
+- if review is incomplete or the branch diff does not match the approved boundary, return a no-go result
 - if merge risk is unclear, keep the run in `merge-review`
 - if only one task needs rework, send only that task back with `return_a` or `return_b`
 - if the repository still uses deprecated protocol, skill, or config paths, tell the user to run `./codex-composer migrate`
@@ -64,13 +69,14 @@ description: Review merge readiness for verified, committed Codex Composer tasks
 
 ```text
 Recommended prompt:
-"Use the repo's integrator-reviewer skill for run `login`. Inspect status, verify reports, commit snapshots, and required artifacts, then tell me whether to record `allow_manual_merge`, `return_a`, or `return_b`."
+"Use the repo's integrator-reviewer skill for run `login`. Inspect status, verify reports, commit snapshots, required artifacts, and merge prerequisites, then tell me whether to record `allow_manual_merge`, `return_a`, or `return_b`."
 
 Expected behavior:
-1. Review status, verify evidence, task commit snapshots, and merge prerequisites
+1. Review status, verify evidence, task commit snapshots, App review readiness, and merge prerequisites
 2. State a clear allow / no-go judgment
-3. If no-go, say exactly which task or evidence is missing
+3. If no-go, say exactly which task or evidence is missing and point the user to:
+   ./codex-composer checkpoint --run login --checkpoint merge-review --decision return_a|return_b
 4. If go, point the user to:
    ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
-5. End with the manual merge checklist, `verify --target main`, and `summarize`
+5. End with the manual merge runbook, merge order guidance, stop conditions, `verify --target main`, and `summarize`
 ```

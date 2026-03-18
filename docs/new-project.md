@@ -30,25 +30,42 @@ Installed layout:
 
 If `./codex-composer` is already occupied, the installer falls back to `./composer-next`.
 
-## 2. Start A Run
+## 2. In Codex App
+
+Start a run:
 
 ```bash
 ./codex-composer start --run login --requirement "Develop a login module using React and Golang"
 ./codex-composer next --run login
 ```
 
-The current Codex thread remains the planner/control thread.
+Then stay in the current Codex thread and name the skill directly. `AGENTS.md` provides the standing repo rules; `.codex/local/runs/<run-id>/...` remains supporting context, not the primary prompt surface.
 
-## 3. Clarify And Plan
+Use `planner` first:
 
-Use the current Codex thread in the `planner` role. The main supporting files are:
+```text
+Use the repo's planner skill for run `login`. Clarify what is missing, tell me whether `parallel_ab` is actually safe, and give me the exact next commands without choosing the mode for me.
+```
 
-- `AGENTS.md`
-- `.codex/config.toml`
-- `.codex/local/runs/<run-id>/clarifications.md`
-- `.codex/local/runs/<run-id>/PLAN.md`
+Use `task-owner` for task A after plan approval:
 
-When the user has clarified enough:
+```text
+Use the repo's task-owner skill for run `login`, task `a`. Stay inside the approved A boundary, implement the missing work, and stop when `verify --target a` and `commit --task a` should be the next explicit actions.
+```
+
+If `parallel_ab` is approved, open a new Codex thread inside `.codex/local/worktrees/<run-id>/b` and use the same `task-owner` pattern for task `b`.
+
+Use `integrator-reviewer` before any manual merge:
+
+```text
+Use the repo's integrator-reviewer skill for run `login`. Inspect status, verify reports, commit snapshots, required artifacts, and merge prerequisites, then tell me whether I should record `allow_manual_merge`, `return_a`, or `return_b`.
+```
+
+## 3. Human Gates
+
+Keep the App prompts and the human gates separate. The assistant should drive the reasoning; you run the protocol commands at the checkpoints.
+
+When clarification is complete:
 
 ```bash
 ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "..."
@@ -59,32 +76,16 @@ When the user has clarified enough:
 At `plan-review`, record either:
 
 ```bash
-./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
+./codex-composer checkpoint --run login --checkpoint plan-review --decision force_serial --mode serial
 ```
 
 or:
 
 ```bash
-./codex-composer checkpoint --run login --checkpoint plan-review --decision force_serial --mode serial
+./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
 ```
 
-## 4. Split Only If Needed
-
-After plan approval:
-
-```bash
-./codex-composer next --run login
-./codex-composer status --run login
-```
-
-- `A` stays in the current repository root.
-- `B` is created only when `parallel_ab` is approved.
-
-Use `task-owner` for A in the current thread. If B exists, open a new Codex thread inside the B worktree and use `task-owner` there.
-
-## 5. Verify And Commit
-
-After task implementation:
+When tasks are ready:
 
 ```bash
 ./codex-composer verify --run login --target a
@@ -93,23 +94,34 @@ After task implementation:
 
 If `B` exists, repeat for `b`.
 
-## 6. Manual Merge Readiness
-
-When status reaches `merge-review`, use:
-
-- the `integrator-reviewer` role in the current Codex thread
-
-Then record the result:
+Before merge:
 
 ```bash
 ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
 ```
 
-The merge itself is manual. After merging, run:
+If merge review is a no-go, send back only the failing task:
+
+```bash
+./codex-composer checkpoint --run login --checkpoint merge-review --decision return_a
+./codex-composer checkpoint --run login --checkpoint merge-review --decision return_b
+```
+
+After the human manual merge:
 
 ```bash
 ./codex-composer verify --run login --target main
 ./codex-composer summarize --run login
 ```
 
-Use `docs/manual-merge-checklist.md` for the full pre-merge and post-merge checklist.
+Use `docs/manual-merge-checklist.md` for the full operator runbook, including App review before merge.
+
+## 4. Supporting References
+
+- `AGENTS.md`
+- `.codex/config.toml`
+- `.codex/local/runs/<run-id>/clarifications.md`
+- `.codex/local/runs/<run-id>/PLAN.md`
+- `.codex/local/runs/<run-id>/status.json`
+
+These files help the current Codex thread inspect state, but they are not the main interaction surface.
