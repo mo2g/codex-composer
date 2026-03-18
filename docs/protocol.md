@@ -19,25 +19,6 @@ Codex Composer treats Codex as a planning and implementation engine, not as an a
 
 The source repository keeps root `scripts/` and `tools/` as thin compatibility wrappers. The canonical implementation lives under `.codex/` and `.agents/`.
 
-## Runtime Resolution
-
-Resolution order is fixed:
-
-1. `.codex/protocol` + `.agents/skills/codex-composer` + `.codex/config.toml`
-2. source-repo fallback only for development compatibility
-
-Deprecated layouts and config paths are not treated as normal canonical inputs:
-
-- `.codex/local/config.toml`
-- `.codex-composer/...`
-- `.codex/skills/...`
-
-If any deprecated layout or config path is detected, `status/start/next` should point the user to:
-
-```bash
-./codex-composer migrate
-```
-
 ## Run Layout
 
 Each run lives in `.codex/local/runs/<run-id>/`.
@@ -59,7 +40,6 @@ Each run lives in `.codex/local/runs/<run-id>/`.
 
 - `.codex/config.toml` is the canonical repo-level shared configuration for branch naming, hooks, path rules, and other install-time defaults
 - `.codex/local/runs/` and `.codex/local/worktrees/` are runtime-local generated state for active runs
-- `.codex/local/config.toml` is no longer an active config input; it is a deprecated migration source only
 
 ## Discovery Layer Vs Protocol Layer
 

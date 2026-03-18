@@ -29,8 +29,7 @@ The default model is deliberately conservative:
 
 - Root-visible control surface:
   - `AGENTS.md`
-  - `./codex-composer`
-  - `./composer-next` only if the primary launcher name is already taken
+  - `./codex`
 - Codex-native discovery layer:
   - `.agents/skills/codex-composer/planner/`
   - `.agents/skills/codex-composer/task-owner/`
@@ -59,7 +58,6 @@ The source repository still keeps root `scripts/` and `tools/` as thin compatibi
 
 - `.codex/config.toml` is the canonical repo-level shared configuration file. It is part of the installed template layout and is the only active config input.
 - `.codex/local/runs/` and `.codex/local/worktrees/` are runtime-scoped local state generated as runs execute.
-- `.codex/local/` is not the repo-level config layer. Older `.codex/local/config.toml` installs should be upgraded with `./codex-composer migrate`.
 
 ## Install
 
@@ -172,22 +170,6 @@ For realistic prompt examples, see `docs/skill-invocation-examples.md`.
 - If `/tmp/codex-composer` is already populated, rerun smoke with `BASE_DIR=/tmp/codex-composer-<suffix> make validate-tmp`.
 - `make live-smoke` is opt-in only after real Codex auth is configured.
 - The repository does not currently define separate lint, format, or typecheck commands.
-
-## Migration / Compatibility Notes
-
-- New installs write only:
-  - `.agents/skills/codex-composer/*`
-  - `.codex/protocol/*`
-  - `.codex/config.toml`
-  - `.codex/local/*`
-- Existing `.codex-composer` repos, intermediate `.codex/skills/*` repos, and repositories that still keep shared config at `.codex/local/config.toml` should run:
-
-```bash
-./codex-composer migrate
-```
-
-- Compatibility with `.codex-composer`, `.codex/skills`, and `.codex/local/config.toml` is deprecated and only kept long enough for migration.
-- Once `.agents`, `.codex/config.toml`, and `.codex/local` exist, new writes go only to the canonical layout.
 
 ## Docs
 

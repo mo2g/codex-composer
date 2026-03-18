@@ -113,19 +113,3 @@ The merge itself is manual. After merging, run:
 ```
 
 Use `docs/manual-merge-checklist.md` for the full pre-merge and post-merge checklist.
-
-## Migration
-
-If the repository still uses a deprecated layout:
-
-```bash
-./codex-composer migrate
-```
-
-This applies to:
-
-- `.codex/local/config.toml`
-- `.codex-composer/...`
-- `.codex/skills/...`
-
-For realistic prompt phrasing, see `docs/skill-invocation-examples.md`.
