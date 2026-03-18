@@ -532,7 +532,7 @@ export async function migrateLegacyRepo({ repoRoot }) {
 
   if (await pathExists(legacyRoot)) {
     const leftover = await fs.readdir(legacyRoot);
-    results.remaining.push(...leftover.map((entry) => `.codex-composer/${entry}`));
+    results.remaining.push(...leftover.map((entry) => `.codex/${entry}`));
   }
 
   results.migrated = results.moved.length > 0;

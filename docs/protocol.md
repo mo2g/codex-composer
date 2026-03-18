@@ -22,8 +22,7 @@ The source repository keeps root `scripts/` and `tools/` as thin compatibility w
 Resolution order is fixed:
 
 1. `.codex/protocol` + `.codex/skills` + `.codex/local/config.toml`
-2. deprecated `.codex-composer/...`
-3. flat root fallback only for source-repo development compatibility
+2. flat root fallback only for source-repo development compatibility
 
 Once `.codex` exists, new writes go only to `.codex`.
 

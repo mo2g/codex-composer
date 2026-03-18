@@ -52,7 +52,7 @@ const LEGACY_PROTOCOL_ROOT = [".codex-composer", "protocol"];
 const LEGACY_SKILLS_ROOT = [".codex-composer", "protocol", "skills"];
 const LEGACY_LOCAL_ROOT = [".codex-composer"];
 const LEGACY_CONFIG_PATHS = [[".codex-composer", "config.toml"], [".codex-composer.toml"]];
-const LEGACY_RUNTIME_IGNORE_ENTRIES = [".codex-composer/runs/", ".codex-composer/worktrees/"];
+const LEGACY_RUNTIME_IGNORE_ENTRIES = [".codex/runs/", ".codex/worktrees/"];
 const RUNTIME_IGNORE_ENTRIES = [".codex/local/runs/", ".codex/local/worktrees/"];
 
 async function hasEntries(root, entries) {
@@ -453,9 +453,7 @@ export async function ensureRuntimeIgnoreEntries(repoRoot) {
   const useLegacyLayout = stateRoot.endsWith(".codex-composer");
 
   await removeIgnoreEntry(ignorePath, ".codex/");
-  await removeIgnoreEntry(ignorePath, ".codex-composer/");
   await removeIgnoreEntry(excludePath, ".codex/");
-  await removeIgnoreEntry(excludePath, ".codex-composer/");
 
   const entries = useLegacyLayout ? LEGACY_RUNTIME_IGNORE_ENTRIES : RUNTIME_IGNORE_ENTRIES;
   for (const entry of entries) {

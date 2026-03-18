@@ -124,10 +124,10 @@ reason = "auth-core work must be serialized."
     gitIgnoreEntries = [".codex/local/runs/", ".codex/local/worktrees/"];
   } else if (layout === "legacy") {
     configPath = path.join(repoRoot, ".codex-composer", "config.toml");
-    gitIgnoreEntries = [".codex-composer/runs/", ".codex-composer/worktrees/"];
+    gitIgnoreEntries = [".codex/runs/", ".codex/worktrees/"];
   } else if (layout === "legacy-root") {
     configPath = path.join(repoRoot, ".codex-composer.toml");
-    gitIgnoreEntries = [".codex-composer/runs/", ".codex-composer/worktrees/"];
+    gitIgnoreEntries = [".codex/runs/", ".codex/worktrees/"];
   } else {
     throw new Error(`Unsupported config layout: ${layout}`);
   }

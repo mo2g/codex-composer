@@ -40,12 +40,12 @@ async function createLegacyInstalledRepo() {
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-node "$ROOT_DIR/.codex-composer/protocol/tools/composer.mjs" "$@"
+node "$ROOT_DIR/.codex/protocol/tools/composer.mjs" "$@"
 `,
     "utf8"
   );
   await fs.chmod(path.join(repoRoot, "codex-composer"), 0o755);
-  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/runs/\n.codex-composer/worktrees/\n", "utf8");
+  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex/runs/\n.codex/worktrees/\n", "utf8");
   return repoRoot;
 }
 
