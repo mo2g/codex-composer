@@ -10,6 +10,7 @@ const BACKEND_CANDIDATES = ["backend", "api", "server", "apps/api"];
 const MANAGED_BLOCK_START = "<!-- CODEX COMPOSER START -->";
 const MANAGED_BLOCK_END = "<!-- CODEX COMPOSER END -->";
 const MANAGED_LAUNCHER_MARKER = "# Codex Composer Launcher";
+const PERMISSION_PROFILES = new Set(["safe", "balanced", "wide_open"]);
 const LEGACY_SKILL_MAP = {
   planner: "planner",
   "task-owner": "task-owner",
@@ -460,6 +461,96 @@ node "$ROOT_DIR/.codex/protocol/tools/composer.mjs" "$@"
 `;
 }
 
+function renderRulesHeader(permissionProfile) {
+  return [
+    "# Codex Composer permissions profile",
+    `# profile: ${permissionProfile}`,
+    "# These rules only take effect after the project is trusted and Codex is restarted.",
+    ""
+  ].join("\n");
+}
+
+function renderBalancedRules() {
+  return `${renderRulesHeader("balanced")}# Allow routine Codex Composer orchestration commands outside the sandbox.
+prefix_rule(
+    pattern = [["./codex-composer", "./composer-next"], ["start", "next", "plan", "checkpoint", "split", "status", "summarize"]],
+    decision = "allow",
+    justification = "Routine Codex Composer workflow commands can run without repeated approval prompts.",
+    match = [
+        "./codex-composer start --run login --requirement login",
+        "./composer-next split --run login",
+        "./codex-composer summarize --run login",
+    ],
+    not_match = [
+        "./codex-composer verify --run login --target a",
+        "./codex-composer commit --run login --task a",
+        "git commit -m chore",
+    ],
+)
+
+# Keep project-defined verification and commit actions behind an explicit prompt.
+prefix_rule(
+    pattern = [["./codex-composer", "./composer-next"], ["verify", "commit"]],
+    decision = "prompt",
+    justification = "Verification hooks and commit actions should remain explicit because they may run project-specific commands or mutate git state.",
+    match = [
+        "./codex-composer verify --run login --target a",
+        "./composer-next commit --run login --task a",
+    ],
+    not_match = [
+        "./codex-composer split --run login",
+        "git commit -m chore",
+    ],
+)
+`;
+}
+
+function renderWideOpenRules() {
+  return `${renderRulesHeader("wide_open")}# Allow the main Codex Composer workflow commands without repeated prompts.
+prefix_rule(
+    pattern = [["./codex-composer", "./composer-next"], ["start", "next", "plan", "checkpoint", "split", "status", "summarize", "verify", "commit"]],
+    decision = "allow",
+    justification = "Trusted local Codex Composer repositories can auto-run their main workflow commands outside the sandbox.",
+    match = [
+        "./codex-composer verify --run login --target a",
+        "./composer-next commit --run login --task a",
+        "./codex-composer split --run login",
+    ],
+    not_match = [
+        "./codex-composer run-task --run login --task a",
+        "git commit -m chore",
+    ],
+)
+`;
+}
+
+function renderRulesFile(permissionProfile) {
+  if (permissionProfile === "safe") {
+    return null;
+  }
+  if (permissionProfile === "wide_open") {
+    return renderWideOpenRules();
+  }
+  return renderBalancedRules();
+}
+
+async function writeRulesFile(stateRoot, permissionProfile) {
+  const rulesPath = path.join(stateRoot, "rules", "codex-composer.rules");
+  const content = renderRulesFile(permissionProfile);
+
+  if (!content) {
+    if (await pathExists(rulesPath)) {
+      await backupFileIfPresent(rulesPath);
+      await fs.rm(rulesPath, { force: true });
+    }
+    return;
+  }
+
+  await backupFileIfPresent(rulesPath);
+  await ensureDir(path.dirname(rulesPath));
+  await writeText(rulesPath, content);
+}
+
 async function writeLauncher(repoRoot) {
   const launcherName = await chooseLauncherName(repoRoot);
   const launcherPath = path.join(repoRoot, launcherName);
@@ -619,9 +710,12 @@ export async function migrateLegacyRepo({ repoRoot }) {
   return results;
 }
 
-export async function bootstrapProtocolRepo({ repoRoot, template = "existing", codexBinary = "codex" }) {
+export async function bootstrapProtocolRepo({ repoRoot, template = "existing", codexBinary = "codex", permissionProfile = "balanced" }) {
   if (!["existing", "empty", "react-go-minimal"].includes(template)) {
     throw new Error(`Unsupported template: ${template}`);
+  }
+  if (!PERMISSION_PROFILES.has(permissionProfile)) {
+    throw new Error(`Unsupported permission profile: ${permissionProfile}`);
   }
 
   await ensureDir(repoRoot);
@@ -649,6 +743,7 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "existing", c
     mainBranch: facts.mainBranch,
     layout: facts.layout
   }));
+  await writeRulesFile(stateRoot, permissionProfile);
   await writeTemplateFiles(repoRoot, template);
   await ensureDir(path.join(localRoot, "runs"));
   await ensureDir(path.join(localRoot, "worktrees"));
@@ -660,6 +755,7 @@ export async function bootstrapProtocolRepo({ repoRoot, template = "existing", c
     repoRoot,
     template,
     initializedGit,
-    launcher: launcherName
+    launcher: launcherName,
+    permissionProfile
   };
 }

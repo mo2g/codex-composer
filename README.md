@@ -6,6 +6,13 @@ Codex Composer is a protocol-first workflow template for using Codex inside an e
 
 Treat the current Codex thread as the planner/control thread. Name the skill directly, let `AGENTS.md` provide the standing repo rules, and use commands only at the explicit human gates.
 
+For the lowest-friction setup in a new repository:
+
+1. `git init` first and create an initial commit as early as possible.
+2. Install Codex Composer before opening the repo in Codex App when you can.
+3. Trust the project in Codex App, or use `/permissions` if the repo opened as untrusted.
+4. If the repo was already open during install, restart Codex so repo rules can load.
+
 Start a run:
 
 ```bash
@@ -68,6 +75,27 @@ For full operator playbooks, see `docs/skill-invocation-examples.md`. For the hu
 - It intentionally keeps repo-local worktrees, protocol files, and explicit human gates instead of relying on hidden orchestration or auto-merge.
 - Supporting files under `.codex/local/` and `.codex/protocol/` remain available for inspection, but they are not the primary prompt surface.
 
+## Permissions And Trust
+
+- The installer now defaults to `--permission-profile balanced`.
+- `balanced` generates `.codex/rules/codex-composer.rules` so routine launcher commands like `start`, `next`, `plan`, `checkpoint`, `split`, `status`, and `summarize` can avoid repeated approvals in a trusted project.
+- `verify` and `commit` remain explicit in `balanced` because they may run project-defined hooks or mutate git state.
+- `safe` skips generated rules and keeps the more conservative approval flow:
+
+```bash
+bash install.sh --repo . --template existing --permission-profile safe
+```
+
+- `wide_open` is an explicit local opt-in that allows the main launcher workflow, including `verify` and `commit`, without repeated prompts:
+
+```bash
+bash install.sh --repo . --template existing --permission-profile wide_open
+```
+
+- Project-scoped `.codex/config.toml` and `.codex/rules/` only take effect when Codex trusts the repo. If the project is untrusted, Codex ignores those layers and falls back to user defaults.
+- `.codex/local/` remains a protected path under the default `workspace-write` sandbox. Composer reduces repeated approvals for its own launcher workflow, but it cannot make all project-defined tests, network access, or local port binding silent by default.
+- If `verify` still prompts in `balanced`, that is expected. Either approve the action, run the gate manually in an external terminal, or reinstall with a more permissive profile in a controlled local environment.
+
 ## Design Principles
 
 - `protocol-first`: skills, protocol assets, repo config, runtime state, and command behavior stay inspectable and versioned
@@ -92,6 +120,7 @@ For full operator playbooks, see `docs/skill-invocation-examples.md`. For the hu
   - `.codex/protocol/tools/`
 - Repo-level shared config:
   - `.codex/config.toml`
+  - `.codex/rules/`
 - Runtime-local generated state:
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
@@ -123,6 +152,12 @@ For local development of this repository:
 
 ```bash
 bash /path/to/codex-composer/install.sh --repo /path/to/your-repo --template existing --source /path/to/codex-composer
+```
+
+To keep the old conservative behavior:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing --permission-profile safe
 ```
 
 ## Why Subagents Are Not The Default

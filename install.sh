@@ -3,6 +3,7 @@ set -euo pipefail
 
 TARGET_REPO="."
 TEMPLATE="existing"
+PERMISSION_PROFILE="balanced"
 CODEX_BINARY="codex"
 SOURCE_DIR=""
 REPO_SLUG="${CODEX_COMPOSER_REPO:-mo2g/codex-composer}"
@@ -10,10 +11,11 @@ REF="${CODEX_COMPOSER_REF:-main}"
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--repo <path>] [--template existing|empty|react-go-minimal] [--codex-binary <path>] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
+Usage: install.sh [--repo <path>] [--template existing|empty|react-go-minimal] [--permission-profile safe|balanced|wide_open] [--codex-binary <path>] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
 
 Examples:
   bash install.sh --repo . --template existing
+  bash install.sh --repo . --template existing --permission-profile safe
   curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 EOF
 }
@@ -26,6 +28,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --template)
       TEMPLATE="$2"
+      shift 2
+      ;;
+    --permission-profile)
+      PERMISSION_PROFILE="$2"
       shift 2
       ;;
     --codex-binary)
@@ -96,6 +102,7 @@ fi
 "$SOURCE_DIR/scripts/composer-init-repo.sh" \
   --repo "$TARGET_REPO" \
   --template "$TEMPLATE" \
+  --permission-profile "$PERMISSION_PROFILE" \
   --codex-binary "$CODEX_BINARY"
 
-echo "Codex Composer installed into $TARGET_REPO with template $TEMPLATE"
+echo "Codex Composer installed into $TARGET_REPO with template $TEMPLATE and permission profile $PERMISSION_PROFILE"

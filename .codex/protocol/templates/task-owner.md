@@ -17,4 +17,5 @@ Use this template only as thin runtime scaffolding for the repo-native `task-own
 - stay inside the approved include/exclude boundary
 - do not edit workflow state files
 - do not merge branches
+- if blocked on another task, a human gate, or verification evidence, report it once and stop instead of waiting or polling
 - if deprecated protocol, skill, or config paths are detected, stop and tell the user to run `./codex-composer migrate`

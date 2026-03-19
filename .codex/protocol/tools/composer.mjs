@@ -3,7 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { bootstrapProtocolRepo, migrateLegacyRepo } from "./lib/bootstrap.mjs";
-import { createRun, loadConfig, resolveRepoRoot, runPaths, renderControlPrompt, loadStatus, bindSession, renderPlanRequest, validatePlan, evaluateParallelPolicy, writePlanArtifacts, updateStatusForPlan, recordCheckpoint, resolveProtocolPaths, resolveLocalRoot, saveStatus, git, ensureCleanWorktree, currentBranch, sanitizeBranchFragment, branchExists, renderTaskPrompt, runCodexInteractive, runCodexExec, runHooks, commitTask, generateSummary, publicCommand } from "./lib/runtime.mjs";
+import { createRun, loadConfig, resolveRepoRoot, runPaths, renderControlPrompt, loadStatus, bindSession, renderPlanRequest, validatePlan, validatePlanSchema, evaluateParallelPolicy, writePlanArtifacts, updateStatusForPlan, recordCheckpoint, resolveProtocolPaths, resolveLocalRoot, saveStatus, git, ensureCleanWorktree, ensureHeadCommit, currentBranch, sanitizeBranchFragment, branchExists, renderTaskPrompt, runCodexInteractive, runCodexExec, runHooks, commitTask, generateSummary, publicCommand } from "./lib/runtime.mjs";
 import { readJson, pathExists } from "./lib/fs.mjs";
 
 const SKILL_DIRS = {
@@ -53,8 +53,17 @@ async function skillPath(protocol, skillKey) {
 }
 
 function taskSummaryLines(repoRoot, runId, taskId, taskState) {
+  let summaryStatus = "disabled";
+  if (taskState.enabled) {
+    summaryStatus = taskState.status;
+  } else if (taskState.prepared) {
+    summaryStatus = "prepared";
+  } else if (taskState.planned) {
+    summaryStatus = "planned";
+  }
+
   const lines = [
-    `- ${taskId.toUpperCase()}: ${taskState.enabled ? taskState.status : "disabled"}`
+    `- ${taskId.toUpperCase()}: ${summaryStatus}`
   ];
 
   if (taskState.branch) {
@@ -68,6 +77,8 @@ function taskSummaryLines(repoRoot, runId, taskId, taskState) {
   if (taskId === "a" || taskId === "b") {
     lines.push(`  prompt: ${promptPathForTask(repoRoot, runId, taskId)}`);
     lines.push(`  launch_strategy: ${taskState.launch_strategy}`);
+    lines.push(`  planned: ${taskState.planned ? "true" : "false"}`);
+    lines.push(`  prepared: ${taskState.prepared ? "true" : "false"}`);
   }
 
   if (taskState.commit) {
@@ -285,9 +296,10 @@ async function commandInitRepo(args) {
   const result = await bootstrapProtocolRepo({
     repoRoot,
     template: args.template ?? "existing",
-    codexBinary: args.codex_binary ?? "codex"
+    codexBinary: args.codex_binary ?? "codex",
+    permissionProfile: args.permission_profile ?? "balanced"
   });
-  console.log(`${result.repoRoot}\ninitialized_git=${result.initializedGit}\ntemplate=${result.template}\nlauncher=${result.launcher}`);
+  console.log(`${result.repoRoot}\ninitialized_git=${result.initializedGit}\ntemplate=${result.template}\nlauncher=${result.launcher}\npermission_profile=${result.permissionProfile}`);
 }
 
 async function commandMigrate(args) {
@@ -343,8 +355,14 @@ async function commandPlan(args) {
   const paths = runPaths(repoRoot, runId);
   const requestPath = await renderPlanRequest(repoRoot, runId);
   const protocol = await resolveProtocolPaths(repoRoot);
+  const schemaPath = path.join(protocol.schemasDir, "plan.schema.json");
   const outputPath = path.join(paths.logsDir, "plan.last-message.json");
   const logPrefix = path.join(paths.logsDir, "plan");
+  const schema = await readJson(schemaPath);
+  const schemaErrors = validatePlanSchema(schema);
+  if (schemaErrors.length > 0) {
+    throw new Error(`Invalid plan.schema.json: ${schemaErrors.join("; ")}`);
+  }
 
   await runCodexExec(
     config,
@@ -352,7 +370,7 @@ async function commandPlan(args) {
     [
       "--json",
       "--output-schema",
-      path.join(protocol.schemasDir, "plan.schema.json"),
+      schemaPath,
       "--output-last-message",
       outputPath,
       `Read ${requestPath} and respond with JSON only.`
@@ -411,6 +429,7 @@ async function commandSplit(args) {
     throw new Error("Plan mode must be recorded through a plan-review decision before split");
   }
 
+  await ensureHeadCommit(repoRoot);
   await ensureCleanWorktree(repoRoot);
 
   const baseBranch = config.project.main_branch || await currentBranch(repoRoot);
@@ -430,7 +449,9 @@ async function commandSplit(args) {
     aBranch = desiredABranch;
   }
 
+  status.tasks.a.planned = true;
   status.tasks.a.enabled = true;
+  status.tasks.a.prepared = true;
   status.tasks.a.branch = aBranch;
   status.tasks.a.worktree = repoRoot;
   status.tasks.a.status = "ready";
@@ -453,14 +474,18 @@ async function commandSplit(args) {
       await git(repoRoot, addArgs);
     }
 
+    status.tasks.b.planned = true;
     status.tasks.b.enabled = true;
+    status.tasks.b.prepared = true;
     status.tasks.b.branch = bBranch;
     status.tasks.b.worktree = bWorktree;
     status.tasks.b.status = "ready";
     status.tasks.b.launch_strategy = "manual_thread";
     await renderTaskPrompt(repoRoot, runId, "b", plan);
   } else {
+    status.tasks.b.planned = Boolean(status.tasks.b.planned);
     status.tasks.b.enabled = false;
+    status.tasks.b.prepared = false;
     status.tasks.b.branch = null;
     status.tasks.b.worktree = null;
     status.tasks.b.status = "skipped";

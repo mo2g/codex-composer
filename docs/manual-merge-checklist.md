@@ -11,6 +11,7 @@ Proceed only if all of the following are already true:
 - `integrator-reviewer` returned an explicit go / allow result for the current `merge-review`
 - every enabled task has `verify` status `passed`
 - every enabled task has a recorded `commit_sha`, `commit_message`, and `changed_files` snapshot in `status.json`
+- if a task has multiple follow-up commits, `commit_history` still lines up with the latest snapshot fields
 - required artifacts are present under `.codex/local/runs/<run-id>/`, including `PLAN.md`, `status.json`, task briefs in `tasks/`, and verify reports in `verify/`
 
 If any item is missing, do not record or act on `allow_manual_merge`. Stay in `merge-review` or send the failing task back with `return_a` or `return_b`.

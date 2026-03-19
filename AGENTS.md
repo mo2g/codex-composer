@@ -19,6 +19,17 @@ Codex Composer is a protocol-first, worktree-first workflow template for using C
 - Keep `README.md`, `AGENTS.md`, repo-native skills, state-machine docs, and merge guidance aligned when changing workflow wording.
 - Before considering a change polished, run `npm test` and `make validate-tmp`. Use a custom `BASE_DIR` if the default tmp path is already populated from an earlier smoke run.
 
+## Permissions / Trust
+
+- New installs default to the `balanced` permission profile.
+- `balanced` generates `.codex/rules/codex-composer.rules` so routine launcher commands can avoid repeated approvals after the project is trusted and Codex is restarted.
+- `verify` and `commit` remain explicit in `balanced`; project-defined hooks, network access, and local port binding may still require approval.
+- `safe` disables generated rules and keeps the conservative approval flow.
+- `wide_open` is an explicit local opt-in only; document its risk clearly if you recommend it.
+- Project-scoped `.codex/config.toml` and `.codex/rules/` are ignored when the repo is untrusted, so do not assume those layers are active until trust is established.
+- `.codex/local/` remains runtime-local generated state, but it sits under a protected path in the default sandbox. Do not imply zero-approval operation for all workflows.
+- Prefer updating `.gitignore` over `.git/info/exclude` for runtime ignore entries to reduce protected-path write prompts.
+
 ## Core Rules
 
 1. Do not skip checkpoints.
@@ -45,6 +56,7 @@ Codex Composer is a protocol-first, worktree-first workflow template for using C
   - `.codex/protocol/tools/`
 - Repo-level shared config:
   - `.codex/config.toml`
+  - `.codex/rules/`
 - Runtime-local state:
   - `.codex/local/runs/<run-id>/`
   - `.codex/local/worktrees/<run-id>/`

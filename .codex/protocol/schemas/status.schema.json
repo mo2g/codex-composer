@@ -110,9 +110,15 @@
   "$defs": {
     "task": {
       "type": "object",
-      "required": ["enabled", "branch", "worktree", "launch_strategy", "status", "commit", "last_run_at"],
+      "required": ["planned", "enabled", "prepared", "branch", "worktree", "launch_strategy", "status", "commit", "last_run_at", "commit_history"],
       "properties": {
+        "planned": {
+          "type": "boolean"
+        },
         "enabled": {
+          "type": "boolean"
+        },
+        "prepared": {
           "type": "boolean"
         },
         "branch": {
@@ -129,6 +135,12 @@
         },
         "commit": {
           "type": ["string", "null"]
+        },
+        "commit_history": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         },
         "last_run_at": {
           "type": ["string", "null"]

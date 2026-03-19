@@ -1,8 +1,14 @@
 # Existing Repo Quickstart
 
-Codex Composer is installed directly into a repository that is already open in Codex.
+Codex Composer is installed directly into a repository that you plan to use in Codex App.
 
 ## 1. Install
+
+For the lowest-friction setup:
+
+1. `git init` before installing, and make an initial commit as early as possible.
+2. Install Codex Composer before opening the repo in Codex App when you can.
+3. If the repo is already open in Codex App, restart Codex after install so repo rules can load.
 
 From the target repository root:
 
@@ -16,6 +22,12 @@ For local testing from the source checkout:
 bash /path/to/codex-composer/install.sh --repo . --template existing --source /path/to/codex-composer
 ```
 
+The installer defaults to `--permission-profile balanced`. To keep the older conservative approval behavior, pass:
+
+```bash
+bash /path/to/codex-composer/install.sh --repo . --template existing --permission-profile safe --source /path/to/codex-composer
+```
+
 Installed layout:
 
 - `AGENTS.md`
@@ -23,6 +35,7 @@ Installed layout:
 - `.agents/skills/codex-composer/`
 - `.codex/protocol/`
 - `.codex/config.toml`
+- `.codex/rules/codex-composer.rules` for `balanced` and `wide_open`
 - `.codex/local/runs/`
 - `.codex/local/worktrees/`
 
@@ -30,7 +43,21 @@ Installed layout:
 
 If `./codex-composer` is already occupied, the installer falls back to `./composer-next`.
 
-## 2. In Codex App
+## 2. Permissions / Trust
+
+- Trust the project in Codex App before you rely on repo-scoped `.codex/config.toml` or `.codex/rules/`.
+- If the repo opens as untrusted, use `/permissions` or the App trust flow first. Otherwise Codex falls back to user-level defaults and ignores repo-scoped settings.
+- `balanced` reduces repeated approvals for routine launcher commands such as `start`, `next`, `plan`, `checkpoint`, `split`, `status`, and `summarize`.
+- `verify` and `commit` still prompt in `balanced` because they may execute project-defined hooks, touch git state, bind local ports, or require network access.
+- `wide_open` is a local opt-in only. Use it only in a controlled personal environment:
+
+```bash
+bash /path/to/codex-composer/install.sh --repo . --template existing --permission-profile wide_open --source /path/to/codex-composer
+```
+
+- If `verify` still prompts in `balanced`, that is expected. Approve it, run the gate manually in an external terminal, or reinstall with a more permissive profile for that repository.
+
+## 3. In Codex App
 
 Start a run:
 
@@ -61,7 +88,7 @@ Use `integrator-reviewer` before any manual merge:
 Use the repo's integrator-reviewer skill for run `login`. Inspect status, verify reports, commit snapshots, required artifacts, and merge prerequisites, then tell me whether I should record `allow_manual_merge`, `return_a`, or `return_b`.
 ```
 
-## 3. Human Gates
+## 4. Human Gates
 
 Keep the App prompts and the human gates separate. The assistant should drive the reasoning; you run the protocol commands at the checkpoints.
 
@@ -116,7 +143,7 @@ After the human manual merge:
 
 Use `docs/manual-merge-checklist.md` for the full operator runbook, including App review before merge.
 
-## 4. Supporting References
+## 5. Supporting References
 
 - `AGENTS.md`
 - `.codex/config.toml`

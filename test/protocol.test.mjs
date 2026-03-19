@@ -93,6 +93,7 @@ test("install.sh bootstraps an existing non-empty repo into the hybrid layout wi
   await fs.access(path.join(repoRoot, "scripts", "existing.sh"));
   await fs.access(path.join(repoRoot, "tools", "existing.mjs"));
   await fs.access(path.join(repoRoot, ".codex", "config.toml"));
+  await fs.access(path.join(repoRoot, ".codex", "rules", "codex-composer.rules"));
   await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
   await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
   await fs.access(path.join(repoRoot, "README.md"));
@@ -105,8 +106,27 @@ test("install.sh bootstraps an existing non-empty repo into the hybrid layout wi
   await assert.rejects(fs.access(path.join(repoRoot, "frontend", "src", "App.jsx")));
 
   const config = await readText(path.join(repoRoot, ".codex", "config.toml"));
+  const rules = await readText(path.join(repoRoot, ".codex", "rules", "codex-composer.rules"));
   assert.match(config, /repo_type = "existing"/);
   assert.doesNotMatch(config, /profile = "default"/);
+  assert.match(rules, /profile: balanced/);
+  assert.match(rules, /decision = "allow"/);
+  assert.match(rules, /decision = "prompt"/);
+  assert.match(rules, /"verify", "commit"/);
+});
+
+test("install.sh safe permission profile skips generated rules and wide_open allows verify and commit", async () => {
+  const safeRepo = await createExistingRepo();
+  await runInstall(["--repo", safeRepo, "--template", "existing", "--permission-profile", "safe", "--source", path.resolve(".")]);
+  await assert.rejects(fs.access(path.join(safeRepo, ".codex", "rules", "codex-composer.rules")));
+
+  const wideOpenRepo = await createExistingRepo();
+  await runInstall(["--repo", wideOpenRepo, "--template", "existing", "--permission-profile", "wide_open", "--source", path.resolve(".")]);
+  const rules = await readText(path.join(wideOpenRepo, ".codex", "rules", "codex-composer.rules"));
+
+  assert.match(rules, /profile: wide_open/);
+  assert.match(rules, /"verify", "commit"/);
+  assert.doesNotMatch(rules, /decision = "prompt"/);
 });
 
 test("start/next warn when only deprecated local config exists and plan refuses to load it as active config", async () => {
@@ -141,6 +161,22 @@ test("install.sh updates an existing AGENTS.md with a managed Codex Composer blo
   assert.match(agents, /<!-- CODEX COMPOSER START -->/);
   assert.match(agents, /Main entry: `\.\/codex-composer next`/);
   assert.doesNotMatch(agents, /Prompt Sources/);
+});
+
+test("install and run initialization leave .git/info/exclude untouched while updating .gitignore", async () => {
+  const repoRoot = await createExistingRepo();
+  const excludePath = path.join(repoRoot, ".git", "info", "exclude");
+  await fs.writeFile(excludePath, "# existing\n", "utf8");
+
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
+  await runRepoLauncher(repoRoot, ["start", "--run", "login", "--requirement", "Implement login"]);
+
+  const exclude = await readText(excludePath);
+  const gitIgnore = await readText(path.join(repoRoot, ".gitignore"));
+
+  assert.equal(exclude, "# existing\n");
+  assert.match(gitIgnore, /\.codex\/local\/runs\//);
+  assert.match(gitIgnore, /\.codex\/local\/worktrees\//);
 });
 
 test("chat-control falls back cleanly in a dumb terminal", async () => {
@@ -196,6 +232,36 @@ test("plan recommends parallel_ab for the React + Go layout and local policy can
   assert.ok(corePlan.policy_evaluation.reasons.some((entry) => entry.includes("auth-core")));
 });
 
+test("plan preflights the local schema before invoking codex exec", async () => {
+  const repoRoot = await initLocalRepo("react-go-minimal");
+  const runId = "invalid-schema";
+  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
+  await fs.writeFile(path.join(repoRoot, ".codex", "protocol", "schemas", "plan.schema.json"), '{"type":"object"}\n', "utf8");
+
+  const result = await runRepoLauncher(repoRoot, ["plan", "--run", runId], { allowFailure: true });
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Invalid plan\.schema\.json/);
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.stdout.log")));
+});
+
+test("plan surfaces codex exec log paths and classified hints on failure", async () => {
+  const repoRoot = await createTestRepo();
+  const runId = "exec-failure";
+  await createRun(repoRoot, runId);
+
+  const result = await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
+    allowFailure: true,
+    env: { FAKE_CODEX_EXEC_ERROR: "output schema mismatch" }
+  });
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Check the requested output schema and local schema preflight/);
+  assert.match(result.stderr, /plan\.stdout\.log/);
+  assert.match(result.stderr, /plan\.stderr\.log/);
+  await fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.meta.json"));
+});
+
 test("split requires a recorded plan-review decision and serial mode does not create a B worktree", async () => {
   const repoRoot = await createTestRepo();
   const runId = "serial-run";
@@ -231,6 +297,45 @@ test("split requires a recorded plan-review decision and serial mode does not cr
   assert.equal(status.tasks.b.status, "skipped");
   await assert.rejects(fs.access(worktreeB));
   assert.match(splitResult.stdout, /current Codex thread/);
+});
+
+test("plan-review keeps B planned but disabled until split and split requires an initial commit", async () => {
+  const repoRoot = await makeTempDir("codex-composer-no-head-");
+  await runGit(repoRoot, ["init", "-b", "main"]);
+  await setGitUser(repoRoot);
+  await runInstall(["--repo", repoRoot, "--template", "react-go-minimal", "--source", path.resolve(".")]);
+  await writeConfig(repoRoot, { layout: "canonical" });
+
+  const runId = "no-head";
+  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
+  await runRepoLauncher(repoRoot, ["plan", "--run", runId]);
+
+  let status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
+  assert.equal(status.tasks.a.enabled, false);
+  assert.equal(status.tasks.a.planned, true);
+  assert.equal(status.tasks.b.enabled, false);
+  assert.equal(status.tasks.b.planned, true);
+  assert.equal(status.tasks.b.status, "planned");
+
+  await runRepoLauncher(repoRoot, [
+    "checkpoint",
+    "--run",
+    runId,
+    "--checkpoint",
+    "plan-review",
+    "--decision",
+    "force_serial",
+    "--mode",
+    "serial"
+  ]);
+
+  status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
+  assert.equal(status.tasks.b.enabled, false);
+  assert.equal(status.tasks.b.status, "skipped");
+
+  const splitResult = await runRepoLauncher(repoRoot, ["split", "--run", runId], { allowFailure: true });
+  assert.notEqual(splitResult.code, 0);
+  assert.match(splitResult.stderr, /initial commit/);
 });
 
 test("next auto-runs split after plan approval and status points A to the current repo", async () => {
@@ -400,6 +505,50 @@ test("manual merge flow reaches completed after verify, commit, merge-review, an
   assert.match(summary, /backend\/internal\/auth\/token\.go/);
   assert.match(summary, /commit_sha:/);
   assert.match(prBody, /frontend\/src\/LoginPage\.jsx/);
+});
+
+test("commit refuses out-of-boundary changes and preserves commit history across follow-up commits", async () => {
+  const repoRoot = await createTestRepo();
+  const runId = "commit-history";
+  await createRun(repoRoot, runId);
+  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
+    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
+  });
+  await runTool([
+    "checkpoint",
+    "--repo",
+    repoRoot,
+    "--run",
+    runId,
+    "--checkpoint",
+    "plan-review",
+    "--decision",
+    "force_serial",
+    "--mode",
+    "serial"
+  ]);
+
+  await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId]);
+  await runScript("composer-run-task.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
+  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "a"]);
+
+  await fs.writeFile(path.join(repoRoot, "backend", "out-of-scope.txt"), "nope\n", "utf8");
+  const failedCommit = await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"], {
+    allowFailure: true
+  });
+  assert.notEqual(failedCommit.code, 0);
+  assert.match(failedCommit.stderr, /outside the approved boundary/);
+  await fs.unlink(path.join(repoRoot, "backend", "out-of-scope.txt"));
+
+  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
+  await fs.appendFile(path.join(repoRoot, "frontend", "src", "api.js"), "\nexport const followUp = true;\n", "utf8");
+  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "a"]);
+  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a", "--message", "feat(a): follow-up commit"]);
+
+  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
+  assert.equal(status.tasks.a.commit_history.length, 2);
+  assert.match(status.tasks.a.commit_history[1].message, /follow-up commit/);
+  assert.ok(status.tasks.a.commit_history[1].changed_files.includes("frontend/src/api.js"));
 });
 
 test("merge-review return_b keeps task A intact and only marks B for rework", async () => {

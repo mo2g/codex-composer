@@ -66,6 +66,7 @@ description: Clarify and plan a Codex Composer run in the current Codex thread. 
 - if repository structure does not support a clean split, explain why and recommend `serial`
 - if local path rules or policy force serialization, explain the policy and tell the user to record `serial`
 - if the user changes scope materially, route back through `needs_replan`
+- if blocked on another thread, a human decision, or missing evidence, report it once and stop instead of waiting or polling
 - if the repository still uses deprecated protocol, skill, or config paths, stop and tell the user to run `./codex-composer migrate`
 
 ## Minimal example

@@ -13,6 +13,7 @@ Codex Composer treats Codex as a planning and implementation engine, not as an a
   - `.codex/protocol/`
 - Repo-level shared config:
   - `.codex/config.toml`
+  - `.codex/rules/`
 - Runtime-local generated state:
   - `.codex/local/runs/`
   - `.codex/local/worktrees/`
@@ -85,8 +86,9 @@ Verification is always explicit. `verify` runs the configured shell hooks for ta
 - `commit_message`
 - `changed_files`
 - `committed_at`
+- `commit_history[]` with the full append-only task commit history
 
-`summarize` uses those snapshots instead of recomputing branch diffs after merge.
+The top-level snapshot fields always reflect the latest task commit. `summarize` uses those snapshots instead of recomputing branch diffs after merge.
 
 ## Commands
 

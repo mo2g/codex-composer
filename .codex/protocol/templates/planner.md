@@ -15,4 +15,5 @@ Use this template only as thin runtime scaffolding for the repo-native `planner`
 - invoke the `planner` skill first
 - read `.codex/config.toml` and the current run files before asking questions
 - do not default to subagents or auto-run `split`
+- if blocked on another thread, a human gate, or missing evidence, say so once and stop instead of waiting or polling
 - if the repository still uses deprecated protocol, skill, or config paths, stop and tell the user to run `./codex-composer migrate`

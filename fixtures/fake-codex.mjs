@@ -164,6 +164,11 @@ async function runExec(argv) {
   const outputPath = getOption(argv, "--output-last-message");
   const prompt = argv[argv.length - 1] ?? "";
 
+  if (process.env.FAKE_CODEX_EXEC_ERROR) {
+    console.error(process.env.FAKE_CODEX_EXEC_ERROR);
+    process.exit(2);
+  }
+
   if (prompt.includes("Generate Codex Composer Plan") || prompt.includes("plan-request.md")) {
     if (!outputPath) {
       throw new Error("--output-last-message is required for plan execution");
@@ -234,7 +239,6 @@ func main() {
     );
   }
 
-  await fs.writeFile(path.join(process.cwd(), `task-${taskId}-output.txt`), `implemented ${taskId}\n`, "utf8");
   if (outputPath) {
     await fs.writeFile(outputPath, `task ${taskId} complete\n`, "utf8");
   }

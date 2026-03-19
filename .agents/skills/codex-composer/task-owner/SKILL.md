@@ -62,6 +62,7 @@ description: Implement one already-approved Codex Composer task boundary. Use th
 - if the approved boundary is insufficient, hand control back to the planner/current thread
 - if verification later fails, fix only the approved task scope and hand back to explicit `verify`
 - if the current thread or worktree is wrong for the task, stop and tell the user which repo/worktree should own it
+- if waiting on a human gate or another task, report the blocker once and stop instead of waiting or polling
 - if the repository still uses deprecated protocol, skill, or config paths, tell the user to run `./codex-composer migrate`
 
 ## Minimal example

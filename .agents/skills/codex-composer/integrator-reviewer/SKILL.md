@@ -62,6 +62,7 @@ description: Review merge readiness for verified, committed Codex Composer tasks
 - if review is incomplete or the branch diff does not match the approved boundary, return a no-go result
 - if merge risk is unclear, keep the run in `merge-review`
 - if only one task needs rework, send only that task back with `return_a` or `return_b`
+- if you are waiting on another thread or more evidence, report it once and stop instead of waiting or polling
 - if the repository still uses deprecated protocol, skill, or config paths, tell the user to run `./codex-composer migrate`
 - if the user asks for the actual merge, stop at the checklist and hand control back to the human operator
 

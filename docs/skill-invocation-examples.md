@@ -4,6 +4,13 @@ These playbooks are written for Codex App usage in a repository that already has
 
 The main interaction is direct skill invocation in the current Codex thread. `AGENTS.md` carries the standing repo rules automatically. Run files under `.codex/local/runs/<run-id>/` are supporting references when the assistant needs to inspect state, not the primary prompt surface.
 
+Before using these playbooks in a new repository:
+
+- trust the project in Codex App or use `/permissions`
+- restart Codex if the repo was already open when Composer was installed
+- expect `verify` and some project-defined hooks to still prompt in the default `balanced` permission profile
+- run `verify` manually in an external terminal if local ports, network access, or project-specific hooks still create too much friction
+
 ## Script 1: New Run To `plan-review`
 
 Use this when a new requirement has just been started and the current thread should act as the planner/control thread.

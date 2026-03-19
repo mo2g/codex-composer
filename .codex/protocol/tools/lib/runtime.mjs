@@ -328,7 +328,9 @@ function createDecisionEntry({ checkpoint, decision, mode = null, note = "" }) {
 
 function initialTaskState(runId, role) {
   return {
-    enabled: role === "a",
+    planned: false,
+    enabled: false,
+    prepared: false,
     branch: null,
     worktree: null,
     launch_strategy: role === "a" ? "current_thread" : "manual_thread",
@@ -337,6 +339,7 @@ function initialTaskState(runId, role) {
     commit_sha: null,
     commit_message: null,
     changed_files: [],
+    commit_history: [],
     committed_at: null,
     last_run_at: null
   };
@@ -406,8 +409,19 @@ export async function loadStatus(repoRoot, runId) {
   status.tasks.a = { ...initialTaskState(runId, "a"), ...status.tasks.a };
   status.tasks.b = { ...initialTaskState(runId, "b"), ...status.tasks.b };
   for (const taskId of ["a", "b"]) {
+    status.tasks[taskId].planned = Boolean(status.tasks[taskId].planned ?? status.tasks[taskId].enabled);
+    status.tasks[taskId].prepared = Boolean(status.tasks[taskId].prepared ?? status.tasks[taskId].worktree);
     if (!status.tasks[taskId].commit_sha && status.tasks[taskId].commit) {
       status.tasks[taskId].commit_sha = status.tasks[taskId].commit;
+    }
+    status.tasks[taskId].commit_history ||= [];
+    if (status.tasks[taskId].commit && status.tasks[taskId].commit_history.length === 0) {
+      status.tasks[taskId].commit_history.push({
+        sha: status.tasks[taskId].commit_sha ?? status.tasks[taskId].commit,
+        message: status.tasks[taskId].commit_message ?? null,
+        changed_files: Array.isArray(status.tasks[taskId].changed_files) ? status.tasks[taskId].changed_files : [],
+        committed_at: status.tasks[taskId].committed_at ?? null
+      });
     }
   }
   status.verification ||= {};
@@ -460,21 +474,6 @@ export async function createRun(repoRoot, runId, requirement) {
   return paths;
 }
 
-async function ensureGitExcludeEntry(repoRoot, entry) {
-  const excludePath = path.join(repoRoot, ".git", "info", "exclude");
-  if (!(await pathExists(excludePath))) {
-    return;
-  }
-
-  const existing = await readText(excludePath, "");
-  if (existing.split(/\r?\n/).includes(entry)) {
-    return;
-  }
-
-  const suffix = existing.endsWith("\n") || existing.length === 0 ? "" : "\n";
-  await writeText(excludePath, `${existing}${suffix}${entry}\n`);
-}
-
 async function ensureGitIgnoreEntry(repoRoot, entry) {
   const ignorePath = path.join(repoRoot, ".gitignore");
   const existing = await readText(ignorePath, "");
@@ -500,18 +499,15 @@ async function removeIgnoreEntry(filePath, entry) {
 }
 
 export async function ensureRuntimeIgnoreEntries(repoRoot) {
-  const excludePath = path.join(repoRoot, ".git", "info", "exclude");
   const ignorePath = path.join(repoRoot, ".gitignore");
   const stateRoot = resolveLocalRoot(repoRoot);
   const useLegacyLayout = stateRoot.endsWith(".codex-composer");
 
   await removeIgnoreEntry(ignorePath, ".codex/");
-  await removeIgnoreEntry(excludePath, ".codex/");
 
   const entries = useLegacyLayout ? LEGACY_RUNTIME_IGNORE_ENTRIES : RUNTIME_IGNORE_ENTRIES;
   for (const entry of entries) {
     await ensureGitIgnoreEntry(repoRoot, entry);
-    await ensureGitExcludeEntry(repoRoot, entry);
   }
 }
 
@@ -565,6 +561,64 @@ export function validatePlan(plan) {
 
   if (!plan.task_boundaries || !plan.task_boundaries.a) {
     errors.push("task_boundaries.a is required");
+  }
+
+  return errors;
+}
+
+export function validatePlanSchema(schema) {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return ["plan.schema.json must be a JSON object"];
+  }
+
+  const errors = [];
+  const rootRequired = [
+    "summary",
+    "recommended_mode",
+    "alternative_modes",
+    "tasks",
+    "task_boundaries",
+    "conflict_reasons",
+    "questions_for_user",
+    "verification_targets",
+    "needs_dialogue"
+  ];
+
+  if (schema.type !== "object") {
+    errors.push("plan.schema.json must declare type object");
+  }
+
+  if (!Array.isArray(schema.required)) {
+    errors.push("plan.schema.json must declare a root required array");
+  } else {
+    for (const field of rootRequired) {
+      if (!schema.required.includes(field)) {
+        errors.push(`plan.schema.json is missing root required field ${field}`);
+      }
+    }
+  }
+
+  const taskItem = schema.properties?.tasks?.items;
+  if (!Array.isArray(taskItem?.required)) {
+    errors.push("plan.schema.json must declare tasks.items.required");
+  } else {
+    for (const field of ["id", "title", "goal", "include", "exclude", "deliverables", "risks", "needs_dialogue"]) {
+      if (!taskItem.required.includes(field)) {
+        errors.push(`plan.schema.json tasks.items.required is missing ${field}`);
+      }
+    }
+  }
+
+  for (const field of ["a", "b", "ab", "main"]) {
+    if (!schema.properties?.verification_targets?.properties?.[field]) {
+      errors.push(`plan.schema.json verification_targets must define ${field}`);
+    }
+  }
+
+  for (const field of ["control", "a", "b", "ab"]) {
+    if (!schema.properties?.needs_dialogue?.properties?.[field]) {
+      errors.push(`plan.schema.json needs_dialogue must define ${field}`);
+    }
   }
 
   return errors;
@@ -799,6 +853,13 @@ export async function currentBranch(repoRoot) {
   return branch.stdout.trim();
 }
 
+export async function ensureHeadCommit(repoRoot) {
+  const result = await git(repoRoot, ["rev-parse", "--verify", "HEAD"], { allowFailure: true });
+  if (result.code !== 0) {
+    throw new Error("Repository must have an initial commit before split. Create a bootstrap commit first, then retry.");
+  }
+}
+
 export function sanitizeBranchFragment(input) {
   return input.replace(/[^a-zA-Z0-9._/-]+/g, "-");
 }
@@ -864,6 +925,8 @@ Read these files in order:
 Use this checkpoint prompt inside the current Codex thread:
 
 ${template}
+
+If you are waiting on another thread, a human decision, or more evidence, say so once and stop instead of waiting or polling in this thread.
 
 When the user makes a decision, persist it with:
 
@@ -944,6 +1007,8 @@ Stay inside the task boundary. After implementation, run:
 - ${verifyCommand} --run ${runId} --target ${taskId}
 - ${commitCommand} --run ${runId} --task ${taskId}
 
+If you are blocked on another task, a human decision, or missing verification evidence, report it once and stop instead of waiting or polling.
+
 Do not merge branches from this prompt.
   `;
   await writeText(promptPath, content);
@@ -967,9 +1032,13 @@ export async function updateStatusForPlan(repoRoot, runId, plan) {
 
   for (const taskId of ["a", "b"]) {
     const task = taskById(plan, taskId);
-    status.tasks[taskId].enabled = Boolean(task);
+    status.tasks[taskId].planned = Boolean(task);
+    status.tasks[taskId].enabled = false;
+    status.tasks[taskId].prepared = false;
+    status.tasks[taskId].branch = null;
+    status.tasks[taskId].worktree = null;
     status.tasks[taskId].launch_strategy = taskId === "a" ? "current_thread" : "manual_thread";
-    status.tasks[taskId].status = task ? "pending" : "skipped";
+    status.tasks[taskId].status = task ? "planned" : "skipped";
   }
 
   await saveStatus(repoRoot, runId, status);
@@ -1021,10 +1090,12 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
       status.plan.approved_mode = mode;
       status.phase = "plan-approved";
       status.current_checkpoint = "plan-review";
-      status.tasks.b.enabled = mode === "parallel_ab";
-      if (mode !== "parallel_ab") {
-        status.tasks.b.status = "skipped";
-      }
+      status.tasks.a.enabled = false;
+      status.tasks.a.prepared = false;
+      status.tasks.a.status = status.tasks.a.planned ? "planned" : "skipped";
+      status.tasks.b.enabled = false;
+      status.tasks.b.prepared = false;
+      status.tasks.b.status = mode === "parallel_ab" && status.tasks.b.planned ? "planned" : "skipped";
     } else if (decision === "needs_replan") {
       status.plan.status = "needs_replan";
       status.plan.approved_mode = null;
@@ -1046,6 +1117,7 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
       status.tasks.a.commit_message = null;
       status.tasks.a.changed_files = [];
       status.tasks.a.committed_at = null;
+      status.tasks.a.prepared = true;
       status.verification.a.status = "pending";
       status.verification.a.report = null;
     } else if (decision === "return_b") {
@@ -1057,6 +1129,7 @@ export async function recordCheckpoint(repoRoot, runId, checkpoint, decision, mo
       status.tasks.b.commit_message = null;
       status.tasks.b.changed_files = [];
       status.tasks.b.committed_at = null;
+      status.tasks.b.prepared = true;
       status.verification.b.status = "pending";
       status.verification.b.report = null;
     } else if (decision === "hold_merge" || decision === "hold_publish") {
@@ -1121,8 +1194,10 @@ export async function runCodexExec(config, repoRoot, args, logPrefix, extraDirs 
   await ensureDir(logDir);
   const stdoutPath = `${logPrefix}.stdout.log`;
   const stderrPath = `${logPrefix}.stderr.log`;
+  const metaPath = `${logPrefix}.meta.json`;
   const stdoutChunks = [];
   const stderrChunks = [];
+  const startedAt = isoNow();
 
   await new Promise((resolve, reject) => {
     const runner = async () => {
@@ -1146,14 +1221,37 @@ export async function runCodexExec(config, repoRoot, args, logPrefix, extraDirs 
       child.on("close", async (code) => {
         const stdout = Buffer.concat(stdoutChunks).toString("utf8");
         const stderr = Buffer.concat(stderrChunks).toString("utf8");
+        const endedAt = isoNow();
         await writeText(stdoutPath, stdout);
         await writeText(stderrPath, stderr);
+        await writeJson(metaPath, {
+          command: config.codex.binary,
+          args: [...getCodexArgs(config, repoRoot, allowedDirs), "exec", ...args],
+          started_at: startedAt,
+          ended_at: endedAt,
+          exit_code: code,
+          stdout_path: stdoutPath,
+          stderr_path: stderrPath
+        });
 
         if (code !== 0) {
-          const error = new Error(`codex exec failed with code ${code}`);
+          const hints = [];
+          const combined = `${stdout}\n${stderr}`;
+          if (/schema|output schema|json schema/i.test(combined)) {
+            hints.push("Check the requested output schema and local schema preflight.");
+          }
+          if (/approval|sandbox|permission/i.test(combined)) {
+            hints.push("Codex likely hit an approval or sandbox boundary.");
+          }
+          if (/state db|migration/i.test(combined)) {
+            hints.push("Codex reported a local state or migration issue.");
+          }
+          const suffix = hints.length > 0 ? ` ${hints.join(" ")}` : "";
+          const error = new Error(`codex exec failed with code ${code}.${suffix} See ${stdoutPath} and ${stderrPath}.`);
           error.code = code;
           error.stdoutPath = stdoutPath;
           error.stderrPath = stderrPath;
+          error.metaPath = metaPath;
           reject(error);
           return;
         }
@@ -1165,7 +1263,25 @@ export async function runCodexExec(config, repoRoot, args, logPrefix, extraDirs 
     runner().catch(reject);
   });
 
-  return { stdoutPath, stderrPath };
+  return { stdoutPath, stderrPath, metaPath };
+}
+
+function parseStatusEntries(statusOutput) {
+  return statusOutput
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const raw = line.slice(3);
+      const paths = raw.includes(" -> ") ? raw.split(" -> ") : [raw];
+      return { line, paths };
+    });
+}
+
+function matchesTaskBoundary(filePath, taskPlan) {
+  if (!taskPlan) {
+    return false;
+  }
+  return matchesAny(filePath, taskPlan.include ?? []) && !matchesAny(filePath, taskPlan.exclude ?? []);
 }
 
 export async function runHooks(cwd, commands, reportPath) {
@@ -1217,9 +1333,35 @@ export async function commitTask(repoRoot, runId, taskId, message = null) {
   const plan = await readJson(runPaths(repoRoot, runId).planJson);
   const taskPlan = taskById(plan, taskId);
   const commitMessage = message || `feat(${taskId}): ${taskPlan?.title ?? `complete task ${taskId}`}`;
-  await git(task.worktree, ["add", "-A"]);
+  const statusResult = await git(task.worktree, ["status", "--porcelain"], { allowFailure: true });
+  const entries = parseStatusEntries(statusResult.stdout);
+  const inScopeEntries = [];
+  const outOfScopeEntries = [];
+
+  for (const entry of entries) {
+    const inScope = entry.paths.every((filePath) => matchesTaskBoundary(filePath, taskPlan));
+    if (inScope) {
+      inScopeEntries.push(entry);
+    } else {
+      outOfScopeEntries.push(entry.line);
+    }
+  }
+
+  if (outOfScopeEntries.length > 0) {
+    throw new Error(`Task ${taskId} has changes outside the approved boundary:\n${outOfScopeEntries.join("\n")}`);
+  }
+
+  const stagePaths = [...new Set(inScopeEntries.flatMap((entry) => entry.paths))];
+  if (stagePaths.length === 0) {
+    throw new Error(`Task ${taskId} has no changes inside the approved boundary to commit`);
+  }
+
+  await git(task.worktree, ["add", "-A", "--", ...stagePaths]);
   const changedFilesResult = await git(task.worktree, ["diff", "--cached", "--name-only"], { allowFailure: true });
   const changedFiles = changedFilesResult.stdout.trim().split(/\r?\n/).filter(Boolean);
+  if (changedFiles.length === 0) {
+    throw new Error(`Task ${taskId} has no staged changes to commit after boundary filtering`);
+  }
   await git(task.worktree, ["commit", "-m", commitMessage]);
   const head = await git(task.worktree, ["rev-parse", "HEAD"]);
   task.commit = head.stdout.trim();
@@ -1227,6 +1369,13 @@ export async function commitTask(repoRoot, runId, taskId, message = null) {
   task.commit_message = commitMessage;
   task.changed_files = changedFiles;
   task.committed_at = isoNow();
+  task.commit_history ||= [];
+  task.commit_history.push({
+    sha: task.commit_sha,
+    message: task.commit_message,
+    changed_files: task.changed_files,
+    committed_at: task.committed_at
+  });
   task.status = "committed";
   advanceMergeReviewIfReady(status);
   await saveStatus(repoRoot, runId, status);
