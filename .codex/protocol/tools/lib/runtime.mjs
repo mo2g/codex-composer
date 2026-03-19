@@ -566,9 +566,39 @@ export function validatePlan(plan) {
   return errors;
 }
 
+function validateSchemaRequiredKeys(errors, node, label, expectedKeys) {
+  if (!node || typeof node !== "object" || Array.isArray(node)) {
+    errors.push(`${label} must be an object schema`);
+    return;
+  }
+
+  const properties = node.properties;
+  if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+    errors.push(`${label} must define properties`);
+    return;
+  }
+
+  for (const field of expectedKeys) {
+    if (!Object.prototype.hasOwnProperty.call(properties, field)) {
+      errors.push(`${label} must define ${field}`);
+    }
+  }
+
+  if (!Array.isArray(node.required)) {
+    errors.push(`${label} must declare required`);
+    return;
+  }
+
+  for (const field of expectedKeys) {
+    if (!node.required.includes(field)) {
+      errors.push(`${label}.required is missing ${field}`);
+    }
+  }
+}
+
 export function validatePlanSchema(schema) {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
-    return ["plan.schema.json must be a JSON object"];
+    return ["must be a JSON object"];
   }
 
   const errors = [];
@@ -585,41 +615,43 @@ export function validatePlanSchema(schema) {
   ];
 
   if (schema.type !== "object") {
-    errors.push("plan.schema.json must declare type object");
+    errors.push("must declare type object");
   }
 
   if (!Array.isArray(schema.required)) {
-    errors.push("plan.schema.json must declare a root required array");
+    errors.push("must declare a root required array");
   } else {
     for (const field of rootRequired) {
       if (!schema.required.includes(field)) {
-        errors.push(`plan.schema.json is missing root required field ${field}`);
+        errors.push(`root required is missing ${field}`);
       }
     }
   }
 
-  const taskItem = schema.properties?.tasks?.items;
-  if (!Array.isArray(taskItem?.required)) {
-    errors.push("plan.schema.json must declare tasks.items.required");
+  const rootProperties = schema.properties;
+  if (!rootProperties || typeof rootProperties !== "object" || Array.isArray(rootProperties)) {
+    errors.push("must define root properties");
   } else {
-    for (const field of ["id", "title", "goal", "include", "exclude", "deliverables", "risks", "needs_dialogue"]) {
-      if (!taskItem.required.includes(field)) {
-        errors.push(`plan.schema.json tasks.items.required is missing ${field}`);
+    for (const field of rootRequired) {
+      if (!Object.prototype.hasOwnProperty.call(rootProperties, field)) {
+        errors.push(`must define root property ${field}`);
       }
     }
   }
 
-  for (const field of ["a", "b", "ab", "main"]) {
-    if (!schema.properties?.verification_targets?.properties?.[field]) {
-      errors.push(`plan.schema.json verification_targets must define ${field}`);
-    }
-  }
-
-  for (const field of ["control", "a", "b", "ab"]) {
-    if (!schema.properties?.needs_dialogue?.properties?.[field]) {
-      errors.push(`plan.schema.json needs_dialogue must define ${field}`);
-    }
-  }
+  validateSchemaRequiredKeys(errors, schema.properties?.tasks?.items, "tasks.items", [
+    "id",
+    "title",
+    "goal",
+    "include",
+    "exclude",
+    "deliverables",
+    "risks",
+    "needs_dialogue"
+  ]);
+  validateSchemaRequiredKeys(errors, schema.properties?.task_boundaries, "task_boundaries", ["a", "b"]);
+  validateSchemaRequiredKeys(errors, schema.properties?.verification_targets, "verification_targets", ["a", "b", "ab", "main"]);
+  validateSchemaRequiredKeys(errors, schema.properties?.needs_dialogue, "needs_dialogue", ["control", "a", "b", "ab"]);
 
   return errors;
 }

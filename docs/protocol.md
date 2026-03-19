@@ -76,6 +76,25 @@ The current Codex thread is the planner/control thread by default. That thread i
 
 If the user approves `parallel_ab`, Codex Composer creates only the `B` worktree. The user then opens a separate Codex thread manually in that worktree.
 
+## Protocol Truth Vs App Narration
+
+The protocol source of truth lives on disk under `.codex/local/runs/<run-id>/`.
+
+- `status.json` is the authoritative state machine snapshot
+- `plan.json` and `PLAN.md` are the authoritative plan artifacts
+- `logs/plan.meta.json`, `logs/plan.stdout.log`, and `logs/plan.stderr.log` are the authoritative `codex exec` traces when exec actually ran
+
+Codex App messages are useful operator hints, but they are not the protocol state. If App narration says planning is still running, waiting, or resuming, confirm the actual state in the run directory before inferring hidden orchestration or subagents.
+
+## Plan Failure Triage
+
+`plan` validates the local `.codex/protocol/schemas/plan.schema.json` before it launches `codex exec`.
+
+1. If schema preflight fails, treat that as a local protocol/template error. In that case, `codex exec` never started and there should be no `logs/plan.meta.json`, `logs/plan.stdout.log`, or `logs/plan.stderr.log` for that attempt.
+2. If schema preflight passes, inspect `logs/plan.meta.json` first to confirm the executed command and exit code.
+3. Then inspect `logs/plan.stdout.log` and `logs/plan.stderr.log` for schema rejection, sandbox or approval failures, or Codex local state warnings.
+4. If neither `split` nor `status.json` shows prepared parallel work, do not interpret App waiting text as proof that Composer enabled hidden subagents. The default model is still current thread `A` plus the optional `B` worktree thread after explicit approval.
+
 ## Verification And Commit
 
 Verification is always explicit. `verify` runs the configured shell hooks for task `a`, task `b`, or `main`.

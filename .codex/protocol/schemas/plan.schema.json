@@ -79,7 +79,7 @@
     "task_boundaries": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["a"],
+      "required": ["a", "b"],
       "properties": {
         "a": {
           "type": "object",

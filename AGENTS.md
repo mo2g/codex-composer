@@ -79,6 +79,12 @@ Codex Composer is a protocol-first, worktree-first workflow template for using C
   - `integrator-reviewer` back in the current thread for merge readiness
 - Compatibility helpers such as `composer-chat-control`, `composer-run-task`, and `composer-integrate` exist, but they are not the primary path.
 
+## Debugging Source Of Truth
+
+- Treat `.codex/local/runs/<run-id>/status.json`, `plan.json`, and `logs/` as the authoritative protocol state.
+- `plan` always runs local schema preflight before `codex exec`; if preflight fails, diagnose the local schema first instead of assuming Codex App or hidden orchestration is at fault.
+- App narration such as "planner started" or "still waiting" does not prove background subagents. Default parallelism is still current thread `A` plus the optional `B` worktree thread after explicit approval.
+
 ## Task Boundaries
 
 - `parallel_ab` is allowed only when task boundaries are disjoint and do not collide on:

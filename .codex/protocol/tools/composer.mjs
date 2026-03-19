@@ -361,7 +361,7 @@ async function commandPlan(args) {
   const schema = await readJson(schemaPath);
   const schemaErrors = validatePlanSchema(schema);
   if (schemaErrors.length > 0) {
-    throw new Error(`Invalid plan.schema.json: ${schemaErrors.join("; ")}`);
+    throw new Error(`Invalid plan.schema.json at ${schemaPath}: ${schemaErrors.join("; ")}`);
   }
 
   await runCodexExec(

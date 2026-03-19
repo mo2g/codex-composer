@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { validatePlan } from "../tools/lib/runtime.mjs";
+import { validatePlan, validatePlanSchema } from "../tools/lib/runtime.mjs";
 import { createExistingRepo, createTestRepo, makeTempDir, readJson, readText, runGit, runInstall, runRepoLauncher, runScript, runTool, setGitUser, writeConfig, commitAll } from "./helpers/repo.mjs";
 
 async function createRun(repoRoot, runId, requirement = "Implement a login module") {
@@ -82,6 +82,19 @@ test("validatePlan rejects missing required fields", () => {
 
   assert.ok(errors.some((entry) => entry.includes("alternative_modes")));
   assert.ok(errors.some((entry) => entry.includes("questions_for_user")));
+});
+
+test("source and installed plan schemas keep task boundary required keys in sync", async () => {
+  const sourceSchema = JSON.parse(await fs.readFile(path.join(path.resolve("."), ".codex", "protocol", "schemas", "plan.schema.json"), "utf8"));
+  assert.deepEqual(validatePlanSchema(sourceSchema), []);
+  assert.deepEqual(sourceSchema.properties.task_boundaries.required, ["a", "b"]);
+
+  const repoRoot = await createExistingRepo();
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
+
+  const installedSchema = await readJson(path.join(repoRoot, ".codex", "protocol", "schemas", "plan.schema.json"));
+  assert.deepEqual(installedSchema.properties.task_boundaries.required, ["a", "b"]);
+  assert.deepEqual(validatePlanSchema(installedSchema), []);
 });
 
 test("install.sh bootstraps an existing non-empty repo into the hybrid layout without adding example app files", async () => {
@@ -232,17 +245,22 @@ test("plan recommends parallel_ab for the React + Go layout and local policy can
   assert.ok(corePlan.policy_evaluation.reasons.some((entry) => entry.includes("auth-core")));
 });
 
-test("plan preflights the local schema before invoking codex exec", async () => {
+test("plan preflights missing task boundary required keys before invoking codex exec", async () => {
   const repoRoot = await initLocalRepo("react-go-minimal");
   const runId = "invalid-schema";
   await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
-  await fs.writeFile(path.join(repoRoot, ".codex", "protocol", "schemas", "plan.schema.json"), '{"type":"object"}\n', "utf8");
+  const schemaPath = path.join(repoRoot, ".codex", "protocol", "schemas", "plan.schema.json");
+  const schema = await readJson(schemaPath);
+  schema.properties.task_boundaries.required = ["a"];
+  await fs.writeFile(schemaPath, `${JSON.stringify(schema, null, 2)}\n`, "utf8");
 
   const result = await runRepoLauncher(repoRoot, ["plan", "--run", runId], { allowFailure: true });
 
   assert.notEqual(result.code, 0);
-  assert.match(result.stderr, /Invalid plan\.schema\.json/);
+  assert.match(result.stderr, /Invalid plan\.schema\.json at .*task_boundaries\.required is missing b/);
   await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.stdout.log")));
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.stderr.log")));
+  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.meta.json")));
 });
 
 test("plan surfaces codex exec log paths and classified hints on failure", async () => {

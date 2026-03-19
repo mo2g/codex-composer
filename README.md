@@ -74,6 +74,14 @@ For full operator playbooks, see `docs/skill-invocation-examples.md`. For the hu
 - Codex Composer leans into the App's skill, review, and worktree mental model.
 - It intentionally keeps repo-local worktrees, protocol files, and explicit human gates instead of relying on hidden orchestration or auto-merge.
 - Supporting files under `.codex/local/` and `.codex/protocol/` remain available for inspection, but they are not the primary prompt surface.
+- The protocol source of truth is the run directory under `.codex/local/runs/<run-id>/`, especially `status.json`, `plan.json`, and `logs/`. App narration is convenience text, not the authoritative workflow state.
+- App messages such as "planner started" or "still waiting" are not evidence of hidden subagents. The default model remains the current thread for `A` plus an optional `B` worktree thread only after explicit `parallel_ab` approval and `split`.
+
+## Plan Failure Triage
+
+1. Check whether `./codex-composer plan --run <id>` failed during local schema preflight. If it did, fix `.codex/protocol/schemas/plan.schema.json` first. A preflight failure stops before `codex exec` starts.
+2. Only after preflight passes should you inspect `.codex/local/runs/<run-id>/logs/plan.meta.json`, `plan.stdout.log`, and `plan.stderr.log`.
+3. If App text and local artifacts disagree, trust `status.json` and the run logs. App narration does not override the protocol state on disk.
 
 ## Permissions And Trust
 
