@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Clarify scope and produce a practical implementation plan before coding. Recommend serial vs parallel strategy, but never decide or merge on behalf of the user.
+description: Clarify scope and produce a practical implementation plan before coding. Recommend whether work should stay in the current thread or split into another thread/worktree, but never decide or merge on behalf of the user.
 ---
 
 # Planner
@@ -10,7 +10,7 @@ description: Clarify scope and produce a practical implementation plan before co
 - the task is ambiguous or spans multiple subsystems
 - acceptance criteria, boundaries, or risks are missing
 - you need a plan before implementation starts
-- parallel execution might help but safety is unclear
+- splitting work into another thread/worktree might help but safety is unclear
 
 ## When not to use
 
@@ -30,7 +30,7 @@ description: Clarify scope and produce a practical implementation plan before co
 - concise scope and non-goals
 - implementation plan in bounded steps
 - explicit risks and validation strategy
-- serial vs parallel recommendation (without choosing for the user)
+- recommendation to stay in one thread or split into another thread/worktree
 
 ## Allowed actions
 
@@ -49,5 +49,5 @@ description: Clarify scope and produce a practical implementation plan before co
 ## Minimal example
 
 ```text
-Use the planner skill. Clarify missing constraints, propose a minimal plan, and recommend whether work should stay serial or split into an extra thread/worktree.
+Use the planner skill. Clarify missing constraints, propose a minimal plan, and recommend whether work should stay in the current thread or split into another thread/worktree.
 ```

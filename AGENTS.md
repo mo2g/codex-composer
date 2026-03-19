@@ -10,7 +10,6 @@ This repository is a minimal collaboration template for Codex app.
 - `README.md`: template overview
 - `docs/codex-quickstart.md`: practical app workflow
 - `docs/manual-merge-checklist.md`: human merge gate checklist
-- `.codex/local/`: runtime artifacts only (implementation detail)
 
 ## Setup / Run / Validate (This Repository)
 
@@ -35,12 +34,13 @@ Keep these checks in `.codex/config.toml` under `[hooks]` so the repo can share 
 ## Core Behavior Rules
 
 1. For non-trivial tasks, propose a short plan before implementation.
-2. For large changes, split work into clear, reviewable chunks.
-3. For parallel work, prefer a new Codex app thread and use a worktree when edits need isolation.
-4. Do not commit before relevant verification passes.
-5. Never auto-merge into `main`; merge stays a human action.
-6. Do not edit unrelated files.
-7. Subagents are optional and non-default.
+2. Prefer the repo skills when they fit: `planner`, `implementer`, and `merge-check`.
+3. For large changes, split work into clear, reviewable chunks.
+4. For parallel work, prefer a new Codex app thread and use a worktree when edits need isolation.
+5. Do not commit before relevant verification passes.
+6. Never auto-merge into `main`; merge stays a human action.
+7. Do not edit unrelated files.
+8. Subagents are optional and non-default.
 
 ## Definition Of Done
 

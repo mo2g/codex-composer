@@ -34,9 +34,9 @@ Do not use this if you want autonomous merge orchestration, strict checkpoint st
 1. Open this repo in Codex app.
 2. Read `AGENTS.md` first.
 3. Confirm `.codex/config.toml` matches your repository's real test/verify commands.
-4. Ask Codex to plan first for complex work, then implement in bounded steps.
+4. Use the `planner` skill for complex work, then implement with the `implementer` skill in bounded steps.
 5. If work can be isolated, open a new thread (and a worktree when needed).
-6. Run verification, then perform merge manually.
+6. Before merge, use `merge-check`, then run verification and merge manually.
 
 ## Minimal Structure
 
@@ -46,7 +46,7 @@ Do not use this if you want autonomous merge orchestration, strict checkpoint st
 - `docs/codex-quickstart.md` (app usage)
 - `docs/manual-merge-checklist.md` (human merge gate)
 
-`.codex/local/` is runtime state. It may exist, but it is not a template core concept.
+No repo-local launcher, protocol state machine, or runtime state directory is required for the installed template.
 
 ## Validation Commands Are Repo-Specific
 

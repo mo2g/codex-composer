@@ -3,12 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BASE_DIR="${BASE_DIR:-/tmp/codex-composer}"
-EMPTY_REPO="$BASE_DIR/empty-login"
-REACT_REPO="$BASE_DIR/react-go-login"
-EMPTY_HOME="$BASE_DIR/home-empty"
-REACT_HOME="$BASE_DIR/home-react"
-REQUIREMENT="Develop a login module using React and Golang"
-FAKE_CODEX="$ROOT_DIR/fixtures/fake-codex.mjs"
+EXISTING_REPO="$BASE_DIR/existing-node"
+EMPTY_REPO="$BASE_DIR/empty-repo"
+REACT_REPO="$BASE_DIR/react-go-minimal"
 
 ensure_absent() {
   local target="$1"
@@ -18,173 +15,166 @@ ensure_absent() {
   fi
 }
 
-write_fake_config() {
-  local repo_root="$1"
-  mkdir -p "$repo_root/.codex"
-  cat > "$repo_root/.codex/config.toml" <<EOF
-[project]
-main_branch = "main"
-branch_prefix = "codex/"
-repo_type = "validation"
-
-[codex]
-binary = "$FAKE_CODEX"
-sandbox = "workspace-write"
-approval_policy = "on-request"
-
-[planner]
-max_parallel = 2
-require_plan_approval = true
-require_integrate_approval = true
-
-[budget]
-max_codex_runs = 5
-allow_auto_replan = false
-
-[hooks]
-branch_verify = ["git diff --quiet HEAD -- && { echo \\"No tracked changes to verify\\"; exit 1; } || true", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
-integration_verify = ["git rev-parse --verify HEAD >/dev/null", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
-main_verify = ["git rev-parse --verify HEAD >/dev/null", "test -f backend/go.mod && (cd backend && go test ./...) || true"]
-
-[[path_rules]]
-globs = ["frontend/**"]
-component = "frontend"
-conflict_group = "frontend"
-core = false
-
-[[path_rules]]
-globs = ["backend/**"]
-component = "backend"
-conflict_group = "backend"
-core = false
-
-[[path_rules]]
-globs = ["backend/internal/auth/**"]
-component = "auth-core"
-conflict_group = "auth-core"
-core = true
-
-[[parallel_rules]]
-action = "deny"
-when_component = "auth-core"
-reason = "auth-core work must be serialized."
-EOF
+assert_exists() {
+  local target="$1"
+  if [ ! -e "$target" ]; then
+    echo "Expected path to exist: $target" >&2
+    exit 1
+  fi
 }
 
-bootstrap_repo() {
+assert_missing() {
+  local target="$1"
+  if [ -e "$target" ]; then
+    echo "Expected path to be absent: $target" >&2
+    exit 1
+  fi
+}
+
+bootstrap_existing_repo() {
+  ensure_absent "$EXISTING_REPO"
+  mkdir -p "$EXISTING_REPO"
+  git -C "$EXISTING_REPO" init -b main >/dev/null
+  git -C "$EXISTING_REPO" config user.email "validation@example.com"
+  git -C "$EXISTING_REPO" config user.name "Codex Composer Validation"
+
+  cat > "$EXISTING_REPO/package.json" <<'EOF'
+{
+  "name": "existing-node",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
+EOF
+
+  cat > "$EXISTING_REPO/app.test.mjs" <<'EOF'
+import test from "node:test";
+import assert from "node:assert/strict";
+
+test("existing node repo", () => {
+  assert.equal(2 + 2, 4);
+});
+EOF
+
+  cat > "$EXISTING_REPO/README.md" <<'EOF'
+# Existing Node Repo
+EOF
+
+  mkdir -p "$EXISTING_REPO/scripts" "$EXISTING_REPO/tools"
+  cat > "$EXISTING_REPO/scripts/existing.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$EXISTING_REPO/scripts/existing.sh"
+  cat > "$EXISTING_REPO/tools/existing.mjs" <<'EOF'
+export const existing = true;
+EOF
+
+  git -C "$EXISTING_REPO" add .
+  git -C "$EXISTING_REPO" commit -m "chore: bootstrap existing repo" >/dev/null
+}
+
+install_template() {
   local repo_root="$1"
   local template="$2"
-  local home_root="$3"
-
-  ensure_absent "$repo_root"
-  mkdir -p "$home_root/.codex"
-  : > "$home_root/.codex/session_index.jsonl"
-
-  "$ROOT_DIR/scripts/composer-init-repo.sh" --repo "$repo_root" --template "$template" >/dev/null
-  write_fake_config "$repo_root"
-  git -C "$repo_root" config user.email "validation@example.com"
-  git -C "$repo_root" config user.name "Codex Composer Validation"
-  git -C "$repo_root" add .
-  git -C "$repo_root" commit -m "chore: bootstrap codex composer" >/dev/null
+  bash "$ROOT_DIR/install.sh" --repo "$repo_root" --template "$template" --source "$ROOT_DIR" >/dev/null
 }
 
-run_empty_validation() {
-  bootstrap_repo "$EMPTY_REPO" "empty" "$EMPTY_HOME"
+assert_minimal_layout() {
+  local repo_root="$1"
+  assert_exists "$repo_root/AGENTS.md"
+  assert_exists "$repo_root/.codex/config.toml"
+  assert_exists "$repo_root/.agents/skills/codex-composer/planner/SKILL.md"
+  assert_exists "$repo_root/.agents/skills/codex-composer/implementer/SKILL.md"
+  assert_exists "$repo_root/.agents/skills/codex-composer/merge-check/SKILL.md"
+  assert_exists "$repo_root/docs/codex-quickstart.md"
+  assert_exists "$repo_root/docs/manual-merge-checklist.md"
+  assert_missing "$repo_root/codex-composer"
+  assert_missing "$repo_root/composer-next"
+  assert_missing "$repo_root/.codex/protocol"
+  assert_missing "$repo_root/.codex/local"
+  assert_missing "$repo_root/.codex/rules"
+}
 
-  (
-    cd "$EMPTY_REPO"
-    ./codex-composer start --run login --requirement "$REQUIREMENT" >/dev/null
-    ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "No stable frontend/backend layout exists yet"
-    ./codex-composer plan --run login >/dev/null
-  )
+validate_existing_repo() {
+  bootstrap_existing_repo
+  install_template "$EXISTING_REPO" "existing"
+  assert_minimal_layout "$EXISTING_REPO"
 
   node --input-type=module -e '
     import fs from "node:fs/promises";
-    const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8"));
-    if (plan.recommended_mode !== "serial") {
-      throw new Error(`empty-login expected serial, received ${plan.recommended_mode}`);
-    }
-    const reasons = plan.policy_evaluation?.reasons ?? [];
-    if (!reasons.some((entry) => entry.includes("matched no repository files"))) {
-      throw new Error("empty-login missing boundary-evidence downgrade reason");
-    }
-  ' "$EMPTY_REPO/.codex/local/runs/login/plan.json"
-}
-
-run_react_validation() {
-  bootstrap_repo "$REACT_REPO" "react-go-minimal" "$REACT_HOME"
+    const config = await fs.readFile(process.argv[1], "utf8");
+    if (!config.includes("npm test")) throw new Error("expected npm test hook");
+    if (config.includes("[codex]")) throw new Error("did not expect [codex] section");
+    if (config.includes("parallel_ab")) throw new Error("did not expect protocol parallel mode");
+  ' "$EXISTING_REPO/.codex/config.toml"
 
   (
-    cd "$REACT_REPO"
-    ./codex-composer start --run login --requirement "$REQUIREMENT" >/dev/null
-    ./codex-composer checkpoint --run login --checkpoint clarify --decision clarified --note "Frontend and backend scaffolds already exist"
-    ./codex-composer plan --run login >/dev/null
-    ./codex-composer checkpoint --run login --checkpoint plan-review --decision approve_parallel --mode parallel_ab
-    ./codex-composer next --run login >/dev/null
-    node ./.codex/protocol/tools/composer.mjs run-task --run login --task a >/dev/null
-    node ./.codex/protocol/tools/composer.mjs run-task --run login --task b >/dev/null
-    ./codex-composer verify --run login --target a >/dev/null
-    ./codex-composer verify --run login --target b >/dev/null
-    ./codex-composer commit --run login --task a >/dev/null
-    ./codex-composer commit --run login --task b >/dev/null
-    ./codex-composer checkpoint --run login --checkpoint merge-review --decision allow_manual_merge
-    git checkout main >/dev/null
-    git merge --no-ff codex/login-a -m "merge(a): login" >/dev/null
-    git merge --no-ff codex/login-b -m "merge(b): login" >/dev/null
-    ./codex-composer verify --run login --target main >/dev/null
-    ./codex-composer summarize --run login >/dev/null
+    cd "$EXISTING_REPO"
+    npm test >/dev/null
   )
+}
+
+validate_empty_repo() {
+  ensure_absent "$EMPTY_REPO"
+  mkdir -p "$EMPTY_REPO"
+  install_template "$EMPTY_REPO" "empty"
+  assert_minimal_layout "$EMPTY_REPO"
 
   node --input-type=module -e '
     import fs from "node:fs/promises";
-    const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8"));
-    const status = JSON.parse(await fs.readFile(process.argv[2], "utf8"));
-    if (plan.recommended_mode !== "parallel_ab") {
-      throw new Error(`react-go-login expected parallel_ab, received ${plan.recommended_mode}`);
+    const config = await fs.readFile(process.argv[1], "utf8");
+    if (!config.includes("repo_type = \"empty\"")) throw new Error("expected empty repo type");
+    if (/npm test|pnpm test|yarn test|go test|cargo test/.test(config)) {
+      throw new Error("did not expect stack-specific hooks for an empty repo");
     }
-    if (status.phase !== "completed") {
-      throw new Error(`react-go-login expected completed phase, received ${status.phase}`);
-    }
-  ' \
-    "$REACT_REPO/.codex/local/runs/login/plan.json" \
-    "$REACT_REPO/.codex/local/runs/login/status.json"
+  ' "$EMPTY_REPO/.codex/config.toml"
+}
+
+validate_react_go_repo() {
+  ensure_absent "$REACT_REPO"
+  install_template "$REACT_REPO" "react-go-minimal"
+  assert_minimal_layout "$REACT_REPO"
+  assert_exists "$REACT_REPO/frontend/src/App.jsx"
+  assert_exists "$REACT_REPO/backend/go.mod"
+
+  node --input-type=module -e '
+    import fs from "node:fs/promises";
+    const config = await fs.readFile(process.argv[1], "utf8");
+    if (!config.includes("repo_type = \"react-go-minimal\"")) throw new Error("expected react-go-minimal repo type");
+    if (!config.includes("backend/go.mod")) throw new Error("expected backend go test hook");
+    if (!config.includes("go test ./...")) throw new Error("expected go test command");
+  ' "$REACT_REPO/.codex/config.toml"
+
+  (
+    cd "$REACT_REPO/backend"
+    go test ./... >/dev/null
+  )
 }
 
 write_report() {
-  local empty_mode
-  local empty_reasons
-  local react_mode
-  local react_phase
-
-  empty_mode="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(plan.recommended_mode);' "$EMPTY_REPO/.codex/local/runs/login/plan.json")"
-  empty_reasons="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write((plan.policy_evaluation?.reasons ?? []).join(" | "));' "$EMPTY_REPO/.codex/local/runs/login/plan.json")"
-  react_mode="$(node --input-type=module -e 'import fs from "node:fs/promises"; const plan = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(plan.recommended_mode);' "$REACT_REPO/.codex/local/runs/login/plan.json")"
-  react_phase="$(node --input-type=module -e 'import fs from "node:fs/promises"; const status = JSON.parse(await fs.readFile(process.argv[1], "utf8")); process.stdout.write(status.phase);' "$REACT_REPO/.codex/local/runs/login/status.json")"
-
   cat > "$BASE_DIR/validation-report.md" <<EOF
 # Validation Report
 
-- empty-login repo: $EMPTY_REPO
-- react-go-login repo: $REACT_REPO
-- requirement: $REQUIREMENT
+- existing repo: $EXISTING_REPO
+- empty repo: $EMPTY_REPO
+- react-go-minimal repo: $REACT_REPO
 
-## empty-login
+## Checks
 
-- recommended_mode: $empty_mode
-- reasons: $empty_reasons
-
-## react-go-login
-
-- recommended_mode: $react_mode
-- final_phase: $react_phase
-- summary: $REACT_REPO/.codex/local/runs/login/SUMMARY.md
-- pr_body: $REACT_REPO/.codex/local/runs/login/PR_BODY.md
+- minimal template layout installed into existing, empty, and react-go-minimal repos
+- no launcher, protocol bundle, runtime state directory, or generated rules were installed
+- Node hook detection selected \`npm test\`
+- react-go-minimal generated backend scaffold and passed \`go test ./...\`
 EOF
 }
 
 mkdir -p "$BASE_DIR"
-run_empty_validation
-run_react_validation
+validate_existing_repo
+validate_empty_repo
+validate_react_go_repo
 write_report
 
 echo "Validation completed. Report: $BASE_DIR/validation-report.md"

@@ -2,683 +2,132 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { validatePlan, validatePlanSchema } from "../tools/lib/runtime.mjs";
-import { createExistingRepo, createTestRepo, makeTempDir, readJson, readText, runGit, runInstall, runRepoLauncher, runScript, runTool, setGitUser, writeConfig, commitAll } from "./helpers/repo.mjs";
+import { createExistingRepo, makeTempDir, readText, runGit, runInstall } from "./helpers/repo.mjs";
 
-async function createRun(repoRoot, runId, requirement = "Implement a login module") {
-  await runScript("composer-new-run.sh", ["--repo", repoRoot, "--run", runId, "--requirement", requirement]);
+async function expectExists(targetPath) {
+  await fs.access(targetPath);
 }
 
-async function initLocalRepo(template) {
-  const repoRoot = await makeTempDir(`codex-composer-${template}-`);
-  await runScript("composer-init-repo.sh", ["--repo", repoRoot, "--template", template]);
-  await setGitUser(repoRoot);
-  await writeConfig(repoRoot, { layout: "canonical" });
-  await commitAll(repoRoot);
-  return repoRoot;
+async function expectMissing(targetPath) {
+  await assert.rejects(fs.access(targetPath));
 }
 
-async function createLegacyInstalledRepo() {
-  const repoRoot = await createExistingRepo();
-  const legacyRoot = path.join(repoRoot, ".codex-composer");
-  const legacySkillsRoot = path.join(legacyRoot, "protocol", "skills");
-  const sourceRoot = path.resolve(".");
-
-  await fs.mkdir(legacySkillsRoot, { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".codex", "protocol"), path.join(legacyRoot, "protocol"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "planner"), path.join(legacySkillsRoot, "planner"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "implementer"), path.join(legacySkillsRoot, "task-owner"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "merge-check"), path.join(legacySkillsRoot, "integrator-reviewer"), { recursive: true });
-  await fs.mkdir(path.join(legacyRoot, "runs"), { recursive: true });
-  await fs.mkdir(path.join(legacyRoot, "worktrees"), { recursive: true });
-  await writeConfig(repoRoot, { layout: "legacy" });
-
-  await fs.writeFile(
-    path.join(repoRoot, "codex-composer"),
-    `#!/usr/bin/env bash
-# Codex Composer Launcher
-set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-node "$ROOT_DIR/.codex-composer/protocol/tools/composer.mjs" "$@"
-`,
-    "utf8"
-  );
-  await fs.chmod(path.join(repoRoot, "codex-composer"), 0o755);
-  await fs.writeFile(path.join(repoRoot, ".gitignore"), ".codex-composer/runs/\n.codex-composer/worktrees/\n", "utf8");
-  return repoRoot;
+async function readConfig(repoRoot) {
+  return readText(path.join(repoRoot, ".codex", "config.toml"));
 }
 
-async function createInterimSkillsRepo() {
-  const repoRoot = await createExistingRepo();
-  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
-  await writeConfig(repoRoot, { layout: "canonical" });
+async function assertMinimalInstall(repoRoot) {
+  await expectExists(path.join(repoRoot, "AGENTS.md"));
+  await expectExists(path.join(repoRoot, ".codex", "config.toml"));
+  await expectExists(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
+  await expectExists(path.join(repoRoot, ".agents", "skills", "codex-composer", "implementer", "SKILL.md"));
+  await expectExists(path.join(repoRoot, ".agents", "skills", "codex-composer", "merge-check", "SKILL.md"));
+  await expectExists(path.join(repoRoot, "docs", "codex-quickstart.md"));
+  await expectExists(path.join(repoRoot, "docs", "manual-merge-checklist.md"));
 
-  await fs.mkdir(path.join(repoRoot, ".codex", "skills"), { recursive: true });
-  await fs.rename(
-    path.join(repoRoot, ".agents", "skills", "codex-composer", "planner"),
-    path.join(repoRoot, ".codex", "skills", "codex-composer-planner")
-  );
-  await fs.rename(
-    path.join(repoRoot, ".agents", "skills", "codex-composer", "implementer"),
-    path.join(repoRoot, ".codex", "skills", "codex-composer-task-owner")
-  );
-  await fs.rename(
-    path.join(repoRoot, ".agents", "skills", "codex-composer", "merge-check"),
-    path.join(repoRoot, ".codex", "skills", "codex-composer-integrator-reviewer")
-  );
-  await fs.rmdir(path.join(repoRoot, ".agents", "skills", "codex-composer"));
-  await fs.rmdir(path.join(repoRoot, ".agents", "skills"));
-  await fs.rmdir(path.join(repoRoot, ".agents"));
-  return repoRoot;
+  await expectMissing(path.join(repoRoot, "codex-composer"));
+  await expectMissing(path.join(repoRoot, "composer-next"));
+  await expectMissing(path.join(repoRoot, ".codex", "protocol"));
+  await expectMissing(path.join(repoRoot, ".codex", "local"));
+  await expectMissing(path.join(repoRoot, ".codex", "rules"));
 }
 
-test("validatePlan rejects missing required fields", () => {
-  const errors = validatePlan({
-    summary: "bad",
-    recommended_mode: "parallel_ab",
-    tasks: []
-  });
-
-  assert.ok(errors.some((entry) => entry.includes("alternative_modes")));
-  assert.ok(errors.some((entry) => entry.includes("questions_for_user")));
-});
-
-test("source and installed plan schemas keep task boundary required keys in sync", async () => {
-  const sourceSchema = JSON.parse(await fs.readFile(path.join(path.resolve("."), ".codex", "protocol", "schemas", "plan.schema.json"), "utf8"));
-  assert.deepEqual(validatePlanSchema(sourceSchema), []);
-  assert.deepEqual(sourceSchema.properties.task_boundaries.required, ["a", "b"]);
-
-  const repoRoot = await createExistingRepo();
+test("install.sh bootstraps an existing repository into the minimal Codex template layout", async () => {
+  const repoRoot = await createExistingRepo({ packageManager: "npm" });
   await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
 
-  const installedSchema = await readJson(path.join(repoRoot, ".codex", "protocol", "schemas", "plan.schema.json"));
-  assert.deepEqual(installedSchema.properties.task_boundaries.required, ["a", "b"]);
-  assert.deepEqual(validatePlanSchema(installedSchema), []);
-});
+  await assertMinimalInstall(repoRoot);
+  await expectExists(path.join(repoRoot, "README.md"));
+  await expectExists(path.join(repoRoot, "scripts", "existing.sh"));
+  await expectExists(path.join(repoRoot, "tools", "existing.mjs"));
 
-test("install.sh bootstraps an existing non-empty repo into the hybrid layout without adding example app files", async () => {
-  const repoRoot = await createExistingRepo();
-  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
-
-  await fs.access(path.join(repoRoot, "AGENTS.md"));
-  await fs.access(path.join(repoRoot, "codex-composer"));
-  await fs.access(path.join(repoRoot, "scripts", "existing.sh"));
-  await fs.access(path.join(repoRoot, "tools", "existing.mjs"));
-  await fs.access(path.join(repoRoot, ".codex", "config.toml"));
-  await fs.access(path.join(repoRoot, ".codex", "rules", "codex-composer.rules"));
-  await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
-  await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
-  await fs.access(path.join(repoRoot, "README.md"));
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex-composer")));
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "skills")));
-  await assert.rejects(fs.access(path.join(repoRoot, "scripts", "composer-start.sh")));
-  await assert.rejects(fs.access(path.join(repoRoot, "prompts")));
-  await assert.rejects(fs.access(path.join(repoRoot, "skills")));
-  await assert.rejects(fs.access(path.join(repoRoot, "schemas")));
-  await assert.rejects(fs.access(path.join(repoRoot, "frontend", "src", "App.jsx")));
-
-  const config = await readText(path.join(repoRoot, ".codex", "config.toml"));
-  const rules = await readText(path.join(repoRoot, ".codex", "rules", "codex-composer.rules"));
+  const config = await readConfig(repoRoot);
   assert.match(config, /repo_type = "existing"/);
-  assert.doesNotMatch(config, /profile = "default"/);
-  assert.match(rules, /profile: balanced/);
-  assert.match(rules, /decision = "allow"/);
-  assert.match(rules, /decision = "prompt"/);
-  assert.match(rules, /"verify", "commit"/);
+  assert.match(config, /main_branch = "main"/);
+  assert.match(config, /npm test/);
+  assert.doesNotMatch(config, /\[codex\]/);
+  assert.doesNotMatch(config, /parallel_ab/);
 });
 
-test("install.sh safe permission profile skips generated rules and wide_open allows verify and commit", async () => {
-  const safeRepo = await createExistingRepo();
-  await runInstall(["--repo", safeRepo, "--template", "existing", "--permission-profile", "safe", "--source", path.resolve(".")]);
-  await assert.rejects(fs.access(path.join(safeRepo, ".codex", "rules", "codex-composer.rules")));
+test("install.sh updates an existing AGENTS.md block without reintroducing protocol wording", async () => {
+  const repoRoot = await createExistingRepo({
+    agentsContent: `# Team Rules
 
-  const wideOpenRepo = await createExistingRepo();
-  await runInstall(["--repo", wideOpenRepo, "--template", "existing", "--permission-profile", "wide_open", "--source", path.resolve(".")]);
-  const rules = await readText(path.join(wideOpenRepo, ".codex", "rules", "codex-composer.rules"));
+Keep existing content.
 
-  assert.match(rules, /profile: wide_open/);
-  assert.match(rules, /"verify", "commit"/);
-  assert.doesNotMatch(rules, /decision = "prompt"/);
-});
-
-test("start/next warn when only deprecated local config exists and plan refuses to load it as active config", async () => {
-  const repoRoot = await createExistingRepo();
-  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
-  await fs.rename(
-    path.join(repoRoot, ".codex", "config.toml"),
-    path.join(repoRoot, ".codex", "local", "config.toml")
-  );
-
-  const startResult = await runRepoLauncher(repoRoot, ["start", "--run", "login", "--requirement", "Implement login"], { allowFailure: true });
-  assert.match(startResult.stdout, /deprecated config path detected/);
-  assert.match(startResult.stdout, /Run \.\/codex-composer migrate before using planner\/task skills in this repository/);
-
-  const nextResult = await runRepoLauncher(repoRoot, ["next", "--run", "login"], { allowFailure: true });
-  assert.match(nextResult.stdout, /deprecated config path detected/);
-  assert.match(nextResult.stdout, /Run \.\/codex-composer migrate before continuing/);
-
-  const planResult = await runRepoLauncher(repoRoot, ["plan", "--run", "login"], { allowFailure: true });
-  assert.notEqual(planResult.code, 0);
-  assert.match(planResult.stderr, /Deprecated config path detected/);
-});
-
-test("install.sh updates an existing AGENTS.md with a managed Codex Composer block", async () => {
-  const repoRoot = await createExistingRepo();
-  await fs.writeFile(path.join(repoRoot, "AGENTS.md"), "# Team Rules\n\nKeep existing content.\n", "utf8");
+<!-- CODEX COMPOSER START -->
+legacy block
+<!-- CODEX COMPOSER END -->
+`
+  });
 
   await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
 
   const agents = await readText(path.join(repoRoot, "AGENTS.md"));
   assert.match(agents, /# Team Rules/);
-  assert.match(agents, /<!-- CODEX COMPOSER START -->/);
-  assert.match(agents, /Main entry: `\.\/codex-composer next`/);
-  assert.doesNotMatch(agents, /Prompt Sources/);
+  assert.match(agents, /Keep existing content\./);
+  assert.match(agents, /<!-- CODEX TEMPLATE START -->/);
+  assert.match(agents, /planner`, `implementer`, `merge-check`/);
+  assert.doesNotMatch(agents, /<!-- CODEX COMPOSER START -->/);
+  assert.doesNotMatch(agents, /checkpoint/);
+  assert.doesNotMatch(agents, /status\.json/);
 });
 
-test("install and run initialization leave .git/info/exclude untouched while updating .gitignore", async () => {
-  const repoRoot = await createExistingRepo();
-  const excludePath = path.join(repoRoot, ".git", "info", "exclude");
-  await fs.writeFile(excludePath, "# existing\n", "utf8");
+test("install.sh initializes an empty directory as a git repo and writes the minimal template", async () => {
+  const repoRoot = await makeTempDir("codex-composer-empty-");
+  await runInstall(["--repo", repoRoot, "--template", "empty", "--source", path.resolve(".")]);
 
-  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
-  await runRepoLauncher(repoRoot, ["start", "--run", "login", "--requirement", "Implement login"]);
+  await assertMinimalInstall(repoRoot);
 
-  const exclude = await readText(excludePath);
-  const gitIgnore = await readText(path.join(repoRoot, ".gitignore"));
+  const gitStatus = await runGit(repoRoot, ["rev-parse", "--is-inside-work-tree"]);
+  const branch = await runGit(repoRoot, ["branch", "--show-current"], { allowFailure: true });
+  const config = await readConfig(repoRoot);
 
-  assert.equal(exclude, "# existing\n");
-  assert.match(gitIgnore, /\.codex\/local\/runs\//);
-  assert.match(gitIgnore, /\.codex\/local\/worktrees\//);
+  assert.equal(gitStatus.stdout.trim(), "true");
+  assert.equal(branch.stdout.trim(), "main");
+  assert.match(config, /repo_type = "empty"/);
+  assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
 });
 
-test("chat-control falls back cleanly in a dumb terminal", async () => {
-  const repoRoot = await createTestRepo();
-  await createRun(repoRoot, "fallback");
-
-  const result = await runScript("composer-chat-control.sh", ["--repo", repoRoot, "--run", "fallback", "--checkpoint", "clarify"], {
-    env: { TERM: "dumb" }
-  });
-
-  assert.match(result.stdout, /prompt_path:/);
-  assert.match(result.stdout, /current Codex thread/);
-});
-
-test("composer-start creates a run and prints current-thread planner guidance", async () => {
-  const repoRoot = await createTestRepo();
-  const result = await runScript("composer-start.sh", ["--repo", repoRoot, "--run", "login", "--requirement", "Implement login"]);
-  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", "login", "status.json"));
-
-  assert.equal(status.phase, "clarify");
-  assert.match(result.stdout, /current Codex thread/);
-  assert.match(result.stdout, /\.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
-});
-
-test("next auto-selects the only unfinished run and prints clarify guidance", async () => {
-  const repoRoot = await createTestRepo();
-  await runTool(["start", "--repo", repoRoot, "--run", "login", "--requirement", "Implement login"]);
-
-  const result = await runTool(["next", "--repo", repoRoot]);
-  assert.match(result.stdout, /phase: clarify/);
-  assert.match(result.stdout, /checkpoint clarify/);
-});
-
-test("plan recommends parallel_ab for the React + Go layout and local policy can force serial on core overlap", async () => {
-  const repoRoot = await createTestRepo();
-
-  await createRun(repoRoot, "parallel-plan");
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", "parallel-plan"], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
-  });
-
-  const parallelPlan = await readJson(path.join(repoRoot, ".codex", "local", "runs", "parallel-plan", "plan.json"));
-  assert.equal(parallelPlan.recommended_mode, "parallel_ab");
-  assert.equal(parallelPlan.policy_evaluation.forced_mode, null);
-
-  await createRun(repoRoot, "core-plan");
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", "core-plan"], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "core_conflict" }
-  });
-
-  const corePlan = await readJson(path.join(repoRoot, ".codex", "local", "runs", "core-plan", "plan.json"));
-  assert.equal(corePlan.policy_evaluation.forced_mode, "serial");
-  assert.ok(corePlan.policy_evaluation.reasons.some((entry) => entry.includes("auth-core")));
-});
-
-test("plan preflights missing task boundary required keys before invoking codex exec", async () => {
-  const repoRoot = await initLocalRepo("react-go-minimal");
-  const runId = "invalid-schema";
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
-  const schemaPath = path.join(repoRoot, ".codex", "protocol", "schemas", "plan.schema.json");
-  const schema = await readJson(schemaPath);
-  schema.properties.task_boundaries.required = ["a"];
-  await fs.writeFile(schemaPath, `${JSON.stringify(schema, null, 2)}\n`, "utf8");
-
-  const result = await runRepoLauncher(repoRoot, ["plan", "--run", runId], { allowFailure: true });
-
-  assert.notEqual(result.code, 0);
-  assert.match(result.stderr, /Invalid plan\.schema\.json at .*task_boundaries\.required is missing b/);
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.stdout.log")));
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.stderr.log")));
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.meta.json")));
-});
-
-test("plan surfaces codex exec log paths and classified hints on failure", async () => {
-  const repoRoot = await createTestRepo();
-  const runId = "exec-failure";
-  await createRun(repoRoot, runId);
-
-  const result = await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
-    allowFailure: true,
-    env: { FAKE_CODEX_EXEC_ERROR: "output schema mismatch" }
-  });
-
-  assert.notEqual(result.code, 0);
-  assert.match(result.stderr, /Check the requested output schema and local schema preflight/);
-  assert.match(result.stderr, /plan\.stdout\.log/);
-  assert.match(result.stderr, /plan\.stderr\.log/);
-  await fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "logs", "plan.meta.json"));
-});
-
-test("split requires a recorded plan-review decision and serial mode does not create a B worktree", async () => {
-  const repoRoot = await createTestRepo();
-  const runId = "serial-run";
-  await createRun(repoRoot, runId);
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
-  });
-
-  const failedSplit = await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId], {
-    allowFailure: true
-  });
-  assert.notEqual(failedSplit.code, 0);
-  assert.match(failedSplit.stderr, /approved/);
-
-  await runScript("composer-checkpoint.sh", [
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "force_serial",
-    "--mode",
-    "serial"
-  ]);
-
-  const splitResult = await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId]);
-  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  const worktreeB = path.join(repoRoot, ".codex", "local", "worktrees", runId, "b");
-
-  assert.equal(status.tasks.a.worktree, repoRoot);
-  assert.equal(status.tasks.b.status, "skipped");
-  await assert.rejects(fs.access(worktreeB));
-  assert.match(splitResult.stdout, /current Codex thread/);
-});
-
-test("plan-review keeps B planned but disabled until split and split requires an initial commit", async () => {
-  const repoRoot = await makeTempDir("codex-composer-no-head-");
-  await runGit(repoRoot, ["init", "-b", "main"]);
-  await setGitUser(repoRoot);
+test("react-go-minimal installs scaffold files and Go verification hooks without runtime protocol assets", async () => {
+  const repoRoot = await makeTempDir("codex-composer-react-go-");
   await runInstall(["--repo", repoRoot, "--template", "react-go-minimal", "--source", path.resolve(".")]);
-  await writeConfig(repoRoot, { layout: "canonical" });
 
-  const runId = "no-head";
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
-  await runRepoLauncher(repoRoot, ["plan", "--run", runId]);
+  await assertMinimalInstall(repoRoot);
+  await expectExists(path.join(repoRoot, "frontend", "src", "App.jsx"));
+  await expectExists(path.join(repoRoot, "frontend", "src", "LoginPage.jsx"));
+  await expectExists(path.join(repoRoot, "backend", "go.mod"));
+  await expectExists(path.join(repoRoot, "backend", "internal", "auth", "token.go"));
 
-  let status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  assert.equal(status.tasks.a.enabled, false);
-  assert.equal(status.tasks.a.planned, true);
-  assert.equal(status.tasks.b.enabled, false);
-  assert.equal(status.tasks.b.planned, true);
-  assert.equal(status.tasks.b.status, "planned");
-
-  await runRepoLauncher(repoRoot, [
-    "checkpoint",
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "force_serial",
-    "--mode",
-    "serial"
-  ]);
-
-  status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  assert.equal(status.tasks.b.enabled, false);
-  assert.equal(status.tasks.b.status, "skipped");
-
-  const splitResult = await runRepoLauncher(repoRoot, ["split", "--run", runId], { allowFailure: true });
-  assert.notEqual(splitResult.code, 0);
-  assert.match(splitResult.stderr, /initial commit/);
+  const config = await readConfig(repoRoot);
+  assert.match(config, /repo_type = "react-go-minimal"/);
+  assert.match(config, /go test \.\/\.\.\./);
 });
 
-test("next auto-runs split after plan approval and status points A to the current repo", async () => {
-  const repoRoot = await createTestRepo();
-  const runId = "parallel-split";
-  await createRun(repoRoot, runId);
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
-  });
-  await runTool([
-    "checkpoint",
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "approve_parallel",
-    "--mode",
-    "parallel_ab"
-  ]);
-
-  const nextResult = await runTool(["next", "--repo", repoRoot, "--run", runId]);
-  const statusResult = await runTool(["status", "--repo", repoRoot, "--run", runId]);
-  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-
-  assert.equal(status.tasks.a.worktree, repoRoot);
-  assert.ok(status.tasks.b.worktree.endsWith(`.codex/local/worktrees/${runId}/b`));
-  assert.equal(status.phase, "execute");
-  assert.match(nextResult.stdout, /phase: execute/);
-  assert.match(statusResult.stdout, /A: ready/);
-  assert.match(statusResult.stdout, /launch_strategy: current_thread/);
-  assert.match(statusResult.stdout, /Open a new Codex thread/);
-});
-
-test("repo-local empty template safely downgrades the login request to serial", async () => {
-  const repoRoot = await initLocalRepo("empty");
-  const runId = "empty-login";
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Develop a login module using React and Golang"]);
-  await runRepoLauncher(repoRoot, [
-    "checkpoint",
-    "--run",
-    runId,
-    "--checkpoint",
-    "clarify",
-    "--decision",
-    "clarified",
-    "--note",
-    "No stable frontend/backend layout exists yet"
-  ]);
-  await runRepoLauncher(repoRoot, ["plan", "--run", runId]);
-
-  const plan = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "plan.json"));
-  const planMd = await readText(path.join(repoRoot, ".codex", "local", "runs", runId, "PLAN.md"));
-  assert.equal(plan.recommended_mode, "serial");
-  assert.ok(plan.policy_evaluation.reasons.some((entry) => entry.includes("matched no repository files")));
-  assert.match(planMd, /stable parallel boundaries are not established yet/);
-});
-
-test("hybrid launcher drives start to split in an installed repo without root protocol directories", async () => {
-  const repoRoot = await initLocalRepo("react-go-minimal");
-  const runId = "launcher-flow";
-
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
-  await runRepoLauncher(repoRoot, [
-    "checkpoint",
-    "--run",
-    runId,
-    "--checkpoint",
-    "clarify",
-    "--decision",
-    "clarified",
-    "--note",
-    "Frontend stays in A and backend stays in B"
-  ]);
-  await runRepoLauncher(repoRoot, ["plan", "--run", runId]);
-  await runRepoLauncher(repoRoot, [
-    "checkpoint",
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "approve_parallel",
-    "--mode",
-    "parallel_ab"
-  ]);
-
-  const nextResult = await runRepoLauncher(repoRoot, ["next", "--run", runId]);
-  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-
-  assert.equal(status.phase, "execute");
-  assert.ok(status.tasks.b.worktree.endsWith(`.codex/local/worktrees/${runId}/b`));
-  await fs.access(path.join(repoRoot, "codex-composer"));
-  await assert.rejects(fs.access(path.join(repoRoot, "prompts")));
-  await assert.rejects(fs.access(path.join(repoRoot, "skills")));
-  await assert.rejects(fs.access(path.join(repoRoot, "schemas")));
-  assert.match(nextResult.stdout, /phase: execute/);
-});
-
-test("manual merge flow reaches completed after verify, commit, merge-review, and main verification", async () => {
-  const repoRoot = await createTestRepo();
-  const runId = "manual-merge";
-  await createRun(repoRoot, runId);
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
-  });
-  await runTool([
-    "checkpoint",
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "approve_parallel",
-    "--mode",
-    "parallel_ab"
-  ]);
-
-  await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId]);
-  await runScript("composer-run-task.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
-  await runScript("composer-run-task.sh", ["--repo", repoRoot, "--run", runId, "--task", "b"]);
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "a"]);
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "b"]);
-  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
-  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "b"]);
-
-  let status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  assert.equal(status.phase, "merge-review");
-  assert.match(status.tasks.a.commit_message, /feat\(a\)/);
-  assert.ok(status.tasks.a.changed_files.includes("frontend/src/LoginPage.jsx"));
-  assert.ok(status.tasks.b.changed_files.includes("backend/internal/auth/token.go"));
-
-  await runTool([
-    "checkpoint",
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "merge-review",
-    "--decision",
-    "allow_manual_merge"
-  ]);
-
-  status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  assert.equal(status.phase, "ready-to-merge");
-
-  const branchA = status.tasks.a.branch;
-  const branchB = status.tasks.b.branch;
-  await runGit(repoRoot, ["checkout", "main"]);
-  await runGit(repoRoot, ["merge", "--no-ff", branchA, "-m", `merge(a): ${runId}`]);
-  await runGit(repoRoot, ["merge", "--no-ff", branchB, "-m", `merge(b): ${runId}`]);
-
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "main"]);
-  await runScript("composer-summarize.sh", ["--repo", repoRoot, "--run", runId]);
-
-  const completed = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  const summary = await readText(path.join(repoRoot, ".codex", "local", "runs", runId, "SUMMARY.md"));
-  const prBody = await readText(path.join(repoRoot, ".codex", "local", "runs", runId, "PR_BODY.md"));
-  assert.equal(completed.phase, "completed");
-  assert.match(summary, /approved_mode: parallel_ab/);
-  assert.match(summary, /frontend\/src\/LoginPage\.jsx/);
-  assert.match(summary, /backend\/internal\/auth\/token\.go/);
-  assert.match(summary, /commit_sha:/);
-  assert.match(prBody, /frontend\/src\/LoginPage\.jsx/);
-});
-
-test("commit refuses out-of-boundary changes and preserves commit history across follow-up commits", async () => {
-  const repoRoot = await createTestRepo();
-  const runId = "commit-history";
-  await createRun(repoRoot, runId);
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
-  });
-  await runTool([
-    "checkpoint",
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "force_serial",
-    "--mode",
-    "serial"
-  ]);
-
-  await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId]);
-  await runScript("composer-run-task.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "a"]);
-
-  await fs.writeFile(path.join(repoRoot, "backend", "out-of-scope.txt"), "nope\n", "utf8");
-  const failedCommit = await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"], {
-    allowFailure: true
-  });
-  assert.notEqual(failedCommit.code, 0);
-  assert.match(failedCommit.stderr, /outside the approved boundary/);
-  await fs.unlink(path.join(repoRoot, "backend", "out-of-scope.txt"));
-
-  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
-  await fs.appendFile(path.join(repoRoot, "frontend", "src", "api.js"), "\nexport const followUp = true;\n", "utf8");
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "a"]);
-  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a", "--message", "feat(a): follow-up commit"]);
-
-  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  assert.equal(status.tasks.a.commit_history.length, 2);
-  assert.match(status.tasks.a.commit_history[1].message, /follow-up commit/);
-  assert.ok(status.tasks.a.commit_history[1].changed_files.includes("frontend/src/api.js"));
-});
-
-test("merge-review return_b keeps task A intact and only marks B for rework", async () => {
-  const repoRoot = await createTestRepo();
-  const runId = "return-b";
-  await createRun(repoRoot, runId);
-  await runScript("composer-plan.sh", ["--repo", repoRoot, "--run", runId], {
-    env: { FAKE_CODEX_PLAN_SCENARIO: "parallel" }
-  });
-  await runTool([
-    "checkpoint",
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "plan-review",
-    "--decision",
-    "approve_parallel",
-    "--mode",
-    "parallel_ab"
-  ]);
-
-  await runScript("composer-split.sh", ["--repo", repoRoot, "--run", runId]);
-  await runScript("composer-run-task.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
-  await runScript("composer-run-task.sh", ["--repo", repoRoot, "--run", runId, "--task", "b"]);
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "a"]);
-  await runScript("composer-verify.sh", ["--repo", repoRoot, "--run", runId, "--target", "b"]);
-  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "a"]);
-  await runScript("composer-commit.sh", ["--repo", repoRoot, "--run", runId, "--task", "b"]);
-  await runTool([
-    "checkpoint",
-    "--repo",
-    repoRoot,
-    "--run",
-    runId,
-    "--checkpoint",
-    "merge-review",
-    "--decision",
-    "return_b"
-  ]);
-
-  const status = await readJson(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  assert.equal(status.tasks.a.status, "committed");
-  assert.equal(status.tasks.b.status, "needs-rework");
-  assert.equal(status.phase, "execute");
-});
-
-test("legacy layout remains readable, warns as deprecated, and migrate is idempotent", async () => {
-  const repoRoot = await createLegacyInstalledRepo();
-  const runId = "legacy-run";
-
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
-
-  let statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
-  assert.match(statusResult.stdout, /legacy \.codex-composer layout detected/);
-  assert.match(statusResult.stdout, /Run \.\/codex-composer migrate before continuing/);
-  await fs.access(path.join(repoRoot, ".codex-composer", "runs", runId, "status.json"));
-
-  const firstMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
-  assert.match(firstMigrate.stdout, /migrated: true/);
-  await fs.access(path.join(repoRoot, ".codex", "local", "runs", runId, "status.json"));
-  await fs.access(path.join(repoRoot, ".codex", "protocol", "tools", "composer.mjs"));
-  await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
-
-  statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
-  assert.match(statusResult.stdout, /layout_mode: codex/);
-  assert.match(statusResult.stdout, /\.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
-  assert.doesNotMatch(statusResult.stdout, /legacy \.codex-composer layout detected/);
-
-  const secondMigrate = await runRepoLauncher(repoRoot, ["migrate"]);
-  assert.match(secondMigrate.stdout, /migrated: false/);
-});
-
-test("migrate upgrades deprecated local config into repo-level config and backs up an existing target", async () => {
-  const repoRoot = await createExistingRepo();
+test("Node hooks prefer pnpm when pnpm-lock.yaml exists", async () => {
+  const repoRoot = await createExistingRepo({ packageManager: "pnpm" });
   await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
 
-  await fs.writeFile(
-    path.join(repoRoot, ".codex", "local", "config.toml"),
-    '[project]\nmain_branch = "main"\nbranch_prefix = "codex/"\nrepo_type = "deprecated-local"\n',
-    "utf8"
-  );
-
-  const migrateResult = await runRepoLauncher(repoRoot, ["migrate"]);
-  const config = await readText(path.join(repoRoot, ".codex", "config.toml"));
-  const codexEntries = await fs.readdir(path.join(repoRoot, ".codex"));
-
-  assert.match(migrateResult.stdout, /migrated: true/);
-  assert.match(migrateResult.stdout, /backups: .*\.codex\/config\.toml\.bak\.\d{14}/);
-  assert.match(config, /repo_type = "deprecated-local"/);
-  assert.ok(codexEntries.some((entry) => /^config\.toml\.bak\.\d{14}$/.test(entry)));
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "local", "config.toml")));
+  const config = await readConfig(repoRoot);
+  assert.match(config, /pnpm test/);
+  assert.doesNotMatch(config, /yarn test/);
+  assert.doesNotMatch(config, /\bnpm test\b/);
 });
 
-test("intermediate .codex skills layout requires migration and moves into .agents", async () => {
-  const repoRoot = await createInterimSkillsRepo();
-  const runId = "interim-run";
+test("Node hooks prefer yarn when yarn.lock exists", async () => {
+  const repoRoot = await createExistingRepo({ packageManager: "yarn" });
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
 
-  await runRepoLauncher(repoRoot, ["start", "--run", runId, "--requirement", "Implement login"]);
+  const config = await readConfig(repoRoot);
+  assert.match(config, /yarn test/);
+});
 
-  let statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
-  assert.match(statusResult.stdout, /legacy skill layout detected/);
-  assert.match(statusResult.stdout, /Run \.\/codex-composer migrate before continuing/);
-  await fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md"));
+test("polyglot repositories receive Go and Rust verification hooks in shared config", async () => {
+  const repoRoot = await createExistingRepo({ includeGo: true, includeRust: true });
+  await runInstall(["--repo", repoRoot, "--template", "existing", "--source", path.resolve(".")]);
 
-  const migrateResult = await runRepoLauncher(repoRoot, ["migrate"]);
-  assert.match(migrateResult.stdout, /migrated: true/);
-  await fs.access(path.join(repoRoot, ".agents", "skills", "codex-composer", "planner", "SKILL.md"));
-  await assert.rejects(fs.access(path.join(repoRoot, ".codex", "skills", "codex-composer-planner", "SKILL.md")));
-
-  statusResult = await runRepoLauncher(repoRoot, ["status", "--run", runId]);
-  assert.match(statusResult.stdout, /\.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
-  assert.doesNotMatch(statusResult.stdout, /legacy skill layout detected/);
+  const config = await readConfig(repoRoot);
+  assert.match(config, /^branch_verify = \[/m);
+  assert.match(config, /go test \.\/\.\.\./);
+  assert.match(config, /cargo test/);
 });

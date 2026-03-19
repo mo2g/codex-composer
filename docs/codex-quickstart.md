@@ -5,7 +5,7 @@
 1. Open the repo.
 2. Read `AGENTS.md`.
 3. Check `.codex/config.toml` and make sure verification commands match this repo's stack.
-4. Start with a short planning prompt if the task is not trivial.
+4. If the task is not trivial, start with the `planner` skill.
 
 Typical verification examples:
 
@@ -23,6 +23,8 @@ Plan first when any of these are true:
 - risk of regressions is non-trivial
 - you may need parallel execution
 
+Use the `implementer` skill once scope is clear.
+
 ## When To Use New Thread / Worktree
 
 - Use a new Codex app thread when work can be separated logically.
@@ -38,6 +40,7 @@ Request a review before merge when:
 - multiple contributors/threads touched related areas
 
 Review should focus on: regressions, missing tests, boundary drift, and merge risks.
+Use the `merge-check` skill when you want an explicit go/no-go recommendation before manual merge.
 
 ## When Humans Merge
 
