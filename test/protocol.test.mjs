@@ -27,8 +27,8 @@ async function createLegacyInstalledRepo() {
   await fs.mkdir(legacySkillsRoot, { recursive: true });
   await fs.cp(path.join(sourceRoot, ".codex", "protocol"), path.join(legacyRoot, "protocol"), { recursive: true });
   await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "planner"), path.join(legacySkillsRoot, "planner"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "task-owner"), path.join(legacySkillsRoot, "task-owner"), { recursive: true });
-  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "integrator-reviewer"), path.join(legacySkillsRoot, "integrator-reviewer"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "implementer"), path.join(legacySkillsRoot, "task-owner"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".agents", "skills", "codex-composer", "merge-check"), path.join(legacySkillsRoot, "integrator-reviewer"), { recursive: true });
   await fs.mkdir(path.join(legacyRoot, "runs"), { recursive: true });
   await fs.mkdir(path.join(legacyRoot, "worktrees"), { recursive: true });
   await writeConfig(repoRoot, { layout: "legacy" });
@@ -60,11 +60,11 @@ async function createInterimSkillsRepo() {
     path.join(repoRoot, ".codex", "skills", "codex-composer-planner")
   );
   await fs.rename(
-    path.join(repoRoot, ".agents", "skills", "codex-composer", "task-owner"),
+    path.join(repoRoot, ".agents", "skills", "codex-composer", "implementer"),
     path.join(repoRoot, ".codex", "skills", "codex-composer-task-owner")
   );
   await fs.rename(
-    path.join(repoRoot, ".agents", "skills", "codex-composer", "integrator-reviewer"),
+    path.join(repoRoot, ".agents", "skills", "codex-composer", "merge-check"),
     path.join(repoRoot, ".codex", "skills", "codex-composer-integrator-reviewer")
   );
   await fs.rmdir(path.join(repoRoot, ".agents", "skills", "codex-composer"));

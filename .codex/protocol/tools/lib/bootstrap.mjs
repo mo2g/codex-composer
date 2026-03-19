@@ -5,19 +5,21 @@ import { ensureDir, pathExists, readText, toPosixPath, writeText } from "./fs.mj
 
 const PROTOCOL_BUNDLE_ENTRIES = ["templates", "schemas", "tools"];
 const COPY_IGNORE = new Set([".DS_Store"]);
-const FRONTEND_CANDIDATES = ["frontend", "web", "ui", "client", "apps/web"];
-const BACKEND_CANDIDATES = ["backend", "api", "server", "apps/api"];
 const MANAGED_BLOCK_START = "<!-- CODEX COMPOSER START -->";
 const MANAGED_BLOCK_END = "<!-- CODEX COMPOSER END -->";
 const MANAGED_LAUNCHER_MARKER = "# Codex Composer Launcher";
 const PERMISSION_PROFILES = new Set(["safe", "balanced", "wide_open"]);
 const LEGACY_SKILL_MAP = {
   planner: "planner",
-  "task-owner": "task-owner",
-  "integrator-reviewer": "integrator-reviewer",
+  implementer: "implementer",
+  "merge-check": "merge-check",
+  "task-owner": "implementer",
+  "integrator-reviewer": "merge-check",
   "codex-composer-planner": "planner",
-  "codex-composer-task-owner": "task-owner",
-  "codex-composer-integrator-reviewer": "integrator-reviewer"
+  "codex-composer-implementer": "implementer",
+  "codex-composer-merge-check": "merge-check",
+  "codex-composer-task-owner": "implementer",
+  "codex-composer-integrator-reviewer": "merge-check"
 };
 
 function quoteTomlString(value) {
@@ -57,16 +59,6 @@ async function detectMainBranch(repoRoot) {
   return branch || "main";
 }
 
-function detectDirectory(files, candidates) {
-  for (const candidate of candidates) {
-    if (files.some((file) => file === candidate || file.startsWith(`${candidate}/`))) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
 function detectGoModules(files) {
   const dirs = new Set();
   for (const file of files) {
@@ -95,25 +87,13 @@ function inferLayout(files, template) {
   if (template === "react-go-minimal") {
     return {
       repoType: "react-go-minimal",
-      frontendDir: "frontend",
-      backendDir: "backend",
-      authCoreDir: "backend/internal/auth",
       goModuleDirs: ["backend"],
       packageDirs: []
     };
   }
 
-  const frontendDir = detectDirectory(files, FRONTEND_CANDIDATES);
-  const backendDir = detectDirectory(files, BACKEND_CANDIDATES);
-  const authCoreDir = backendDir && files.some((file) => file.startsWith(`${backendDir}/internal/auth/`))
-    ? `${backendDir}/internal/auth`
-    : null;
-
   return {
     repoType: template === "existing" ? "existing" : "empty",
-    frontendDir,
-    backendDir,
-    authCoreDir,
     goModuleDirs: detectGoModules(files),
     packageDirs: detectPackageRoots(files)
   };
@@ -153,45 +133,6 @@ function renderHooks(layout) {
   return { branchVerify, integrationVerify, mainVerify };
 }
 
-function renderPathRules(layout) {
-  const lines = [];
-
-  if (layout.frontendDir && layout.backendDir) {
-    lines.push(
-      "",
-      "[[path_rules]]",
-      `globs = ${renderArray([`${layout.frontendDir}/**`])}`,
-      'component = "frontend"',
-      'conflict_group = "frontend"',
-      "core = false",
-      "",
-      "[[path_rules]]",
-      `globs = ${renderArray([`${layout.backendDir}/**`])}`,
-      'component = "backend"',
-      'conflict_group = "backend"',
-      "core = false"
-    );
-  }
-
-  if (layout.authCoreDir) {
-    lines.push(
-      "",
-      "[[path_rules]]",
-      `globs = ${renderArray([`${layout.authCoreDir}/**`])}`,
-      'component = "auth-core"',
-      'conflict_group = "auth-core"',
-      "core = true",
-      "",
-      "[[parallel_rules]]",
-      'action = "deny"',
-      'when_component = "auth-core"',
-      'reason = "auth-core work must be serialized."'
-    );
-  }
-
-  return lines.join("\n");
-}
-
 function templateConfig({ template, codexBinary, mainBranch, layout }) {
   const hooks = renderHooks(layout);
   const lines = [
@@ -202,28 +143,12 @@ function templateConfig({ template, codexBinary, mainBranch, layout }) {
     "",
     "[codex]",
     `binary = ${quoteTomlString(codexBinary)}`,
-    'sandbox = "workspace-write"',
-    'approval_policy = "on-request"',
-    "",
-    "[planner]",
-    "max_parallel = 2",
-    "require_plan_approval = true",
-    "require_integrate_approval = false",
-    "",
-    "[budget]",
-    "max_codex_runs = 5",
-    "allow_auto_replan = false",
     "",
     "[hooks]",
     `branch_verify = ${renderArray(hooks.branchVerify)}`,
     `integration_verify = ${renderArray(hooks.integrationVerify)}`,
     `main_verify = ${renderArray(hooks.mainVerify)}`
   ];
-
-  const pathRuleSection = renderPathRules(layout);
-  if (pathRuleSection) {
-    lines.push(pathRuleSection);
-  }
 
   if (template === "empty") {
     lines[3] = 'repo_type = "empty"';
@@ -399,13 +324,10 @@ function renderManagedAgentsBlock(launcherName) {
 
 - Current thread: planner/control thread
 - Main entry: \`./${launcherName} next\`
-- Protocol files: \`.codex/protocol/\`
-- Repo config: \`.codex/config.toml\`
-- Skills: \`.agents/skills/codex-composer/\`
-- Runtime state: \`.codex/local/runs/<run-id>/\` and \`.codex/local/worktrees/<run-id>/\`
-- Optional parallel split: keep the current repo as task \`A\`; create task \`B\` with \`./${launcherName} split --run <run-id>\`
-
-Use the launcher instead of calling root-level protocol directories directly.
+- Start from \`AGENTS.md\` and keep \`.codex/config.toml\` minimal
+- Skills: \`planner\`, \`implementer\`, \`merge-check\`
+- For parallel work, prefer a new Codex thread and isolate edits with a worktree only when needed
+- Merge is always manual
 ${MANAGED_BLOCK_END}`;
 }
 

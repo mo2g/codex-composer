@@ -3,6 +3,9 @@ main_branch = "main"
 branch_prefix = "codex/"
 repo_type = "codex-composer-source"
 
+[codex]
+binary = "codex"
+
 [hooks]
 branch_verify = ["git diff --quiet HEAD -- && { echo \"No tracked changes to verify\"; exit 1; } || true", "npm test", "make validate-tmp"]
 integration_verify = ["git rev-parse --verify HEAD >/dev/null", "npm test", "make validate-tmp"]

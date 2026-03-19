@@ -1,126 +1,52 @@
-# Codex Composer Protocol
+# Codex Collaboration Template
 
-Codex Composer is a protocol-first, worktree-first workflow template for using Codex inside an existing repository. The current Codex thread is the planner/control thread by default.
+This repository is a minimal collaboration template for Codex app.
 
-## Setup / Dev Commands
+## Repository Map
+
+- `AGENTS.md`: the stable collaboration rules (main entry)
+- `.codex/config.toml`: repo-level Codex settings shared by contributors
+- `.agents/skills/codex-composer/`: small set of reusable skills
+- `README.md`: template overview
+- `docs/codex-quickstart.md`: practical app workflow
+- `docs/manual-merge-checklist.md`: human merge gate checklist
+- `.codex/local/`: runtime artifacts only (implementation detail)
+
+## Setup / Run / Validate (This Repository)
 
 - Install dependencies: `npm install`
-- Run unit and protocol tests: `npm test`
-- Alternate test entrypoint: `make test`
-- Run the local smoke validation: `make validate-tmp`
-- Override the default tmp location on repeated runs: `BASE_DIR=/tmp/codex-composer-<suffix> make validate-tmp`
-- Opt-in live smoke reminder: `make live-smoke`
-- Lint / format / typecheck: not defined in this repository today. Do not invent extra validation commands in automation, docs, or reviews.
+- Run tests: `npm test` (or `make test`)
+- Run local smoke check: `make validate-tmp`
+- If `/tmp/codex-composer` already exists: `BASE_DIR=/tmp/codex-composer-<suffix> make validate-tmp`
 
-## How To Work On This Repository
+## Integrating Into Other Repositories
 
-- Prefer canonical assets under `.agents/skills/`, `.codex/protocol/`, `.codex/config.toml`, and `.codex/local/`.
-- Treat root `scripts/` and `tools/` as compatibility wrappers for source-repo maintenance, not as the primary user-facing workflow.
-- Keep `README.md`, `AGENTS.md`, repo-native skills, state-machine docs, and merge guidance aligned when changing workflow wording.
-- Before considering a change polished, run `npm test` and `make validate-tmp`. Use a custom `BASE_DIR` if the default tmp path is already populated from an earlier smoke run.
+Do not hardcode `npm test` for every project.
 
-## Permissions / Trust
+Set verification commands to the target repository stack:
 
-- New installs default to the `balanced` permission profile.
-- `balanced` generates `.codex/rules/codex-composer.rules` so routine launcher commands can avoid repeated approvals after the project is trusted and Codex is restarted.
-- `verify` and `commit` remain explicit in `balanced`; project-defined hooks, network access, and local port binding may still require approval.
-- `safe` disables generated rules and keeps the conservative approval flow.
-- `wide_open` is an explicit local opt-in only; document its risk clearly if you recommend it.
-- Project-scoped `.codex/config.toml` and `.codex/rules/` are ignored when the repo is untrusted, so do not assume those layers are active until trust is established.
-- `.codex/local/` remains runtime-local generated state, but it sits under a protected path in the default sandbox. Do not imply zero-approval operation for all workflows.
-- Prefer updating `.gitignore` over `.git/info/exclude` for runtime ignore entries to reduce protected-path write prompts.
+- Node: `npm test`, `pnpm test`, or `yarn test`
+- Go: `go test ./...`
+- Rust: `cargo test`
+- Polyglot repos: prefer one unified gate like `make test` or `make verify`
 
-## Core Rules
+Keep these checks in `.codex/config.toml` under `[hooks]` so the repo can share one agreed verification contract.
 
-1. Do not skip checkpoints.
-2. Do not choose `parallel_ab` on the user's behalf.
-3. If information is missing, ask questions before generating a plan.
-4. If task boundaries match no repository files, do not recommend blind parallel work.
-5. If the user approves a split, the current repository root becomes task `A`. Create only the optional `B` worktree.
-6. Do not use subagents as the default execution model.
-7. Do not merge branches automatically. Only move toward manual merge after tasks are complete, verified, and committed.
-8. If verification fails, stop and return to the current Codex thread. Do not loop autonomously.
+## Core Behavior Rules
 
-## Canonical Layout
+1. For non-trivial tasks, propose a short plan before implementation.
+2. For large changes, split work into clear, reviewable chunks.
+3. For parallel work, prefer a new Codex app thread and use a worktree when edits need isolation.
+4. Do not commit before relevant verification passes.
+5. Never auto-merge into `main`; merge stays a human action.
+6. Do not edit unrelated files.
+7. Subagents are optional and non-default.
 
-- Root-visible control surface:
-  - `AGENTS.md`
-  - repository launcher: `./codex-composer` or, if occupied, `./composer-next`
-- Codex-native discovery layer:
-  - `.agents/skills/codex-composer/planner/`
-  - `.agents/skills/codex-composer/task-owner/`
-  - `.agents/skills/codex-composer/integrator-reviewer/`
-- Internal protocol layer:
-  - `.codex/protocol/templates/`
-  - `.codex/protocol/schemas/`
-  - `.codex/protocol/tools/`
-- Repo-level shared config:
-  - `.codex/config.toml`
-  - `.codex/rules/`
-- Runtime-local state:
-  - `.codex/local/runs/<run-id>/`
-  - `.codex/local/worktrees/<run-id>/`
+## Definition Of Done
 
-`.codex/config.toml` is the shared repo configuration layer. `.codex/local/` is runtime-local generated state and is not the canonical config location.
+A task is done only when all are true:
 
-## Checkpoints
-
-- `clarify`: gather acceptance criteria, boundaries, non-goals, risks, and compatibility constraints.
-- `plan-review`: present `serial` and `parallel_ab`, explain the recommendation, and wait for the user's choice.
-- `merge-review`: summarize whether A and B are actually ready for a human merge.
-
-## Working Model
-
-- `A`: the current repository root and the current Codex thread.
-- `B`: an optional git worktree created by `split`; the user may open a separate Codex thread there.
-- Default Codex app roles:
-  - `planner` in the current thread
-  - `task-owner` in the current thread for A and, if needed, in a separate B thread
-  - `integrator-reviewer` back in the current thread for merge readiness
-- Compatibility helpers such as `composer-chat-control`, `composer-run-task`, and `composer-integrate` exist, but they are not the primary path.
-
-## Debugging Source Of Truth
-
-- Treat `.codex/local/runs/<run-id>/status.json`, `plan.json`, and `logs/` as the authoritative protocol state.
-- `plan` always runs local schema preflight before `codex exec`; if preflight fails, diagnose the local schema first instead of assuming Codex App or hidden orchestration is at fault.
-- App narration such as "planner started" or "still waiting" does not prove background subagents. Default parallelism is still current thread `A` plus the optional `B` worktree thread after explicit approval.
-
-## Task Boundaries
-
-- `parallel_ab` is allowed only when task boundaries are disjoint and do not collide on:
-  - the same concrete files
-  - the same `conflict_group`
-  - the same `core=true` component
-- `parallel_ab` is commonly safe for:
-  - frontend vs backend
-  - docs vs implementation
-  - tests or styles vs isolated feature work
-- `parallel_ab` is not safe for:
-  - shared auth/core state
-  - tightly coupled refactors in one subsystem
-  - work that requires simultaneous edits in the same critical directory
-
-## Skills And Templates
-
-- Repo-native skills:
-  - planner: `.agents/skills/codex-composer/planner/SKILL.md`
-  - task-owner: `.agents/skills/codex-composer/task-owner/SKILL.md`
-  - integrator-reviewer: `.agents/skills/codex-composer/integrator-reviewer/SKILL.md`
-- Internal runtime templates:
-  - `.codex/protocol/templates/planner.md`
-  - `.codex/protocol/templates/task-owner.md`
-  - `.codex/protocol/templates/integrator-reviewer.md`
-
-## Approval Rules
-
-- `split` requires an approved mode in `status.json`.
-- `commit` requires branch verification to pass before it records a commit snapshot.
-- `merge-review` only declares manual merge readiness. It never performs the merge.
-- `verify --target main` is the final explicit gate after the user merges branches manually.
-
-## Subagents
-
-- Subagents are not the default path.
-- Default parallelism is current thread + optional new Codex thread + worktree.
-- Experimental subagent usage is limited to future read-only review/research scenarios.
-- Subagents must not auto-merge, write to `main`, or close cross-task work on their own.
+- Changes stay within approved scope.
+- Relevant verification passed.
+- Risks, tradeoffs, and follow-ups are explicitly called out.
+- Merge is still performed manually by a human.

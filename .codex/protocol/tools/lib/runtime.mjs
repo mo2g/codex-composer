@@ -928,12 +928,30 @@ export async function findLatestSessionByMarker(marker) {
   return matches[0] ?? null;
 }
 
+async function resolveTemplatePath(protocol, preferredName, fallbackName = null) {
+  const preferredPath = path.join(protocol.templatesDir, preferredName);
+  if (await pathExists(preferredPath)) {
+    return preferredPath;
+  }
+
+  if (!fallbackName) {
+    return preferredPath;
+  }
+
+  const fallbackPath = path.join(protocol.templatesDir, fallbackName);
+  if (await pathExists(fallbackPath)) {
+    return fallbackPath;
+  }
+
+  return preferredPath;
+}
+
 export async function renderControlPrompt(repoRoot, runId, checkpoint) {
   const paths = runPaths(repoRoot, runId);
   const protocol = await resolveProtocolPaths(repoRoot);
   const templatePath = checkpoint === "clarify" || checkpoint === "plan-review"
-    ? path.join(protocol.templatesDir, "planner.md")
-    : path.join(protocol.templatesDir, "integrator-reviewer.md");
+    ? await resolveTemplatePath(protocol, "planner.md")
+    : await resolveTemplatePath(protocol, "merge-check.md", "integrator-reviewer.md");
   const template = await readText(templatePath);
   const promptPath = path.join(paths.logsDir, `control-${checkpoint}.md`);
   const checkpointCommand = await publicCommand(repoRoot, "checkpoint");
@@ -1014,6 +1032,7 @@ export async function renderTaskPrompt(repoRoot, runId, taskId, plan) {
   const promptPath = path.join(paths.tasksDir, `${taskId}.md`);
   const verifyCommand = await publicCommand(repoRoot, "verify");
   const commitCommand = await publicCommand(repoRoot, "commit");
+  const implementerTemplatePath = await resolveTemplatePath(protocol, "implementer.md", "task-owner.md");
   const content = `# Task ${taskId.toUpperCase()}
 
 - run_id: ${runId}
@@ -1030,7 +1049,7 @@ export async function renderTaskPrompt(repoRoot, runId, taskId, plan) {
 Read:
 
 1. ${protocol.agents}
-2. ${path.join(protocol.templatesDir, "task-owner.md")}
+2. ${implementerTemplatePath}
 3. ${paths.planMd}
 4. ${paths.status}
 

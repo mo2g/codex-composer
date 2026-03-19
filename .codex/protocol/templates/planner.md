@@ -1,19 +1,16 @@
 # Planner Template
 
-Use this template only as thin runtime scaffolding for the repo-native `planner` skill.
+Use this as lightweight runtime scaffolding for the repo-native `planner` skill.
 
 ## Runtime Role
 
-- current Codex thread
-- checkpoints: `clarify`, `plan-review`
-- supporting context only; the behavioral source of truth is `.agents/skills/codex-composer/planner/SKILL.md`
-- writes explicit decisions through launcher commands, never through manual state-file edits
-- recommends `serial` vs `parallel_ab`, but never chooses the mode for the user
+- clarify scope, boundaries, risks, and verification strategy
+- recommend serial vs parallel thread/worktree strategy
+- never choose approvals or merge on behalf of the user
 
 ## Runtime Reminders
 
-- invoke the `planner` skill first
-- read `.codex/config.toml` and the current run files before asking questions
-- do not default to subagents or auto-run `split`
-- if blocked on another thread, a human gate, or missing evidence, say so once and stop instead of waiting or polling
-- if the repository still uses deprecated protocol, skill, or config paths, stop and tell the user to run `./codex-composer migrate`
+- read `AGENTS.md` and `.codex/config.toml` first
+- ask only for information that changes implementation decisions
+- keep planning concise and actionable
+- if blocked on human input, report once and stop

@@ -8,8 +8,8 @@ import { readJson, pathExists } from "./lib/fs.mjs";
 
 const SKILL_DIRS = {
   planner: "planner",
-  taskOwner: "task-owner",
-  integratorReviewer: "integrator-reviewer"
+  implementer: "implementer",
+  mergeCheck: "merge-check"
 };
 
 function parseArgs(argv) {
@@ -129,11 +129,11 @@ async function recommendedNextSteps(repoRoot, runId, status) {
     case "execute": {
       const steps = [];
       if (status.tasks.a.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.a.status)) {
-        steps.push(`Continue task A in the current Codex thread with the task-owner skill. Task brief: ${promptPathForTask(repoRoot, runId, "a")}. Working tree: ${status.tasks.a.worktree ?? repoRoot}.`);
+        steps.push(`Continue task A in the current Codex thread with the implementer skill. Task brief: ${promptPathForTask(repoRoot, runId, "a")}. Working tree: ${status.tasks.a.worktree ?? repoRoot}.`);
         steps.push(`When task A is ready, run ${verifyCommand} --run ${runId} --target a and then ${commitCommand} --run ${runId} --task a.`);
       }
       if (status.tasks.b.enabled && ["ready", "pending", "needs-rework"].includes(status.tasks.b.status)) {
-        steps.push(`Open a new Codex thread in ${status.tasks.b.worktree ?? "<pending split>"} for task B, then use the task-owner skill there. Task brief: ${promptPathForTask(repoRoot, runId, "b")}.`);
+        steps.push(`Open a new Codex thread in ${status.tasks.b.worktree ?? "<pending split>"} for task B, then use the implementer skill there. Task brief: ${promptPathForTask(repoRoot, runId, "b")}.`);
         steps.push(`When task B is ready, run ${verifyCommand} --run ${runId} --target b and then ${commitCommand} --run ${runId} --task b.`);
       }
       if (steps.length > 0) {
@@ -143,7 +143,7 @@ async function recommendedNextSteps(repoRoot, runId, status) {
     }
     case "merge-review":
       return [
-        "Return to the current Codex thread and use the integrator-reviewer skill to inspect status.json, verify reports, and committed task snapshots.",
+        "Return to the current Codex thread and use the merge-check skill to inspect status.json, verify reports, and committed task snapshots.",
         `If merge-ready, record ${checkpointCommand} --run ${runId} --checkpoint merge-review --decision allow_manual_merge.`,
         `If a task needs more work, record ${checkpointCommand} --run ${runId} --checkpoint merge-review --decision return_a|return_b.`
       ];
