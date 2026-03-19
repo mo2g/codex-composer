@@ -1,53 +1,42 @@
 # Codex App Quickstart
 
-## First Time In A Repository
+## First Pass In A Repository
 
-1. Open the repo.
-2. Read `AGENTS.md`.
-3. Check `.codex/config.toml` and make sure verification commands match this repo's stack.
-4. If the task is not trivial, start with the `planner` skill.
+1. Read `AGENTS.md`.
+2. Inspect `.codex/config.toml` and confirm the verify hooks match the real stack.
+3. Check whether the repository keeps extra skills under `.agents/skills/`.
+4. If the task is not trivial, start with `planner`.
 
-Typical verification examples:
+Typical verification commands:
 
-- Node: `npm/pnpm/yarn test`
+- Node: `npm test`, `pnpm test`, or `yarn test`
 - Go: `go test ./...`
 - Rust: `cargo test`
-- Polyglot: `make test` or `make verify`
+- Polyglot: prefer one shared entrypoint such as `make verify`
 
 ## When To Plan First
 
-Plan first when any of these are true:
+Use `planner` when:
 
-- scope is unclear
-- changes touch multiple subsystems
-- risk of regressions is non-trivial
-- you may need parallel execution
+- scope is ambiguous
+- multiple subsystems are involved
+- regression risk is meaningful
+- you may need to split work into another thread or worktree
 
-Use the `implementer` skill once scope is clear.
+Use `implementer` once the change is bounded and ready to code.
 
-## When To Use New Thread / Worktree
+## When To Split Work
 
-- Use a new Codex app thread when work can be separated logically.
-- Use a worktree when you need filesystem and branch isolation.
-- If tasks are tightly coupled, keep one thread first and plan before parallelizing.
+- Use a new Codex thread when the work can be reviewed independently.
+- Add a worktree when filesystem or branch isolation will reduce merge risk.
+- Keep one thread when the work is tightly coupled and fast feedback matters more than parallelism.
 
-## When To Ask Codex For Review
+## Merge Readiness
 
-Request a review before merge when:
+Use `merge-check` when:
 
-- the change is large
-- behavior changed in critical paths
-- multiple contributors/threads touched related areas
+- the implementation is complete
+- verification has been run
+- a human needs a go or no-go recommendation before merge
 
-Review should focus on: regressions, missing tests, boundary drift, and merge risks.
-Use the `merge-check` skill when you want an explicit go/no-go recommendation before manual merge.
-
-## When Humans Merge
-
-Humans merge after:
-
-- scoped changes are complete
-- verification passed
-- review feedback is addressed
-
-After merge, rerun main-branch verification.
+Humans merge after scope, verification, and review are all clear. After merge, rerun the main-branch verification commands.

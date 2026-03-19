@@ -42,13 +42,13 @@ function run(command, args, options = {}) {
   });
 }
 
-export async function makeTempDir(prefix = "codex-composer-test-") {
+export async function makeTempDir(prefix = "codex-app-template-test-") {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }
 
 export async function setGitUser(repoRoot) {
   await run("git", ["config", "user.email", "test@example.com"], { cwd: repoRoot });
-  await run("git", ["config", "user.name", "Codex Composer Test"], { cwd: repoRoot });
+  await run("git", ["config", "user.name", "Codex App Template Test"], { cwd: repoRoot });
 }
 
 export async function initGitRepo(repoRoot) {
@@ -69,7 +69,7 @@ export async function createExistingRepo(options = {}) {
     agentsContent = null
   } = options;
 
-  const repoRoot = await makeTempDir("codex-composer-existing-");
+  const repoRoot = await makeTempDir("codex-app-template-existing-");
   await initGitRepo(repoRoot);
 
   await fs.writeFile(path.join(repoRoot, "README.md"), "# Existing Repo\n", "utf8");

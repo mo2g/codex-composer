@@ -4,16 +4,16 @@ set -euo pipefail
 TARGET_REPO="."
 TEMPLATE="existing"
 SOURCE_DIR=""
-REPO_SLUG="${CODEX_COMPOSER_REPO:-mo2g/codex-composer}"
-REF="${CODEX_COMPOSER_REF:-main}"
+REPO_SLUG="${CODEX_TEMPLATE_REPO:-mo2g/codex-composer}"
+REF="${CODEX_TEMPLATE_REF:-main}"
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--repo <path>] [--template existing|empty|react-go-minimal] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
+Usage: install.sh [--repo <path>] [--template existing|blank|fullstack-example] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
 
 Examples:
   bash install.sh --repo . --template existing
-  curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
+  curl -fsSL <raw-install-url> | bash -s -- --repo . --template existing
 EOF
 }
 
@@ -53,8 +53,8 @@ done
 
 download_source() {
   local temp_root archive_url archive_path extracted
-  temp_root="$(mktemp -d "${TMPDIR:-/tmp}/codex-composer-install-XXXXXX")"
-  archive_path="$temp_root/codex-composer.tar.gz"
+  temp_root="$(mktemp -d "${TMPDIR:-/tmp}/codex-app-template-install-XXXXXX")"
+  archive_path="$temp_root/codex-app-template.tar.gz"
   archive_url="https://codeload.github.com/${REPO_SLUG}/tar.gz/refs/heads/${REF}"
 
   if command -v curl >/dev/null 2>&1; then
@@ -69,7 +69,7 @@ download_source() {
   tar -xzf "$archive_path" -C "$temp_root"
   extracted="$(find "$temp_root" -maxdepth 1 -mindepth 1 -type d | head -n 1)"
   if [[ -z "$extracted" ]]; then
-    echo "Unable to extract Codex Composer archive" >&2
+    echo "Unable to extract Codex App Template archive" >&2
     exit 1
   fi
 
@@ -79,7 +79,7 @@ download_source() {
 
 if [[ -z "$SOURCE_DIR" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-  if [[ -f "$SCRIPT_DIR/tools/composer.mjs" ]]; then
+  if [[ -f "$SCRIPT_DIR/tools/template-init.mjs" ]]; then
     SOURCE_DIR="$SCRIPT_DIR"
   fi
 fi
@@ -88,8 +88,8 @@ if [[ -z "$SOURCE_DIR" ]]; then
   download_source
 fi
 
-node "$SOURCE_DIR/tools/composer.mjs" init-repo \
+node "$SOURCE_DIR/tools/template-init.mjs" init-repo \
   --repo "$TARGET_REPO" \
   --template "$TEMPLATE"
 
-echo "Codex Composer installed into $TARGET_REPO with template $TEMPLATE"
+echo "Codex App Template installed into $TARGET_REPO with template $TEMPLATE"

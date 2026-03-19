@@ -1,52 +1,60 @@
-# Codex Collaboration Template
+# Codex App Template Source Repository
 
-This repository is a minimal collaboration template for Codex app.
+This repository is the source template for installing a low-friction Codex app workflow into other repositories.
 
 ## Repository Map
 
-- `AGENTS.md`: the stable collaboration rules (main entry)
-- `.codex/config.toml`: repo-level Codex settings shared by contributors
-- `.agents/skills/codex-composer/`: small set of reusable skills
-- `README.md`: template overview
-- `docs/codex-quickstart.md`: practical app workflow
-- `docs/manual-merge-checklist.md`: human merge gate checklist
+- `README.md`: human-facing explanation of the template and bootstrap flow
+- `AGENTS.md`: source-repo collaboration rules
+- `.codex/config.toml`: verification contract for this source repository
+- `.agents/skills/codex-template/`: the only skills maintained by this template
+- `template/`: files installed into target repositories
+- `docs/`: workflow docs copied into target repositories
+- `examples/`: canonical scaffold files used by the installer and smoke tests
+- `tools/`: installer entrypoints and bootstrap logic
+- `scripts/`: disposable smoke validation helpers
+- `test/`: contract and installer tests
 
-## Setup / Run / Validate (This Repository)
+## Commands
 
 - Install dependencies: `npm install`
-- Run tests: `npm test` (or `make test`)
-- Run local smoke check: `make validate-tmp`
-- If `/tmp/codex-composer` already exists: `BASE_DIR=/tmp/codex-composer-<suffix> make validate-tmp`
+- Run contract tests: `npm test`
+- Run full verification: `npm run verify`
+- Run disposable install smoke only: `make verify-template`
 
-## Integrating Into Other Repositories
+By default `make verify-template` uses a disposable temp directory. Set `BASE_DIR=/tmp/codex-app-template-<suffix>` only when you want to inspect the generated output.
 
-Do not hardcode `npm test` for every project.
+## Skill Selection
 
-Set verification commands to the target repository stack:
+- Use `planner` when scope or acceptance criteria are unclear, or the change spans multiple subsystems.
+- Use `implementer` when scope is approved and the task is ready to edit.
+- Use `merge-check` for final merge-readiness review after verification.
 
-- Node: `npm test`, `pnpm test`, or `yarn test`
-- Go: `go test ./...`
-- Rust: `cargo test`
-- Polyglot repos: prefer one unified gate like `make test` or `make verify`
+## Constraints
 
-Keep these checks in `.codex/config.toml` under `[hooks]` so the repo can share one agreed verification contract.
+1. Keep the terminology `Codex App Template` and `codex-template` consistent across docs, scripts, config, tests, and installed assets.
+2. Keep the installable workflow in `template/`, `docs/`, and `.agents/skills/codex-template/` synchronized with the installer and tests.
+3. Use `examples/fullstack-example/` as the source of truth for the example scaffold; do not reintroduce inline scaffold strings in bootstrap code.
+4. Keep verification commands aligned: source-repo defaults belong in `.codex/config.toml`, and target-repo defaults are generated into the installed `.codex/config.toml`.
+5. Do not reintroduce repo-local protocol/state-machine concepts as the primary workflow.
+6. Do not edit unrelated files or broaden scope to opportunistic cleanup.
+7. Merge stays manual after verification and review.
 
-## Core Behavior Rules
+## Documentation Sync
 
-1. For non-trivial tasks, propose a short plan before implementation.
-2. Prefer the repo skills when they fit: `planner`, `implementer`, and `merge-check`.
-3. For large changes, split work into clear, reviewable chunks.
-4. For parallel work, prefer a new Codex app thread and use a worktree when edits need isolation.
-5. Do not commit before relevant verification passes.
-6. Never auto-merge into `main`; merge stays a human action.
-7. Do not edit unrelated files.
-8. Subagents are optional and non-default.
+When the workflow changes, update all affected surfaces in the same change:
+
+- `README.md`
+- `AGENTS.md`
+- `template/`
+- `docs/`
+- `.agents/skills/codex-template/`
+- installer logic and tests
 
 ## Definition Of Done
 
-A task is done only when all are true:
-
 - Changes stay within approved scope.
-- Relevant verification passed.
-- Risks, tradeoffs, and follow-ups are explicitly called out.
-- Merge is still performed manually by a human.
+- `npm test` and `npm run verify` pass.
+- Installed assets, docs, config, and tests use one consistent vocabulary.
+- Risks, tradeoffs, and follow-ups are called out.
+- Merge remains a human action.

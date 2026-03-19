@@ -1,9 +1,8 @@
 [project]
 main_branch = "main"
 branch_prefix = "codex/"
-repo_type = "codex-composer-source"
 
 [hooks]
-branch_verify = ["git diff --quiet HEAD -- && { echo \"No tracked changes to verify\"; exit 1; } || true", "npm test", "make validate-tmp"]
-integration_verify = ["git rev-parse --verify HEAD >/dev/null", "npm test", "make validate-tmp"]
-main_verify = ["git rev-parse --verify HEAD >/dev/null", "npm test", "make validate-tmp"]
+branch_verify = ["git diff --quiet HEAD -- && { echo \"No tracked changes to verify\"; exit 1; } || true", "npm run verify"]
+integration_verify = ["git rev-parse --verify HEAD >/dev/null", "npm run verify"]
+main_verify = ["git rev-parse --verify HEAD >/dev/null", "npm run verify"]

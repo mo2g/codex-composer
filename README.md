@@ -1,58 +1,81 @@
-# Codex Collaboration Minimal Template
+# Codex App Template
 
-## What Is This
+A lightweight, reusable, and verifiable template for teams that use Codex app as part of everyday software development.
 
-A lightweight template for using Codex app in real repositories without adopting a heavy workflow engine.
+## What It Solves
 
-## What Problem It Solves
+Most Codex-enabled repositories need the same small set of workflow primitives:
 
-It provides a stable collaboration contract so Codex can work consistently across contributors:
+- a durable repository contract in `AGENTS.md`
+- stable verification commands in `.codex/config.toml`
+- a few high-value skills for planning, implementation, and merge readiness
+- explicit human review and merge responsibility
 
-- one entry rule file (`AGENTS.md`)
-- one repo-level config (`.codex/config.toml`)
-- a small skills layer for repeatable high-value tasks
-- explicit human merge responsibility
+This template packages those pieces without adding a repo-local protocol or command-state machine.
 
-## When To Use This
+## Five-Minute Quickstart
 
-Use this when you want Codex to work in a practical engineering loop with clear boundaries and low process overhead.
+1. Clone this repository and run `npm install`.
+2. Run `npm run verify` to confirm the template source repository is healthy.
+3. Bootstrap a target repository:
 
-## When Not To Use This
+   ```bash
+   bash install.sh --repo /path/to/repo --template existing --source .
+   ```
 
-Do not use this if you want autonomous merge orchestration, strict checkpoint state machines, or subagents as the default execution path.
+4. Open the target repository in Codex app and read `AGENTS.md`.
+5. Confirm `.codex/config.toml` matches the real test and verify commands for that repository.
+6. For non-trivial work, start with `planner`, implement with `implementer`, then use `merge-check` before manual merge.
 
-## Design Principles
+## Recommended Structure
 
-- Principle-first, not workflow-first
-- Keep only stable, reusable constraints
-- Prefer Codex app thread + worktree for parallel changes
-- Keep runtime artifacts out of the core mental model
-- Manual merge only
+```text
+AGENTS.md
+.codex/config.toml
+.agents/skills/codex-template/
+docs/
+template/
+examples/
+scripts/
+test/
+```
 
-## Quickstart (3 Minutes)
+## Why These Pieces Exist
 
-1. Open this repo in Codex app.
-2. Read `AGENTS.md` first.
-3. Confirm `.codex/config.toml` matches your repository's real test/verify commands.
-4. Use the `planner` skill for complex work, then implement with the `implementer` skill in bounded steps.
-5. If work can be isolated, open a new thread (and a worktree when needed).
-6. Before merge, use `merge-check`, then run verification and merge manually.
+- `AGENTS.md` carries the stable repo-level rules Codex should always know.
+- `.codex/config.toml` keeps verification commands and branch defaults consistent across sessions.
+- `.agents/skills/codex-template/` holds opt-in workflows for the few tasks that benefit from reusable guidance.
+- `template/` contains the files that get installed into target repositories.
+- `examples/` stores canonical scaffold content used by the installer and smoke validation.
 
-## Minimal Structure
+## Supported Bootstrap Modes
 
-- `AGENTS.md` (main rules)
-- `.codex/config.toml` (repo-shared Codex config)
-- `.agents/skills/codex-composer/` (small capability extensions)
-- `docs/codex-quickstart.md` (app usage)
-- `docs/manual-merge-checklist.md` (human merge gate)
+- `existing`: add Codex workflow files to an existing repository without replacing its README
+- `blank`: initialize an empty repository with template defaults
+- `fullstack-example`: initialize a blank repository with template defaults plus a minimal frontend and Go backend example
 
-No repo-local launcher, protocol state machine, or runtime state directory is required for the installed template.
+## Parallel Collaboration
 
-## Validation Commands Are Repo-Specific
+Use one Codex thread when the change is tightly coupled. Open a new thread when work can be reviewed independently, and add a worktree when branch or filesystem isolation will reduce merge risk. The template keeps merge manual on purpose.
 
-Define verification in `.codex/config.toml` using the target stack:
+## Verification And Merge
 
-- Node: `npm/pnpm/yarn test`
-- Go: `go test ./...`
-- Rust: `cargo test`
-- Polyglot: prefer one unified entrypoint like `make test` or `make verify`
+- `npm test` runs the contract tests for this template repository.
+- `npm run verify` runs the contract tests plus a disposable install smoke test.
+- Target repositories should keep their real verification commands in `.codex/config.toml`.
+- `merge-check` is the final gate before human review and manual merge.
+
+## Minimal Task Flow
+
+1. Ask Codex to inspect the repo and plan the work.
+2. Use `planner` if the task is ambiguous or spans multiple subsystems.
+3. Make the smallest useful implementation with `implementer`.
+4. Run the verification commands from `.codex/config.toml`.
+5. Use `merge-check` when the diff is ready for manual review and merge.
+
+## Repository Assets
+
+- `docs/codex-quickstart.md`: quickstart guidance copied into target repositories
+- `docs/manual-merge-checklist.md`: manual merge checklist copied into target repositories
+- `MIGRATION.md`: naming and workflow changes from the earlier template shape
+- `examples/fullstack-example/`: canonical scaffold used by `--template fullstack-example`

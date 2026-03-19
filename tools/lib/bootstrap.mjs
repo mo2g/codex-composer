@@ -2,15 +2,20 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  MANAGED_BLOCK_END,
+  MANAGED_BLOCK_START,
+  TEMPLATE_DIR,
+  TEMPLATE_DOCS,
+  TEMPLATE_NAMESPACE,
+  TEMPLATE_TYPES
+} from "./template-contract.mjs";
 
 const sourceRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const sourceDocsRoot = path.join(sourceRepoRoot, "docs");
-const sourceSkillsRoot = path.join(sourceRepoRoot, ".agents", "skills", "codex-composer");
+const sourceSkillsRoot = path.join(sourceRepoRoot, ".agents", "skills", TEMPLATE_NAMESPACE);
+const sourceTemplateRoot = path.join(sourceRepoRoot, TEMPLATE_DIR);
+const sourceExamplesRoot = path.join(sourceRepoRoot, "examples");
 const COPY_IGNORE = new Set([".DS_Store"]);
-const MANAGED_BLOCK_START = "<!-- CODEX TEMPLATE START -->";
-const MANAGED_BLOCK_END = "<!-- CODEX TEMPLATE END -->";
-const LEGACY_BLOCK_START = "<!-- CODEX COMPOSER START -->";
-const LEGACY_BLOCK_END = "<!-- CODEX COMPOSER END -->";
 
 function quoteTomlString(value) {
   return JSON.stringify(String(value));
@@ -50,10 +55,7 @@ async function writeText(targetPath, content) {
 }
 
 function run(command, args, options = {}) {
-  const {
-    cwd,
-    allowFailure = false
-  } = options;
+  const { cwd, allowFailure = false } = options;
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
@@ -128,9 +130,10 @@ async function collectRepoFiles(repoRoot, currentDir = repoRoot, prefix = "") {
     }
 
     if (entry.isDirectory()) {
-      if ([".git", ".agents", ".codex", "docs", "node_modules", "coverage", ".idea"].includes(entry.name)) {
+      if ([".git", ".agents", ".codex", "docs", "coverage", "node_modules", ".idea"].includes(entry.name)) {
         continue;
       }
+
       files.push(...await collectRepoFiles(repoRoot, path.join(currentDir, entry.name), path.posix.join(prefix, entry.name)));
       continue;
     }
@@ -253,111 +256,38 @@ function renderHooks(layout) {
   return { branchVerify, integrationVerify, mainVerify };
 }
 
-function inferLayout(files, template) {
-  if (template === "react-go-minimal") {
-    return {
-      repoType: "react-go-minimal",
-      goModuleDirs: ["backend"],
-      packageDirs: [],
-      cargoDirs: []
-    };
-  }
-
+function inferLayout(files) {
   return {
-    repoType: template === "existing" ? "existing" : "empty",
     goModuleDirs: detectGoModules(files),
     packageDirs: detectPackageRoots(files),
     cargoDirs: detectCargoRoots(files)
   };
 }
 
-function templateConfig({ template, mainBranch, layout }) {
+function templateConfig({ mainBranch, layout }) {
   const hooks = renderHooks(layout);
-  const lines = [
+
+  return [
     "[project]",
     `main_branch = ${quoteTomlString(mainBranch)}`,
     'branch_prefix = "codex/"',
-    `repo_type = ${quoteTomlString(layout.repoType)}`,
     "",
     "[hooks]",
     `branch_verify = ${renderArray(hooks.branchVerify)}`,
     `integration_verify = ${renderArray(hooks.integrationVerify)}`,
     `main_verify = ${renderArray(hooks.mainVerify)}`
-  ];
-
-  if (template === "empty") {
-    lines[3] = 'repo_type = "empty"';
-  }
-
-  return `${lines.join("\n")}\n`;
+  ].join("\n") + "\n";
 }
 
-function renderManagedAgentsBlock() {
-  return `${MANAGED_BLOCK_START}
-## Codex Collaboration Template
-
-- Start from \`AGENTS.md\`
-- Keep repo-wide verification commands in \`.codex/config.toml\`
-- Skills: \`planner\`, \`implementer\`, \`merge-check\`
-- Complex work should start with the \`planner\` skill
-- If work is independent, split it into a new Codex thread; add a worktree only when isolation helps
-- Validate before commit, and keep merge manual
-${MANAGED_BLOCK_END}`;
-}
-
-function renderInstalledAgentsFile() {
-  return `# Codex Collaboration Template
-
-This repository uses a lightweight Codex app collaboration template.
-
-## Repository Map
-
-- \`AGENTS.md\`: the main collaboration rules
-- \`.codex/config.toml\`: repo-level verification and Codex behavior
-- \`.agents/skills/codex-composer/\`: reusable high-value skills
-- \`docs/codex-quickstart.md\`: practical Codex app workflow
-- \`docs/manual-merge-checklist.md\`: manual merge gate
-
-## Validation In This Repository
-
-Define verification commands in \`.codex/config.toml\` based on the real stack in this repo:
-
-- Node: \`npm test\`, \`pnpm test\`, or \`yarn test\`
-- Go: \`go test ./...\`
-- Rust: \`cargo test\`
-- Polyglot repos: prefer \`make test\` or one unified verify command
-
-## Core Behavior Rules
-
-1. For non-trivial tasks, start with the \`planner\` skill.
-2. For large changes, break the work into clear reviewable steps.
-3. If work is independent, prefer a new Codex thread; use a worktree only when isolation helps.
-4. Do not commit before relevant verification passes.
-5. Never auto-merge into \`main\`; merge remains a human action.
-6. Do not edit unrelated files.
-7. Subagents are optional and non-default.
-
-## Definition Of Done
-
-A task is done only when all are true:
-
-- Changes stay within approved scope.
-- Relevant verification passed.
-- Risks, tradeoffs, and follow-ups are explicitly called out.
-- Merge is still performed manually by a human.
-`;
+function renderManagedBlock(content) {
+  return `${MANAGED_BLOCK_START}\n${content.trim()}\n${MANAGED_BLOCK_END}`;
 }
 
 function upsertManagedBlock(existing, block) {
-  const patterns = [
-    new RegExp(`${MANAGED_BLOCK_START}[\\s\\S]*?${MANAGED_BLOCK_END}`, "m"),
-    new RegExp(`${LEGACY_BLOCK_START}[\\s\\S]*?${LEGACY_BLOCK_END}`, "m")
-  ];
+  const pattern = new RegExp(`${MANAGED_BLOCK_START}[\\s\\S]*?${MANAGED_BLOCK_END}`, "m");
 
-  for (const pattern of patterns) {
-    if (pattern.test(existing)) {
-      return existing.replace(pattern, block);
-    }
+  if (pattern.test(existing)) {
+    return existing.replace(pattern, block);
   }
 
   const trimmed = existing.trimEnd();
@@ -368,140 +298,105 @@ function upsertManagedBlock(existing, block) {
   return `${trimmed}\n\n${block}\n`;
 }
 
-async function writeAgentsFile(repoRoot) {
-  const agentsPath = path.join(repoRoot, "AGENTS.md");
-  if (!(await pathExists(agentsPath))) {
-    await writeText(agentsPath, renderInstalledAgentsFile());
+async function copyFile(sourcePath, targetPath, { overwrite = true } = {}) {
+  if (!overwrite && await pathExists(targetPath)) {
     return;
   }
 
-  const existing = await readText(agentsPath, "");
-  await writeText(agentsPath, upsertManagedBlock(existing, renderManagedAgentsBlock()));
-}
-
-async function copyFile(sourcePath, targetPath) {
   await ensureDir(path.dirname(targetPath));
   await fs.copyFile(sourcePath, targetPath);
 }
 
-async function copySkills(repoRoot) {
-  const skillsRoot = path.join(repoRoot, ".agents", "skills", "codex-composer");
-  const entries = await fs.readdir(sourceSkillsRoot, { withFileTypes: true });
+async function copyDir(sourceDir, targetDir, { overwrite = true } = {}) {
+  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (!entry.isDirectory() || COPY_IGNORE.has(entry.name)) {
+    if (COPY_IGNORE.has(entry.name)) {
       continue;
     }
 
-    const sourceSkillPath = path.join(sourceSkillsRoot, entry.name, "SKILL.md");
-    const targetSkillPath = path.join(skillsRoot, entry.name, "SKILL.md");
-    await copyFile(sourceSkillPath, targetSkillPath);
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDir(sourcePath, targetPath, { overwrite });
+      continue;
+    }
+
+    await copyFile(sourcePath, targetPath, { overwrite });
   }
+}
+
+async function copySkills(repoRoot) {
+  await copyDir(sourceSkillsRoot, path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE));
 }
 
 async function copyDocs(repoRoot) {
-  await copyFile(path.join(sourceDocsRoot, "codex-quickstart.md"), path.join(repoRoot, "docs", "codex-quickstart.md"));
-  await copyFile(path.join(sourceDocsRoot, "manual-merge-checklist.md"), path.join(repoRoot, "docs", "manual-merge-checklist.md"));
+  for (const relativePath of TEMPLATE_DOCS) {
+    await copyFile(path.join(sourceRepoRoot, relativePath), path.join(repoRoot, relativePath));
+  }
 }
 
-function reactGoMinimalFiles() {
-  return [
-    {
-      relativePath: "frontend/src/App.jsx",
-      content: `import { LoginPage } from "./LoginPage.jsx";
-
-export function App() {
-  return <LoginPage />;
-}
-`
-    },
-    {
-      relativePath: "frontend/src/LoginPage.jsx",
-      content: `export function LoginPage() {
-  return (
-    <main>
-      <h1>Sign in</h1>
-      <p>Bootstrap placeholder for the login flow.</p>
-    </main>
+async function writeTemplateReadme(repoRoot) {
+  await copyFile(
+    path.join(sourceTemplateRoot, "README.md"),
+    path.join(repoRoot, "README.md"),
+    { overwrite: false }
   );
 }
-`
-    },
-    {
-      relativePath: "frontend/src/api.js",
-      content: `export async function login(payload) {
-  return { ok: false, payload };
-}
-`
-    },
-    {
-      relativePath: "backend/go.mod",
-      content: `module example.com/react-go-login/backend
 
-go 1.24.1
-`
-    },
-    {
-      relativePath: "backend/cmd/server/main.go",
-      content: `package main
+async function writeAgentsFile(repoRoot) {
+  const agentsPath = path.join(repoRoot, "AGENTS.md");
+  const templateAgents = await readText(path.join(sourceTemplateRoot, "AGENTS.md"));
 
-import "fmt"
-
-func main() {
-\tfmt.Println("bootstrap login server")
-}
-`
-    },
-    {
-      relativePath: "backend/internal/auth/token.go",
-      content: `package auth
-
-func IssueToken(userID string) string {
-\treturn "bootstrap-" + userID
-}
-`
-    }
-  ];
-}
-
-async function writeTemplateFiles(repoRoot, template) {
-  if (template !== "react-go-minimal") {
+  if (!(await pathExists(agentsPath))) {
+    await writeText(agentsPath, templateAgents);
     return;
   }
 
-  for (const file of reactGoMinimalFiles()) {
-    const targetPath = path.join(repoRoot, file.relativePath);
-    if (await pathExists(targetPath)) {
-      continue;
-    }
-    await writeText(targetPath, file.content);
+  const existing = await readText(agentsPath, "");
+  if (existing.trim() === templateAgents.trim()) {
+    return;
   }
+
+  const blockContent = await readText(path.join(sourceTemplateRoot, "AGENTS-BLOCK.md"));
+  await writeText(agentsPath, upsertManagedBlock(existing, renderManagedBlock(blockContent)));
+}
+
+async function writeExampleFiles(repoRoot, template) {
+  if (template !== "fullstack-example") {
+    return;
+  }
+
+  await copyDir(path.join(sourceExamplesRoot, "fullstack-example"), repoRoot, { overwrite: false });
 }
 
 export async function bootstrapTemplateRepo({ repoRoot, template = "existing" }) {
-  if (!["existing", "empty", "react-go-minimal"].includes(template)) {
+  if (!TEMPLATE_TYPES.includes(template)) {
     throw new Error(`Unsupported template: ${template}`);
   }
 
   await ensureDir(repoRoot);
   const mainBranch = "main";
   const initializedGit = await ensureGitRepository(repoRoot, mainBranch);
-  const detectedMainBranch = await detectMainBranch(repoRoot);
 
-  const repoFiles = await collectRepoFiles(repoRoot);
-  const layout = inferLayout(repoFiles, template);
-
+  await writeExampleFiles(repoRoot, template);
+  await writeTemplateReadme(repoRoot);
   await writeAgentsFile(repoRoot);
   await copyDocs(repoRoot);
   await copySkills(repoRoot);
-  await writeTemplateFiles(repoRoot, template);
 
-  const configPath = path.join(repoRoot, ".codex", "config.toml");
-  await writeText(configPath, templateConfig({
-    template,
-    mainBranch: detectedMainBranch || mainBranch,
-    layout
-  }));
+  const detectedMainBranch = await detectMainBranch(repoRoot);
+  const repoFiles = await collectRepoFiles(repoRoot);
+  const layout = inferLayout(repoFiles);
+
+  await writeText(
+    path.join(repoRoot, ".codex", "config.toml"),
+    templateConfig({
+      mainBranch: detectedMainBranch || mainBranch,
+      layout
+    })
+  );
 
   return {
     repoRoot,

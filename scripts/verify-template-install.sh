@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_DIR="${BASE_DIR:-/tmp/codex-composer}"
+BASE_DIR="${BASE_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/codex-app-template-XXXXXX")}"
 EXISTING_REPO="$BASE_DIR/existing-node"
-EMPTY_REPO="$BASE_DIR/empty-repo"
-REACT_REPO="$BASE_DIR/react-go-minimal"
+BLANK_REPO="$BASE_DIR/blank-repo"
+FULLSTACK_REPO="$BASE_DIR/fullstack-example"
 
 ensure_absent() {
   local target="$1"
@@ -36,7 +36,7 @@ bootstrap_existing_repo() {
   mkdir -p "$EXISTING_REPO"
   git -C "$EXISTING_REPO" init -b main >/dev/null
   git -C "$EXISTING_REPO" config user.email "validation@example.com"
-  git -C "$EXISTING_REPO" config user.name "Codex Composer Validation"
+  git -C "$EXISTING_REPO" config user.name "Codex App Template Validation"
 
   cat > "$EXISTING_REPO/package.json" <<'EOF'
 {
@@ -82,34 +82,33 @@ install_template() {
   bash "$ROOT_DIR/install.sh" --repo "$repo_root" --template "$template" --source "$ROOT_DIR" >/dev/null
 }
 
-assert_minimal_layout() {
+assert_template_layout() {
   local repo_root="$1"
   assert_exists "$repo_root/AGENTS.md"
   assert_exists "$repo_root/.codex/config.toml"
-  assert_exists "$repo_root/.agents/skills/codex-composer/planner/SKILL.md"
-  assert_exists "$repo_root/.agents/skills/codex-composer/implementer/SKILL.md"
-  assert_exists "$repo_root/.agents/skills/codex-composer/merge-check/SKILL.md"
+  assert_exists "$repo_root/.agents/skills/codex-template/planner/SKILL.md"
+  assert_exists "$repo_root/.agents/skills/codex-template/implementer/SKILL.md"
+  assert_exists "$repo_root/.agents/skills/codex-template/merge-check/SKILL.md"
   assert_exists "$repo_root/docs/codex-quickstart.md"
   assert_exists "$repo_root/docs/manual-merge-checklist.md"
-  assert_missing "$repo_root/codex-composer"
-  assert_missing "$repo_root/composer-next"
+  assert_missing "$repo_root/.agents/skills/codex-composer"
   assert_missing "$repo_root/.codex/protocol"
-  assert_missing "$repo_root/.codex/local"
-  assert_missing "$repo_root/.codex/rules"
+  assert_missing "$repo_root/tools/composer.mjs"
 }
 
 validate_existing_repo() {
   bootstrap_existing_repo
   install_template "$EXISTING_REPO" "existing"
-  assert_minimal_layout "$EXISTING_REPO"
+  assert_template_layout "$EXISTING_REPO"
 
   node --input-type=module -e '
     import fs from "node:fs/promises";
     const config = await fs.readFile(process.argv[1], "utf8");
+    const agents = await fs.readFile(process.argv[2], "utf8");
     if (!config.includes("npm test")) throw new Error("expected npm test hook");
-    if (config.includes("[codex]")) throw new Error("did not expect [codex] section");
-    if (config.includes("parallel_ab")) throw new Error("did not expect protocol parallel mode");
-  ' "$EXISTING_REPO/.codex/config.toml"
+    if (config.includes("repo_type")) throw new Error("did not expect repo_type");
+    if (!agents.includes("Codex App Template")) throw new Error("expected Codex App Template wording");
+  ' "$EXISTING_REPO/.codex/config.toml" "$EXISTING_REPO/AGENTS.md"
 
   (
     cd "$EXISTING_REPO"
@@ -117,64 +116,64 @@ validate_existing_repo() {
   )
 }
 
-validate_empty_repo() {
-  ensure_absent "$EMPTY_REPO"
-  mkdir -p "$EMPTY_REPO"
-  install_template "$EMPTY_REPO" "empty"
-  assert_minimal_layout "$EMPTY_REPO"
+validate_blank_repo() {
+  ensure_absent "$BLANK_REPO"
+  mkdir -p "$BLANK_REPO"
+  install_template "$BLANK_REPO" "blank"
+  assert_template_layout "$BLANK_REPO"
+  assert_exists "$BLANK_REPO/README.md"
 
   node --input-type=module -e '
     import fs from "node:fs/promises";
     const config = await fs.readFile(process.argv[1], "utf8");
-    if (!config.includes("repo_type = \"empty\"")) throw new Error("expected empty repo type");
     if (/npm test|pnpm test|yarn test|go test|cargo test/.test(config)) {
-      throw new Error("did not expect stack-specific hooks for an empty repo");
+      throw new Error("did not expect stack-specific hooks for a blank repo");
     }
-  ' "$EMPTY_REPO/.codex/config.toml"
+  ' "$BLANK_REPO/.codex/config.toml"
 }
 
-validate_react_go_repo() {
-  ensure_absent "$REACT_REPO"
-  install_template "$REACT_REPO" "react-go-minimal"
-  assert_minimal_layout "$REACT_REPO"
-  assert_exists "$REACT_REPO/frontend/src/App.jsx"
-  assert_exists "$REACT_REPO/backend/go.mod"
+validate_fullstack_repo() {
+  ensure_absent "$FULLSTACK_REPO"
+  mkdir -p "$FULLSTACK_REPO"
+  install_template "$FULLSTACK_REPO" "fullstack-example"
+  assert_template_layout "$FULLSTACK_REPO"
+  assert_exists "$FULLSTACK_REPO/frontend/src/App.jsx"
+  assert_exists "$FULLSTACK_REPO/backend/go.mod"
 
   node --input-type=module -e '
     import fs from "node:fs/promises";
     const config = await fs.readFile(process.argv[1], "utf8");
-    if (!config.includes("repo_type = \"react-go-minimal\"")) throw new Error("expected react-go-minimal repo type");
     if (!config.includes("backend/go.mod")) throw new Error("expected backend go test hook");
     if (!config.includes("go test ./...")) throw new Error("expected go test command");
-  ' "$REACT_REPO/.codex/config.toml"
+  ' "$FULLSTACK_REPO/.codex/config.toml"
 
   (
-    cd "$REACT_REPO/backend"
+    cd "$FULLSTACK_REPO/backend"
     go test ./... >/dev/null
   )
 }
 
 write_report() {
-  cat > "$BASE_DIR/validation-report.md" <<EOF
-# Validation Report
+  cat > "$BASE_DIR/verification-report.md" <<EOF
+# Verification Report
 
 - existing repo: $EXISTING_REPO
-- empty repo: $EMPTY_REPO
-- react-go-minimal repo: $REACT_REPO
+- blank repo: $BLANK_REPO
+- fullstack example repo: $FULLSTACK_REPO
 
 ## Checks
 
-- minimal template layout installed into existing, empty, and react-go-minimal repos
-- no launcher, protocol bundle, runtime state directory, or generated rules were installed
-- Node hook detection selected \`npm test\`
-- react-go-minimal generated backend scaffold and passed \`go test ./...\`
+- template assets installed into existing, blank, and fullstack-example repositories
+- only the new codex-template skill namespace is present
+- no protocol-centric files or repo_type keys were installed
+- fullstack example generated backend scaffold and passed \`go test ./...\`
 EOF
 }
 
 mkdir -p "$BASE_DIR"
 validate_existing_repo
-validate_empty_repo
-validate_react_go_repo
+validate_blank_repo
+validate_fullstack_repo
 write_report
 
-echo "Validation completed. Report: $BASE_DIR/validation-report.md"
+echo "Verification completed. Report: $BASE_DIR/verification-report.md"

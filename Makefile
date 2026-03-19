@@ -1,13 +1,17 @@
 SHELL := /bin/bash
-BASE_DIR ?= /tmp/codex-composer
+BASE_DIR ?= $(shell mktemp -d /tmp/codex-app-template-XXXXXX)
 
-.PHONY: test live-smoke validate-tmp
+.PHONY: test verify verify-template smoke-install
 
 test:
 	node --test
 
-live-smoke:
-	@echo "Opt-in only: run scripts/live-smoke.sh once Codex auth is configured."
+verify:
+	node --test
+	$(MAKE) verify-template
 
-validate-tmp:
-	BASE_DIR="$(BASE_DIR)" scripts/validate-tmp-examples.sh
+verify-template:
+	BASE_DIR="$(BASE_DIR)" scripts/verify-template-install.sh
+
+smoke-install:
+	@echo "Opt-in only: run scripts/live-smoke.sh once Codex auth is configured."

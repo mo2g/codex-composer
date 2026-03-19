@@ -6,7 +6,7 @@ Use this before merging any Codex-assisted branch.
 
 - [ ] Relevant verification has passed.
 - [ ] Diff is within approved scope and contains no unrelated edits.
-- [ ] Review step is complete (reviewer/merge-check outcome is clear).
+- [ ] `merge-check` has a clear outcome.
 - [ ] Risks and rollback notes are understood.
 
 ## Merge
@@ -16,5 +16,5 @@ Use this before merging any Codex-assisted branch.
 
 ## Post-Merge
 
-- [ ] Re-run verification on `main` (or integration target).
+- [ ] Re-run verification on `main` (or the integration target).
 - [ ] If verification fails, stop and fix before considering the task finished.
