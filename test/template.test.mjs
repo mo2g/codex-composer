@@ -95,19 +95,15 @@ test("blank template initializes a git repository and installs template defaults
   assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
 });
 
-test("fullstack-example installs scaffold files and Go verification hooks", async () => {
-  const targetRepo = await makeTempDir("codex-app-template-fullstack-");
-  await runInstall(["--repo", targetRepo, "--template", "fullstack-example", "--source", path.resolve(".")]);
+test("install.sh rejects unsupported template names", async () => {
+  const targetRepo = await makeTempDir("codex-app-template-unsupported-");
+  const result = await runInstall(
+    ["--repo", targetRepo, "--template", "fullstack-example", "--source", path.resolve(".")],
+    { allowFailure: true }
+  );
 
-  await assertInstalledAssets(targetRepo);
-  await expectExists(path.join(targetRepo, "frontend", "src", "App.jsx"));
-  await expectExists(path.join(targetRepo, "frontend", "src", "LoginPage.jsx"));
-  await expectExists(path.join(targetRepo, "backend", "go.mod"));
-  await expectExists(path.join(targetRepo, "backend", "internal", "auth", "token.go"));
-
-  const config = await readConfig(targetRepo);
-  assert.match(config, /backend\/go\.mod/);
-  assert.match(config, /go test \.\/\.\.\./);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Unsupported template: fullstack-example/);
 });
 
 test("Node hooks prefer pnpm when pnpm-lock.yaml exists", async () => {
@@ -148,7 +144,6 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "template/AGENTS-BLOCK.md",
     "template/README.md",
     "install.sh",
-    "Makefile",
     ".codex/config.toml",
     "package.json"
   ];
@@ -184,11 +179,12 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {
   await expectExists(path.join(repoRoot, "tools", "template-init.mjs"));
-  await expectExists(path.join(repoRoot, "scripts", "verify-template-install.sh"));
   await expectExists(path.join(repoRoot, "test", "template.test.mjs"));
 
+  await expectMissing(path.join(repoRoot, "Makefile"));
   await expectMissing(path.join(repoRoot, "tools", "composer.mjs"));
-  await expectMissing(path.join(repoRoot, "scripts", "validate-tmp-examples.sh"));
+  await expectMissing(path.join(repoRoot, "scripts", "verify-template-install.sh"));
+  await expectMissing(path.join(repoRoot, "scripts", "live-smoke.sh"));
   await expectMissing(path.join(repoRoot, "test", "protocol.test.mjs"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", "codex-composer"));
 });

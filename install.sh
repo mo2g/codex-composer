@@ -9,7 +9,7 @@ REF="${CODEX_TEMPLATE_REF:-main}"
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--repo <path>] [--template existing|blank|fullstack-example] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
+Usage: install.sh [--repo <path>] [--template existing|blank] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
 
 Examples:
   bash install.sh --repo . --template existing

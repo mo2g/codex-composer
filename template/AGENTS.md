@@ -1,6 +1,6 @@
 # Codex App Template
 
-This repository is configured for Codex app with a lightweight, verifiable workflow.
+This repository is configured for Codex app with a lightweight workflow.
 
 ## Repository Map
 

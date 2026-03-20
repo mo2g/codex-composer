@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "verify": "node --test && make verify-template"
+    "test": "node --test"
   }
 }

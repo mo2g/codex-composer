@@ -10,19 +10,13 @@ This repository is the source template for installing a low-friction Codex app w
 - `.agents/skills/codex-template/`: the only skills maintained by this template
 - `template/`: files installed into target repositories
 - `docs/`: workflow docs copied into target repositories
-- `examples/`: canonical scaffold files used by the installer and smoke tests
 - `tools/`: installer entrypoints and bootstrap logic
-- `scripts/`: disposable smoke validation helpers
 - `test/`: contract and installer tests
 
 ## Commands
 
 - Install dependencies: `npm install`
 - Run contract tests: `npm test`
-- Run full verification: `npm run verify`
-- Run disposable install smoke only: `make verify-template`
-
-By default `make verify-template` uses a disposable temp directory. Set `BASE_DIR=/tmp/codex-app-template-<suffix>` only when you want to inspect the generated output.
 
 ## Skill Selection
 
@@ -34,11 +28,10 @@ By default `make verify-template` uses a disposable temp directory. Set `BASE_DI
 
 1. Keep the terminology `Codex App Template` and `codex-template` consistent across docs, scripts, config, tests, and installed assets.
 2. Keep the installable workflow in `template/`, `docs/`, and `.agents/skills/codex-template/` synchronized with the installer and tests.
-3. Use `examples/fullstack-example/` as the source of truth for the example scaffold; do not reintroduce inline scaffold strings in bootstrap code.
-4. Keep verification commands aligned: source-repo defaults belong in `.codex/config.toml`, and target-repo defaults are generated into the installed `.codex/config.toml`.
-5. Do not reintroduce repo-local protocol/state-machine concepts as the primary workflow.
-6. Do not edit unrelated files or broaden scope to opportunistic cleanup.
-7. Merge stays manual after verification and review.
+3. Keep verification commands aligned: source-repo defaults belong in `.codex/config.toml`, and target-repo defaults are generated into the installed `.codex/config.toml`.
+4. Do not reintroduce bundled example scaffolds, disposable smoke wrappers, or repo-local protocol/state-machine concepts as the primary workflow.
+5. Do not edit unrelated files or broaden scope to opportunistic cleanup.
+6. Merge stays manual after verification and review.
 
 ## Documentation Sync
 
@@ -54,7 +47,7 @@ When the workflow changes, update all affected surfaces in the same change:
 ## Definition Of Done
 
 - Changes stay within approved scope.
-- `npm test` and `npm run verify` pass.
+- `npm test` passes.
 - Installed assets, docs, config, and tests use one consistent vocabulary.
 - Risks, tradeoffs, and follow-ups are called out.
 - Merge remains a human action.

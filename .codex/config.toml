@@ -1,8 +1,12 @@
+sandbox_mode = "workspace-write"
 [project]
 main_branch = "main"
 branch_prefix = "codex/"
 
 [hooks]
-branch_verify = ["git diff --quiet HEAD -- && { echo \"No tracked changes to verify\"; exit 1; } || true", "npm run verify"]
-integration_verify = ["git rev-parse --verify HEAD >/dev/null", "npm run verify"]
-main_verify = ["git rev-parse --verify HEAD >/dev/null", "npm run verify"]
+branch_verify = ["npm test"]
+integration_verify = ["npm test"]
+main_verify = ["npm test"]
+
+[sandbox_workspace_write]
+network_access = true

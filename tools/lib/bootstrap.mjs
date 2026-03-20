@@ -14,7 +14,6 @@ import {
 const sourceRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const sourceSkillsRoot = path.join(sourceRepoRoot, ".agents", "skills", TEMPLATE_NAMESPACE);
 const sourceTemplateRoot = path.join(sourceRepoRoot, TEMPLATE_DIR);
-const sourceExamplesRoot = path.join(sourceRepoRoot, "examples");
 const COPY_IGNORE = new Set([".DS_Store"]);
 
 function quoteTomlString(value) {
@@ -363,14 +362,6 @@ async function writeAgentsFile(repoRoot) {
   await writeText(agentsPath, upsertManagedBlock(existing, renderManagedBlock(blockContent)));
 }
 
-async function writeExampleFiles(repoRoot, template) {
-  if (template !== "fullstack-example") {
-    return;
-  }
-
-  await copyDir(path.join(sourceExamplesRoot, "fullstack-example"), repoRoot, { overwrite: false });
-}
-
 export async function bootstrapTemplateRepo({ repoRoot, template = "existing" }) {
   if (!TEMPLATE_TYPES.includes(template)) {
     throw new Error(`Unsupported template: ${template}`);
@@ -380,7 +371,6 @@ export async function bootstrapTemplateRepo({ repoRoot, template = "existing" })
   const mainBranch = "main";
   const initializedGit = await ensureGitRepository(repoRoot, mainBranch);
 
-  await writeExampleFiles(repoRoot, template);
   await writeTemplateReadme(repoRoot);
   await writeAgentsFile(repoRoot);
   await copyDocs(repoRoot);
