@@ -9,45 +9,27 @@ REF="${CODEX_TEMPLATE_REF:-main}"
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--repo <path>] [--template existing|blank] [--source <local-path>] [--repo-slug <owner/name>] [--ref <git-ref>]
+Usage: install.sh [--repo PATH] [--template existing|blank] [--source DIR] [--repo-slug OWNER/REPO] [--ref BRANCH|TAG|COMMIT]
 
 Examples:
   bash install.sh --repo . --template existing
-  curl -fsSL <raw-install-url> | bash -s -- --repo . --template existing
+  bash install.sh --repo . --template existing --ref main
+  bash install.sh --repo . --template existing --ref v1.0.0
+  bash install.sh --repo . --template existing --ref 3c8cb5746aa57efa4ffcc2ca013239c63b1ebd3a
+  curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | \
+    bash -s -- --repo . --template existing --ref 3c8cb5746aa57efa4ffcc2ca013239c63b1ebd3a
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --repo)
-      TARGET_REPO="$2"
-      shift 2
-      ;;
-    --template)
-      TEMPLATE="$2"
-      shift 2
-      ;;
-    --source)
-      SOURCE_DIR="$2"
-      shift 2
-      ;;
-    --repo-slug)
-      REPO_SLUG="$2"
-      shift 2
-      ;;
-    --ref)
-      REF="$2"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "Unknown argument: $1" >&2
-      usage >&2
-      exit 1
-      ;;
+    --repo) TARGET_REPO="$2"; shift 2 ;;
+    --template) TEMPLATE="$2"; shift 2 ;;
+    --source) SOURCE_DIR="$2"; shift 2 ;;
+    --repo-slug) REPO_SLUG="$2"; shift 2 ;;
+    --ref) REF="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $1" >&2; usage >&2; exit 1 ;;
   esac
 done
 
@@ -55,7 +37,7 @@ download_source() {
   local temp_root archive_url archive_path extracted
   temp_root="$(mktemp -d "${TMPDIR:-/tmp}/codex-app-template-install-XXXXXX")"
   archive_path="$temp_root/codex-app-template.tar.gz"
-  archive_url="https://codeload.github.com/${REPO_SLUG}/tar.gz/refs/heads/${REF}"
+  archive_url="https://codeload.github.com/${REPO_SLUG}/tar.gz/${REF}"
 
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$archive_url" -o "$archive_path"
@@ -92,4 +74,4 @@ node "$SOURCE_DIR/tools/template-init.mjs" init-repo \
   --repo "$TARGET_REPO" \
   --template "$TEMPLATE"
 
-echo "Codex App Template installed into $TARGET_REPO with template $TEMPLATE"
+echo "Codex App Template installed into $TARGET_REPO with template $TEMPLATE from ref $REF"
