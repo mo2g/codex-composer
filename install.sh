@@ -55,7 +55,7 @@ download_source() {
     exit 1
   fi
 
-  trap 'rm -rf "$temp_root"' EXIT
+  trap "rm -rf -- '$temp_root'" EXIT
   SOURCE_DIR="$extracted"
 }
 
