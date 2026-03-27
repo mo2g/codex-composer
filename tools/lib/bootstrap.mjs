@@ -16,14 +16,6 @@ const sourceSkillsRoot = path.join(sourceRepoRoot, ".agents", "skills", TEMPLATE
 const sourceTemplateRoot = path.join(sourceRepoRoot, TEMPLATE_DIR);
 const COPY_IGNORE = new Set([".DS_Store"]);
 
-function quoteTomlString(value) {
-  return JSON.stringify(String(value));
-}
-
-function renderArray(values) {
-  return `[${values.map((value) => quoteTomlString(value)).join(", ")}]`;
-}
-
 async function pathExists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -89,26 +81,6 @@ async function git(repoRoot, args, options = {}) {
   return run("git", args, { cwd: repoRoot, ...options });
 }
 
-async function branchExists(repoRoot, branch) {
-  const result = await git(repoRoot, ["rev-parse", "--verify", "--quiet", branch], { allowFailure: true });
-  return result.code === 0;
-}
-
-async function currentBranch(repoRoot) {
-  const result = await git(repoRoot, ["branch", "--show-current"], { allowFailure: true });
-  return result.stdout.trim();
-}
-
-async function detectMainBranch(repoRoot) {
-  for (const candidate of ["main", "master"]) {
-    if (await branchExists(repoRoot, candidate)) {
-      return candidate;
-    }
-  }
-
-  return await currentBranch(repoRoot) || "main";
-}
-
 async function ensureGitRepository(repoRoot, mainBranch) {
   const result = await git(repoRoot, ["rev-parse", "--show-toplevel"], { allowFailure: true });
   if (result.code === 0) {
@@ -117,21 +89,6 @@ async function ensureGitRepository(repoRoot, mainBranch) {
 
   await run("git", ["init", "-b", mainBranch], { cwd: repoRoot });
   return true;
-}
-
-function templateConfig({ mainBranch }) {
-  return [
-    "[project]",
-    `main_branch = ${quoteTomlString(mainBranch)}`,
-    'branch_prefix = "codex/"',
-    "",
-    "[hooks]",
-    "# Optional repo-owned verification hints or overrides.",
-    "# change-check should still inspect the repo, diff, and nearby tests.",
-    `branch_verify = ${renderArray([])}`,
-    `integration_verify = ${renderArray([])}`,
-    `main_verify = ${renderArray([])}`
-  ].join("\n") + "\n";
 }
 
 function renderManagedBlock(content) {
@@ -231,15 +188,6 @@ export async function bootstrapTemplateRepo({ repoRoot, template = "existing" })
   await writeAgentsFile(repoRoot);
   await copyDocs(repoRoot);
   await copySkills(repoRoot);
-
-  const detectedMainBranch = await detectMainBranch(repoRoot);
-
-  await writeText(
-    path.join(repoRoot, ".codex", "config.toml"),
-    templateConfig({
-      mainBranch: detectedMainBranch || mainBranch
-    })
-  );
 
   return {
     repoRoot,

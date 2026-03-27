@@ -3,7 +3,7 @@
 ## First Pass In A Repository
 
 1. Read `AGENTS.md`.
-2. Inspect the repo manifests, nearby tests, and `.codex/config.toml` if it exists.
+2. Inspect the repo manifests, nearby tests, and `.codex/config.toml` if the repository already keeps one.
 3. Check whether the repository keeps extra skills under `.agents/skills/`.
 4. If the task is not trivial, start with `planner`.
 
@@ -25,7 +25,13 @@ Use `planner` when:
 - regression risk is meaningful
 - you may need to split work into another thread or worktree
 
-Use `implementer` once the change is bounded and ready to code.
+`planner` should:
+
+- clarify the goal, success criteria, in-scope and out-of-scope behavior
+- identify risks and whether split or worktree is even necessary
+- only then write the bounded implementation plan and `change-check` gate
+
+Use `implementer` once the intent is locked and the change is bounded and ready to code.
 
 ## When To Split Work
 

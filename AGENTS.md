@@ -20,7 +20,7 @@ This repository is the source template for installing a low-friction Codex app w
 
 ## Skill Selection
 
-- Use `planner` when scope or acceptance criteria are unclear, or the change spans multiple subsystems.
+- Use `planner` when scope or acceptance criteria are unclear, or the change spans multiple subsystems. It should clarify intent before it writes the implementation plan.
 - Use `implementer` when scope is approved and the task is ready to edit.
 - Use `change-check` for the final evidence pass before commit or manual merge.
 
@@ -28,7 +28,7 @@ This repository is the source template for installing a low-friction Codex app w
 
 1. Keep the terminology `Codex App Template` and `codex-template` consistent across docs, scripts, config, tests, and installed assets.
 2. Keep the installable workflow in `template/`, `docs/`, and `.agents/skills/codex-template/` synchronized with the installer and tests.
-3. Keep configuration responsibilities aligned: this source repo may keep stable verification hints in `.codex/config.toml`, but installed target repos should receive minimal project defaults and optional verification hooks rather than precomputed language-specific commands.
+3. Keep configuration responsibilities aligned: this source repo may keep stable verification hints in `.codex/config.toml`, but installed target repos should stay light by default and only add `.codex/config.toml` later when repo-owned defaults or verification hints are actually worth keeping.
 4. Do not reintroduce bundled example scaffolds, disposable smoke wrappers, or repo-local protocol/state-machine concepts as the primary workflow.
 5. Do not edit unrelated files or broaden scope to opportunistic cleanup.
 6. Merge stays manual after verification and review.

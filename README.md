@@ -8,7 +8,7 @@ Most Codex-enabled repositories need the same small set of workflow primitives:
 
 - a durable repository contract in `AGENTS.md`
 - a few high-value skills for planning, implementation, and change checking
-- project defaults plus optional verification hints in `.codex/config.toml`
+- an optional place for repo-owned defaults or verification hints when a repository truly needs them
 - explicit human review and merge responsibility
 
 This template packages those pieces without adding a repo-local protocol or command-state machine.
@@ -24,14 +24,14 @@ This template packages those pieces without adding a repo-local protocol or comm
    ```
 
 4. Open the target repository in Codex app and read `AGENTS.md`.
-5. Keep `.codex/config.toml` accurate for project defaults, and add verification hooks only if the repository has stable commands worth preserving.
-6. Stay in the current thread by default. For non-trivial work, start with `planner`, implement with `implementer`, then use `change-check` before commit or manual merge.
+5. Stay in the current thread by default.
+6. For non-trivial work, use `planner` to clarify the intent first and then write the implementation plan.
+7. Implement with `implementer`, then use `change-check` before commit or manual merge.
 
 ## Recommended Structure
 
 ```text
 AGENTS.md
-.codex/config.toml
 .agents/skills/codex-template/
 docs/
 template/
@@ -43,9 +43,9 @@ install.sh
 ## Why These Pieces Exist
 
 - `AGENTS.md` carries the stable repo-level rules Codex should always know.
-- `.codex/config.toml` keeps project defaults stable and can hold optional verification hints or overrides.
 - `.agents/skills/codex-template/` holds opt-in workflows for the few tasks that benefit from reusable guidance.
 - `template/` contains the files that get installed into target repositories.
+- `.codex/config.toml` stays available in the source repository, and target repositories can add it later if they need repo-owned defaults or verification hints.
 
 ## Supported Bootstrap Modes
 
@@ -68,8 +68,8 @@ install.sh
 
 ## Minimal Task Flow
 
-1. Ask Codex to inspect the repo and plan the work.
-2. Use `planner` if the task is ambiguous or spans multiple subsystems.
+1. Ask Codex to inspect the repo and clarify the task.
+2. Use `planner` if the task is ambiguous or spans multiple subsystems. Let it lock the intent before it writes the plan.
 3. Make the smallest useful implementation with `implementer`.
 4. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence.
 5. Use the suggested commit message or adjust it, then let a human decide whether to commit or merge.

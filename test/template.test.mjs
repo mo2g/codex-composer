@@ -22,13 +22,9 @@ async function expectMissing(targetPath) {
   await assert.rejects(fs.access(targetPath));
 }
 
-async function readConfig(targetRepo) {
-  return readText(path.join(targetRepo, ".codex", "config.toml"));
-}
-
 async function assertInstalledAssets(targetRepo) {
   await expectExists(path.join(targetRepo, "AGENTS.md"));
-  await expectExists(path.join(targetRepo, ".codex", "config.toml"));
+  await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
   await expectExists(path.join(targetRepo, "docs", "codex-quickstart.md"));
   await expectMissing(path.join(targetRepo, "docs", "manual-merge-checklist.md"));
 
@@ -50,13 +46,9 @@ test("install.sh bootstraps an existing repository into the Codex App Template l
   await expectExists(path.join(targetRepo, "scripts", "existing.sh"));
   await expectExists(path.join(targetRepo, "tools", "existing.mjs"));
 
-  const config = await readConfig(targetRepo);
   const readme = await readText(path.join(targetRepo, "README.md"));
   const agents = await readText(path.join(targetRepo, "AGENTS.md"));
 
-  assert.match(config, /^branch_verify = \[\]/m);
-  assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
-  assert.doesNotMatch(config, /repo_type/);
   assert.equal(readme, "# Existing Repo\n");
   assert.match(agents, /# Codex App Template/);
 });
@@ -90,11 +82,9 @@ test("blank template initializes a git repository and installs template defaults
 
   const gitStatus = await runGit(targetRepo, ["rev-parse", "--is-inside-work-tree"]);
   const branch = await runGit(targetRepo, ["branch", "--show-current"], { allowFailure: true });
-  const config = await readConfig(targetRepo);
 
   assert.equal(gitStatus.stdout.trim(), "true");
   assert.equal(branch.stdout.trim(), "main");
-  assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
 });
 
 test("install.sh rejects unsupported template names", async () => {
@@ -108,15 +98,11 @@ test("install.sh rejects unsupported template names", async () => {
   assert.match(result.stderr, /Unsupported template: fullstack-example/);
 });
 
-test("installed repositories keep empty optional hooks even when the stack is detectable", async () => {
+test("installed repositories stay light and skip target config even when the stack is detectable", async () => {
   const targetRepo = await createExistingRepo({ packageManager: "pnpm", includeGo: true, includeRust: true });
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
-  const config = await readConfig(targetRepo);
-  assert.match(config, /^branch_verify = \[/m);
-  assert.match(config, /^integration_verify = \[\]/m);
-  assert.match(config, /^main_verify = \[\]/m);
-  assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
+  await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
 });
 
 test("source repository keeps one canonical vocabulary across docs, config, installer, and template assets", async () => {
@@ -157,11 +143,15 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
 
   const readme = await readText(path.join(repoRoot, "README.md"));
   const agents = await readText(path.join(repoRoot, "AGENTS.md"));
+  const planner = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "planner", "SKILL.md"));
 
   for (const skill of TEMPLATE_SKILLS) {
     assert.match(readme, new RegExp(skill.replace("-", "\\-")));
     assert.match(agents, new RegExp(skill.replace("-", "\\-")));
   }
+
+  assert.match(planner, /Clarify the intent:/);
+  assert.match(planner, /Only after the intent is clear/);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {
