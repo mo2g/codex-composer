@@ -3,16 +3,18 @@
 ## First Pass In A Repository
 
 1. Read `AGENTS.md`.
-2. Inspect `.codex/config.toml` and confirm the verify hooks match the real stack.
+2. Inspect the repo manifests, nearby tests, and `.codex/config.toml` if it exists.
 3. Check whether the repository keeps extra skills under `.agents/skills/`.
 4. If the task is not trivial, start with `planner`.
 
-Typical verification commands:
+Typical verification signals:
 
-- Node: `npm test`, `pnpm test`, or `yarn test`
-- Go: `go test ./...`
-- Rust: `cargo test`
-- Polyglot: prefer one shared entrypoint such as `make verify`
+- `package.json` and lockfiles
+- `go.mod`
+- `Cargo.toml`
+- `pyproject.toml`
+- test configs, scripts, CI entrypoints, and nearby test files
+- optional hooks in `.codex/config.toml`
 
 ## When To Plan First
 
@@ -27,16 +29,24 @@ Use `implementer` once the change is bounded and ready to code.
 
 ## When To Split Work
 
+- Keep one thread by default.
 - Use a new Codex thread when the work can be reviewed independently.
 - Add a worktree when filesystem or branch isolation will reduce merge risk.
-- Keep one thread when the work is tightly coupled and fast feedback matters more than parallelism.
 
-## Merge Readiness
+## Final Change Check
 
-Use `merge-check` when:
+Use `change-check` when:
 
-- the implementation is complete
-- verification has been run
-- a human needs a go or no-go recommendation before merge
+- implementation is complete or close enough for a final evidence pass
+- the diff may need new or stronger tests
+- a human needs verification evidence and commit guidance before commit or manual merge
 
-Humans merge after scope, verification, and review are all clear. After merge, rerun the main-branch verification commands.
+`change-check` should:
+
+- inspect the diff and nearby tests
+- add or update direct tests when behavior changed
+- detect the stack and choose the best-fit verification commands
+- treat `.codex/config.toml` hooks as hints or overrides, not the only truth
+- report evidence, remaining risk, and a recommended commit message
+
+If no reliable verification path can be inferred, stop and say why instead of claiming the change was fully verified.

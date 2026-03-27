@@ -119,162 +119,18 @@ async function ensureGitRepository(repoRoot, mainBranch) {
   return true;
 }
 
-async function collectRepoFiles(repoRoot, currentDir = repoRoot, prefix = "") {
-  const entries = await fs.readdir(currentDir, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries) {
-    if (COPY_IGNORE.has(entry.name)) {
-      continue;
-    }
-
-    if (entry.isDirectory()) {
-      if ([".git", ".agents", ".codex", "docs", "coverage", "node_modules", ".idea"].includes(entry.name)) {
-        continue;
-      }
-
-      files.push(...await collectRepoFiles(repoRoot, path.join(currentDir, entry.name), path.posix.join(prefix, entry.name)));
-      continue;
-    }
-
-    files.push(path.posix.join(prefix, entry.name));
-  }
-
-  return files;
-}
-
-function detectGoModules(files) {
-  const dirs = new Set();
-  for (const file of files) {
-    if (!file.endsWith("/go.mod") && file !== "go.mod") {
-      continue;
-    }
-    const dir = path.posix.dirname(file);
-    dirs.add(dir === "." ? "." : dir);
-  }
-  return [...dirs];
-}
-
-function detectPackageRoots(files) {
-  const fileSet = new Set(files);
-  const roots = [];
-
-  for (const file of files) {
-    if (!file.endsWith("/package.json") && file !== "package.json") {
-      continue;
-    }
-
-    const dir = path.posix.dirname(file);
-    const normalizedDir = dir === "." ? "." : dir;
-    const pnpmLock = normalizedDir === "." ? "pnpm-lock.yaml" : `${normalizedDir}/pnpm-lock.yaml`;
-    const yarnLock = normalizedDir === "." ? "yarn.lock" : `${normalizedDir}/yarn.lock`;
-
-    let manager = "npm";
-    if (fileSet.has(pnpmLock)) {
-      manager = "pnpm";
-    } else if (fileSet.has(yarnLock)) {
-      manager = "yarn";
-    }
-
-    roots.push({ dir: normalizedDir, manager });
-  }
-
-  return roots;
-}
-
-function detectCargoRoots(files) {
-  const dirs = new Set();
-  for (const file of files) {
-    if (!file.endsWith("/Cargo.toml") && file !== "Cargo.toml") {
-      continue;
-    }
-    const dir = path.posix.dirname(file);
-    dirs.add(dir === "." ? "." : dir);
-  }
-  return [...dirs];
-}
-
-function renderNodeTestCommand(packageRoot) {
-  const packageJson = packageRoot.dir === "." ? "package.json" : `${packageRoot.dir}/package.json`;
-  const workDir = packageRoot.dir === "." ? "." : packageRoot.dir;
-  const testCommand = packageRoot.manager === "pnpm"
-    ? "pnpm test"
-    : packageRoot.manager === "yarn"
-      ? "yarn test"
-      : "npm test";
-
-  return `test -f ${quoteTomlString(packageJson)} && (cd ${quoteTomlString(workDir)} && ${testCommand}) || true`;
-}
-
-function renderHooks(layout) {
-  const branchVerify = [
-    "git diff --quiet HEAD -- && { echo \"No tracked changes to verify\"; exit 1; } || true"
-  ];
-  const integrationVerify = [
-    "git rev-parse --verify HEAD >/dev/null"
-  ];
-  const mainVerify = [
-    "git rev-parse --verify HEAD >/dev/null"
-  ];
-
-  for (const moduleDir of layout.goModuleDirs) {
-    if (moduleDir === ".") {
-      branchVerify.push("go test ./...");
-      integrationVerify.push("go test ./...");
-      mainVerify.push("go test ./...");
-      continue;
-    }
-
-    const command = `test -f ${quoteTomlString(`${moduleDir}/go.mod`)} && (cd ${quoteTomlString(moduleDir)} && go test ./...) || true`;
-    branchVerify.push(command);
-    integrationVerify.push(command);
-    mainVerify.push(command);
-  }
-
-  for (const packageRoot of layout.packageDirs) {
-    const command = renderNodeTestCommand(packageRoot);
-    branchVerify.push(command);
-    integrationVerify.push(command);
-    mainVerify.push(command);
-  }
-
-  for (const cargoDir of layout.cargoDirs) {
-    if (cargoDir === ".") {
-      branchVerify.push("cargo test");
-      integrationVerify.push("cargo test");
-      mainVerify.push("cargo test");
-      continue;
-    }
-
-    const command = `test -f ${quoteTomlString(`${cargoDir}/Cargo.toml`)} && (cd ${quoteTomlString(cargoDir)} && cargo test) || true`;
-    branchVerify.push(command);
-    integrationVerify.push(command);
-    mainVerify.push(command);
-  }
-
-  return { branchVerify, integrationVerify, mainVerify };
-}
-
-function inferLayout(files) {
-  return {
-    goModuleDirs: detectGoModules(files),
-    packageDirs: detectPackageRoots(files),
-    cargoDirs: detectCargoRoots(files)
-  };
-}
-
-function templateConfig({ mainBranch, layout }) {
-  const hooks = renderHooks(layout);
-
+function templateConfig({ mainBranch }) {
   return [
     "[project]",
     `main_branch = ${quoteTomlString(mainBranch)}`,
     'branch_prefix = "codex/"',
     "",
     "[hooks]",
-    `branch_verify = ${renderArray(hooks.branchVerify)}`,
-    `integration_verify = ${renderArray(hooks.integrationVerify)}`,
-    `main_verify = ${renderArray(hooks.mainVerify)}`
+    "# Optional repo-owned verification hints or overrides.",
+    "# change-check should still inspect the repo, diff, and nearby tests.",
+    `branch_verify = ${renderArray([])}`,
+    `integration_verify = ${renderArray([])}`,
+    `main_verify = ${renderArray([])}`
   ].join("\n") + "\n";
 }
 
@@ -377,14 +233,11 @@ export async function bootstrapTemplateRepo({ repoRoot, template = "existing" })
   await copySkills(repoRoot);
 
   const detectedMainBranch = await detectMainBranch(repoRoot);
-  const repoFiles = await collectRepoFiles(repoRoot);
-  const layout = inferLayout(repoFiles);
 
   await writeText(
     path.join(repoRoot, ".codex", "config.toml"),
     templateConfig({
-      mainBranch: detectedMainBranch || mainBranch,
-      layout
+      mainBranch: detectedMainBranch || mainBranch
     })
   );
 

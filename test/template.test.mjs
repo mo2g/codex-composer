@@ -30,12 +30,13 @@ async function assertInstalledAssets(targetRepo) {
   await expectExists(path.join(targetRepo, "AGENTS.md"));
   await expectExists(path.join(targetRepo, ".codex", "config.toml"));
   await expectExists(path.join(targetRepo, "docs", "codex-quickstart.md"));
-  await expectExists(path.join(targetRepo, "docs", "manual-merge-checklist.md"));
+  await expectMissing(path.join(targetRepo, "docs", "manual-merge-checklist.md"));
 
   for (const skill of TEMPLATE_SKILLS) {
     await expectExists(path.join(targetRepo, ".agents", "skills", TEMPLATE_NAMESPACE, skill, "SKILL.md"));
   }
 
+  await expectMissing(path.join(targetRepo, ".agents", "skills", TEMPLATE_NAMESPACE, "merge-check"));
   await expectMissing(path.join(targetRepo, ".agents", "skills", "codex-composer"));
   await expectMissing(path.join(targetRepo, ".codex", "protocol"));
   await expectMissing(path.join(targetRepo, "tools", "composer.mjs"));
@@ -53,7 +54,8 @@ test("install.sh bootstraps an existing repository into the Codex App Template l
   const readme = await readText(path.join(targetRepo, "README.md"));
   const agents = await readText(path.join(targetRepo, "AGENTS.md"));
 
-  assert.match(config, /npm test/);
+  assert.match(config, /^branch_verify = \[\]/m);
+  assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
   assert.doesNotMatch(config, /repo_type/);
   assert.equal(readme, "# Existing Repo\n");
   assert.match(agents, /# Codex App Template/);
@@ -76,7 +78,7 @@ Keep existing content.
   assert.match(agents, /# Team Rules/);
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
-  assert.match(agents, /Skills: `planner`, `implementer`, `merge-check`\./);
+  assert.match(agents, /Skills: `planner`, `implementer`, `change-check`\./);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -106,32 +108,15 @@ test("install.sh rejects unsupported template names", async () => {
   assert.match(result.stderr, /Unsupported template: fullstack-example/);
 });
 
-test("Node hooks prefer pnpm when pnpm-lock.yaml exists", async () => {
-  const targetRepo = await createExistingRepo({ packageManager: "pnpm" });
-  await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
-
-  const config = await readConfig(targetRepo);
-  assert.match(config, /pnpm test/);
-  assert.doesNotMatch(config, /yarn test/);
-  assert.doesNotMatch(config, /\bnpm test\b/);
-});
-
-test("Node hooks prefer yarn when yarn.lock exists", async () => {
-  const targetRepo = await createExistingRepo({ packageManager: "yarn" });
-  await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
-
-  const config = await readConfig(targetRepo);
-  assert.match(config, /yarn test/);
-});
-
-test("polyglot repositories receive Go and Rust verification hooks in shared config", async () => {
-  const targetRepo = await createExistingRepo({ includeGo: true, includeRust: true });
+test("installed repositories keep empty optional hooks even when the stack is detectable", async () => {
+  const targetRepo = await createExistingRepo({ packageManager: "pnpm", includeGo: true, includeRust: true });
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
   const config = await readConfig(targetRepo);
   assert.match(config, /^branch_verify = \[/m);
-  assert.match(config, /go test \.\/\.\.\./);
-  assert.match(config, /cargo test/);
+  assert.match(config, /^integration_verify = \[\]/m);
+  assert.match(config, /^main_verify = \[\]/m);
+  assert.doesNotMatch(config, /npm test|pnpm test|yarn test|go test|cargo test/);
 });
 
 test("source repository keeps one canonical vocabulary across docs, config, installer, and template assets", async () => {
@@ -139,7 +124,9 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "README.md",
     "AGENTS.md",
     "docs/codex-quickstart.md",
-    "docs/manual-merge-checklist.md",
+    ".agents/skills/codex-template/planner/SKILL.md",
+    ".agents/skills/codex-template/implementer/SKILL.md",
+    ".agents/skills/codex-template/change-check/SKILL.md",
     "template/AGENTS.md",
     "template/AGENTS-BLOCK.md",
     "template/README.md",
@@ -187,4 +174,5 @@ test("source repository removes legacy entrypoints and keeps only the codex-temp
   await expectMissing(path.join(repoRoot, "scripts", "live-smoke.sh"));
   await expectMissing(path.join(repoRoot, "test", "protocol.test.mjs"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", "codex-composer"));
+  await expectMissing(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "merge-check"));
 });

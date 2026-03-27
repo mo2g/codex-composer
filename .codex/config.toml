@@ -4,6 +4,8 @@ main_branch = "main"
 branch_prefix = "codex/"
 
 [hooks]
+# Optional repo-owned verification hints or overrides.
+# change-check should still inspect the repo, diff, and nearby tests.
 branch_verify = ["npm test"]
 integration_verify = ["npm test"]
 main_verify = ["npm test"]

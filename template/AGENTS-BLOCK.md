@@ -1,8 +1,8 @@
 ## Codex App Template
 
-- Verification lives in `.codex/config.toml`.
-- Skills: `planner`, `implementer`, `merge-check`.
+- `.codex/config.toml` stores project defaults and optional verification hints.
+- Skills: `planner`, `implementer`, `change-check`.
 - Start complex work with `planner`.
-- Use a new thread and a worktree when work is independent and isolation helps.
-- Run verification before asking for review or merge.
+- Stay in the current thread by default. Split only when work is independently reviewable and isolation helps.
+- Use `change-check` to build verification evidence and commit guidance.
 - Merge stays manual.

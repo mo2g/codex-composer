@@ -6,7 +6,7 @@ This repository was initialized with the Codex App Template.
 
 1. Replace this README with a project-specific overview.
 2. Review `AGENTS.md` and keep it accurate for this repository.
-3. Check `.codex/config.toml` and make sure the verification hooks match the real stack.
+3. Keep `.codex/config.toml` accurate for project defaults, and add verification hooks only if the repository has stable commands worth preserving.
 4. Keep only the skills and docs that are useful for the repository.
 
 ## Installed Workflow Files
@@ -15,4 +15,3 @@ This repository was initialized with the Codex App Template.
 - `.codex/config.toml`
 - `.agents/skills/codex-template/`
 - `docs/codex-quickstart.md`
-- `docs/manual-merge-checklist.md`

@@ -7,8 +7,8 @@ A lightweight source template for adding a Codex app workflow to a repository.
 Most Codex-enabled repositories need the same small set of workflow primitives:
 
 - a durable repository contract in `AGENTS.md`
-- stable verification commands in `.codex/config.toml`
-- a few high-value skills for planning, implementation, and merge readiness
+- a few high-value skills for planning, implementation, and change checking
+- project defaults plus optional verification hints in `.codex/config.toml`
 - explicit human review and merge responsibility
 
 This template packages those pieces without adding a repo-local protocol or command-state machine.
@@ -24,8 +24,8 @@ This template packages those pieces without adding a repo-local protocol or comm
    ```
 
 4. Open the target repository in Codex app and read `AGENTS.md`.
-5. Confirm `.codex/config.toml` matches the real test and verify commands for that repository.
-6. For non-trivial work, start with `planner`, implement with `implementer`, then use `merge-check` before manual merge.
+5. Keep `.codex/config.toml` accurate for project defaults, and add verification hooks only if the repository has stable commands worth preserving.
+6. Stay in the current thread by default. For non-trivial work, start with `planner`, implement with `implementer`, then use `change-check` before commit or manual merge.
 
 ## Recommended Structure
 
@@ -43,7 +43,7 @@ install.sh
 ## Why These Pieces Exist
 
 - `AGENTS.md` carries the stable repo-level rules Codex should always know.
-- `.codex/config.toml` keeps verification commands and branch defaults consistent across sessions.
+- `.codex/config.toml` keeps project defaults stable and can hold optional verification hints or overrides.
 - `.agents/skills/codex-template/` holds opt-in workflows for the few tasks that benefit from reusable guidance.
 - `template/` contains the files that get installed into target repositories.
 
@@ -52,27 +52,30 @@ install.sh
 - `existing`: add Codex workflow files to an existing repository without replacing its README
 - `blank`: initialize an empty repository with template defaults
 
-## Parallel Collaboration
+## Default Collaboration Flow
 
-Use one Codex thread when the change is tightly coupled. Open a new thread when work can be reviewed independently, and add a worktree when branch or filesystem isolation will reduce merge risk. The template keeps merge manual on purpose.
+- Start in the current thread.
+- Open a new thread only when work can be reviewed independently.
+- Add a worktree only when branch or filesystem isolation will reduce merge risk.
+- Keep merge manual on purpose.
 
 ## Verification And Merge
 
 - `npm test` runs the contract tests for this template repository.
-- Target repositories should keep their real verification commands in `.codex/config.toml`.
-- `merge-check` is the final gate before human review and manual merge.
+- Target repositories should let `change-check` inspect the repo, the diff, and nearby tests before choosing verification.
+- Optional hooks in `.codex/config.toml` can speed up verification, but they are not the only source of truth.
+- Human review and merge remain explicit.
 
 ## Minimal Task Flow
 
 1. Ask Codex to inspect the repo and plan the work.
 2. Use `planner` if the task is ambiguous or spans multiple subsystems.
 3. Make the smallest useful implementation with `implementer`.
-4. Run the verification commands from `.codex/config.toml`.
-5. Use `merge-check` when the diff is ready for manual review and merge.
+4. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence.
+5. Use the suggested commit message or adjust it, then let a human decide whether to commit or merge.
 
 ## Repository Assets
 
 - `docs/codex-quickstart.md`: quickstart guidance copied into target repositories
-- `docs/manual-merge-checklist.md`: manual merge checklist copied into target repositories
 - `template/`: installed repository-level files such as `AGENTS.md` and the bootstrap README
 - `tools/template-init.mjs`: installer entrypoint used by `install.sh`
