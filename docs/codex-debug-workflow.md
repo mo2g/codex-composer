@@ -1,16 +1,8 @@
 # Codex Debug Workflow
 
-This document defines the repository pattern for debugging tasks in Codex app.
+This document is the canonical debug-mode extension for `docs/codex-task-card-workflow.md`.
 
-It is designed for workflows where long threads, context compression, and repeated speculative edits can waste large amounts of token budget.
-
-## Design goals
-
-- keep `AGENTS.md` short
-- treat `docs/` as the system of record
-- externalize debugging state so Codex can resume from repository artifacts
-- force hypothesis-driven investigation before broad code changes
-- keep experiments attributable and auditable
+Use it when a Task Card enters debug mode because long threads, context compression, or repeated speculative edits would otherwise hide the real cause.
 
 ## When to enable debug mode
 
@@ -35,7 +27,7 @@ docs/_codex/<task-slug>/
 
 ### 1. Plan the debug task
 
-Use `planner` to create a bounded Task Card.
+Use `planner` to create or refresh a bounded Task Card.
 
 The Task Card should capture:
 
@@ -81,7 +73,7 @@ If thread context is compressed or a handoff occurs:
 - read `journal.md`
 - inspect the current diff and nearby tests
 
-This allows Codex to recover the investigation without relying on conversational memory.
+This extends the normal resume path with debug-specific evidence.
 
 ### 5. Verify the actual fix
 
@@ -104,4 +96,4 @@ Use `change-check` and `acceptance-evidence.md` to prove:
 
 ## Why this fits Codex app
 
-This workflow matches Codex app best practices by keeping the stable map small, storing working knowledge in repository docs, and making paused work resumable from checked-in artifacts instead of long chat history.
+This workflow keeps the stable map small, stores debug state in repository artifacts only when needed, and preserves a full debug-aware closure without making trivial tasks heavier.

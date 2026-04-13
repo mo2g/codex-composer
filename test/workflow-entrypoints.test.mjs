@@ -25,11 +25,10 @@ test("install.sh copies default workflow entry and external memory contract", as
   assert.match(workflow, /docs\/codex-debug-workflow\.md/);
   assert.match(workflow, /docs\/_codex\/<task-slug>\//);
   assert.match(workflow, /planner\/TASK-CARD-TEMPLATE\.md/);
-  assert.match(workflow, /Task Card is bounded/);
   assert.match(workflow, /minimal experiment mode/);
   assert.match(workflow, /`debug-investigation`/);
   assert.match(workflow, /acceptance-evidence\.md/);
-  assert.match(workflow, /debug-investigation\/DEBUG-TEMPLATE\.md/);
+  assert.match(workflow, /Split into another Task Card when acceptance criteria, verification gate, isolation, or reviewability change\./);
 
   assert.match(memory, /Code truth beats note truth\./);
   assert.match(memory, /task-card\.md/);
@@ -38,5 +37,5 @@ test("install.sh copies default workflow entry and external memory contract", as
   assert.match(memory, /debug\.md/);
   assert.match(memory, /root-cause status when debug mode is active/);
   assert.match(memory, /recover from repository artifacts first/);
-  assert.match(memory, /full Codex conversation/);
+  assert.match(memory, /conversational memory alone/);
 });

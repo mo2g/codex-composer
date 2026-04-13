@@ -29,6 +29,13 @@ function assertIncludesAll(content, patterns) {
   }
 }
 
+function assertMentionsAny(content, patterns) {
+  assert.ok(
+    patterns.some((pattern) => pattern.test(content)),
+    `Expected content to match one of: ${patterns.map((pattern) => pattern.toString()).join(", ")}`
+  );
+}
+
 async function assertInstalledAssets(targetRepo) {
   await expectExists(path.join(targetRepo, "AGENTS.md"));
   await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
@@ -173,7 +180,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
-  assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /planner/, /change-check/]);
+  assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /docs\/codex-quickstart\.md/, /template\//, /test\//]);
   assertIncludesAll(agents, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /debug-investigation/]);
 
   assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
@@ -183,6 +190,8 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assertIncludesAll(debugInvestigation, [/hypotheses/, /debug\.md/, /root cause/]);
   assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
   assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
+  assertMentionsAny(readme, [/Merge stays manual/, /manual after verification and review/]);
+  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /installed-repo first-pass and default loop/]);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {

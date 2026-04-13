@@ -73,7 +73,7 @@ It should:
 
 - reconstruct acceptance criteria from the Task Card
 - run the narrowest reliable verification path first
-- for debug tasks, confirm which hypothesis became the root cause, which hypotheses were ruled out, and whether the fix targets cause rather than only symptoms
+- for debug tasks, use `docs/codex-debug-workflow.md` to close the debug loop: confirm which hypothesis became the root cause, which hypotheses were ruled out, and whether the fix targets cause rather than only symptoms
 - map each criterion to evidence, a gap, or a residual risk
 - write or refresh `acceptance-evidence.md`
 - suggest commit messages without taking merge responsibility
@@ -112,7 +112,7 @@ Use external memory when the task is likely to:
 2. Materialize or refresh `task-card.md`.
 3. Implement the next bounded step.
 4. Update `journal.md`.
-5. Keep `debug.md` current whenever debug mode is still active.
+5. If root cause is still unconfirmed, switch to the debug workflow and keep `debug.md` current.
 6. Resume from artifacts when needed.
 7. Verify with `change-check`.
 8. Materialize `acceptance-evidence.md`.
@@ -137,5 +137,7 @@ This spec is implemented by these installed assets:
 - `.agents/skills/codex-template/planner/TASK-CARD-TEMPLATE.md`
 - `.agents/skills/codex-template/resume-work/TASK-JOURNAL-TEMPLATE.md`
 - `.agents/skills/codex-template/change-check/ACCEPTANCE-EVIDENCE-TEMPLATE.md`
+
+Debug-specific operating rules live in `docs/codex-debug-workflow.md` and should extend this spec rather than replace it.
 
 Repositories that diverge from this spec should update their local `AGENTS.md`, skills, and docs together instead of changing only one surface.

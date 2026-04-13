@@ -2,14 +2,15 @@
 
 A lightweight source template for adding a practical Codex App workflow to a repository.
 
-## What It Installs
+## Map
 
-- a short repository contract in `AGENTS.md`
-- canonical workflow docs in `docs/`
-- reusable `planner`, `implementer`, `resume-work`, `change-check`, and `debug-investigation` skills
-- optional repository artifacts under `docs/_codex/<task-slug>/` when work needs durable state
-
-The template keeps those capabilities without adding a repo-local protocol or state machine.
+- `AGENTS.md`: short source-repo map and maintenance rules
+- `docs/codex-quickstart.md`: installed-repo first-pass and default loop
+- `docs/codex-task-card-workflow.md`: canonical task-card and external-memory spec
+- `docs/codex-debug-workflow.md`: canonical debug-mode spec
+- `.agents/skills/codex-template/`: reusable execution skills
+- `template/`: installed entrypoint files
+- `test/`: installer and workflow contract tests
 
 ## Source Of Truth
 
@@ -32,6 +33,6 @@ The template keeps those capabilities without adding a repo-local protocol or st
 ## Verification
 
 - `npm test` validates the source template contract.
-- Installed repositories stay lightweight by default and do not receive `.codex/config.toml` automatically.
-- Optional repo-owned config can be added later when it provides real value.
-- Keep merge manual.
+- Installed repositories stay lightweight by default.
+- `docs/_codex/<task-slug>/` stays optional and is only for work that needs durable state.
+- Merge stays manual after verification and review.

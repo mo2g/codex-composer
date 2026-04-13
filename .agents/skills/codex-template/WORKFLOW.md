@@ -21,7 +21,7 @@ docs/_codex/<task-slug>/
 
 1. Plan with `planner` and create or refresh `task-card.md` from `planner/TASK-CARD-TEMPLATE.md`.
 2. Implement the next bounded step with `implementer`.
-3. If debug mode is active and root cause is still unconfirmed, stay in minimal experiment mode or return to `debug-investigation`.
+3. If debug mode is active and root cause is still unconfirmed, switch to the debug workflow, stay in minimal experiment mode, or return to `debug-investigation`.
 4. Keep `journal.md` current after meaningful progress and keep `debug.md` current while debug mode is active.
 5. Resume with `resume-work` when the task must be reconstructed from artifacts, the diff, and nearby tests.
 6. Verify with `change-check`, refresh `acceptance-evidence.md`, and keep merge manual.
