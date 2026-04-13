@@ -39,11 +39,13 @@ Use `planner` to create a bounded Task Card.
 
 The Task Card should capture:
 
+- mode
+- required artifacts
+- root-cause status
 - symptom and scope boundary
 - acceptance criteria for the fix
 - verification gate
 - isolation choice
-- whether debug mode is enabled
 
 ### 2. Start hypothesis-driven investigation
 
@@ -67,6 +69,8 @@ Transition from investigation to fix mode only when:
 - contradictory evidence has been checked
 - the planned fix targets the confirmed cause rather than masking the symptom
 
+Until then, `implementer` should stay in minimal experiment mode or defer back to `debug-investigation` instead of making a broad speculative fix.
+
 ### 4. Resume from artifacts, not memory
 
 If thread context is compressed or a handoff occurs:
@@ -85,6 +89,7 @@ Use `change-check` and `acceptance-evidence.md` to prove:
 
 - which hypothesis became the confirmed root cause
 - which hypotheses were ruled out
+- whether the fix targets cause rather than only symptoms
 - what evidence supports the fix
 - which acceptance criteria are satisfied
 - which risks remain

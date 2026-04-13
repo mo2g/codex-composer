@@ -18,6 +18,9 @@ Use this template when a task is non-trivial or likely to outlive the current Co
 - Owner thread: <current-thread | new-thread>
 - Branch/worktree: <branch-or-worktree-name>
 - Last updated: <YYYY-MM-DD HH:MM TZ>
+- Mode: implementation | debug
+- Required artifacts: task-card.md, journal.md, acceptance-evidence.md[, debug.md]
+- Root-cause status: n/a | unconfirmed | confirmed
 
 ## Goal
 
@@ -75,4 +78,6 @@ Use this template when a task is non-trivial or likely to outlive the current Co
 
 - Lock the goal before naming implementation steps.
 - Make acceptance criteria specific enough for `change-check` to map evidence back to them.
+- Set `Mode: debug` only when the root cause is still unconfirmed and the task needs hypothesis-driven investigation.
+- Add `debug.md` to `Required artifacts` only when debug mode is active.
 - If the task needs multiple cards, name the dependency order explicitly instead of hiding it inside one large plan.

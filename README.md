@@ -29,7 +29,7 @@ This template packages those pieces without adding a repo-local protocol or comm
 6. Treat `docs/codex-task-card-workflow.md` and `docs/codex-debug-workflow.md` as the workflow source of truth.
 7. For non-trivial work, use `planner` to clarify the intent, emit a Task Card, and then write the implementation plan.
 8. Implement with `implementer`.
-9. For long-running work, keep repository artifacts such as `docs/_codex/<task-slug>/journal.md` and use `resume-work` when context needs to be reconstructed.
+9. For long-running work, keep repository artifacts such as `docs/_codex/<task-slug>/journal.md` and use `resume-work` when context needs to be reconstructed from the Task Card, journal, and `debug.md` when present.
 10. For unclear-root-cause bugs, use `debug-investigation` and keep `docs/_codex/<task-slug>/debug.md`.
 11. Use `change-check` before commit or manual merge.
 
@@ -80,9 +80,9 @@ install.sh
 1. Ask Codex to inspect the repo and clarify the task.
 2. Use `planner` if the task is ambiguous or spans multiple subsystems. Let it lock the intent, emit a Task Card, and then write the plan.
 3. Make the smallest useful implementation with `implementer`.
-4. If the root cause is unclear, use `debug-investigation`, write `docs/_codex/<task-slug>/debug.md`, and confirm a hypothesis before broad fixes.
-5. If the task pauses or moves across sessions, update `docs/_codex/<task-slug>/journal.md` and use `resume-work` before continuing.
-6. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence against the acceptance criteria.
+4. If the root cause is unclear, use `debug-investigation`, write `docs/_codex/<task-slug>/debug.md`, and confirm the cause before broad fixes.
+5. If the task pauses or moves across sessions, update `docs/_codex/<task-slug>/journal.md` and use `resume-work` to recover from the Task Card, journal, and `debug.md` when present.
+6. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence against the acceptance criteria and debug closure when applicable.
 7. Use the suggested commit message or adjust it, then let a human decide whether to commit or merge.
 
 ## Repository Assets

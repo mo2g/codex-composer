@@ -17,8 +17,8 @@ This repository is configured for Codex app with a lightweight workflow.
 3. Stay in the current thread by default. Use a new Codex thread or worktree only when the work is independently reviewable and isolation will reduce risk.
 4. For long-running work, keep repository artifacts under `docs/_codex/<task-slug>/`, especially `task-card.md` and `journal.md`.
 5. For unclear-root-cause bugs, use `debug-investigation` and keep `docs/_codex/<task-slug>/debug.md`.
-6. Use `resume-work` when a paused task needs to be reconstructed from the artifacts, diff, and nearby tests.
-7. Use `change-check` before commit or manual merge when scope or risk is non-trivial.
+6. Use `resume-work` when a paused task needs to be reconstructed from the Task Card, `debug.md` when present, other artifacts, the diff, and nearby tests.
+7. Use `change-check` before commit or manual merge when scope or risk is non-trivial, and let it close debug evidence when applicable.
 8. If this repository keeps `.codex/config.toml`, treat its hooks as optional hints or overrides. Verify against the actual code, tests, and toolchain.
 9. Use `docs/codex-task-card-workflow.md` and `docs/codex-debug-workflow.md` as the workflow source of truth.
 10. A human decides commit and merge after the evidence is clear.

@@ -14,6 +14,8 @@ It defines one consistent model for:
 
 A non-trivial task should be represented as **one reviewable Task Card** plus **one external memory set**.
 
+The Task Card should record the working mode and artifact set explicitly enough that a fresh Codex thread can tell whether the task is normal implementation work or an active debug investigation. When debug mode is enabled, the card should also record whether root cause is still unconfirmed.
+
 Recommended artifact layout:
 
 ```text
@@ -33,6 +35,7 @@ It should:
 
 - inspect the current code and nearby tests
 - lock goal, scope, acceptance criteria, verification gate, and isolation choice
+- record the current mode and required artifacts, including debug state when applicable
 - create or refresh `task-card.md`
 - split work into multiple cards when one card stops being reviewable
 
@@ -45,8 +48,9 @@ Responsible for the smallest useful change that advances the current Task Card.
 It should:
 
 - stay inside the approved boundary
+- stay in experiment mode, or defer back to `debug-investigation`, when debug mode is active and root cause is still unconfirmed
 - update direct tests when behavior changes
-- keep `journal.md` current after meaningful progress
+- keep `journal.md` current after meaningful progress and keep `debug.md` current when the task is still in debug mode
 
 ### `resume-work`
 
@@ -55,8 +59,9 @@ Responsible for reconstruction when conversational context is weak or stale.
 It should:
 
 - read `AGENTS.md`
-- read `task-card.md` and `journal.md`
+- read `task-card.md`, `debug.md` when debug mode is active, and `journal.md`
 - inspect the current diff and nearby tests
+- reconstruct the current mode, root-cause status, and verification gate
 - call out drift between notes and code truth
 - propose the next bounded step before editing
 
@@ -68,6 +73,7 @@ It should:
 
 - reconstruct acceptance criteria from the Task Card
 - run the narrowest reliable verification path first
+- for debug tasks, confirm which hypothesis became the root cause, which hypotheses were ruled out, and whether the fix targets cause rather than only symptoms
 - map each criterion to evidence, a gap, or a residual risk
 - write or refresh `acceptance-evidence.md`
 - suggest commit messages without taking merge responsibility
@@ -106,10 +112,11 @@ Use external memory when the task is likely to:
 2. Materialize or refresh `task-card.md`.
 3. Implement the next bounded step.
 4. Update `journal.md`.
-5. Resume from artifacts when needed.
-6. Verify with `change-check`.
-7. Materialize `acceptance-evidence.md`.
-8. Keep commit and merge manual.
+5. Keep `debug.md` current whenever debug mode is still active.
+6. Resume from artifacts when needed.
+7. Verify with `change-check`.
+8. Materialize `acceptance-evidence.md`.
+9. Keep commit and merge manual.
 
 ## Human review boundary
 

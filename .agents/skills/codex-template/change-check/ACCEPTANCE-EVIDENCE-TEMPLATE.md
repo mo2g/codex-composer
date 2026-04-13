@@ -21,6 +21,12 @@ Use this template when `change-check` needs to show exactly how each acceptance 
   - <command>
   - <command>
 
+## Debug closure (debug tasks only)
+
+- Confirmed root cause: <cause or n/a>
+- Ruled-out hypotheses: <hypothesis list or n/a>
+- Cause-targeting check: <how the fix targets cause rather than symptoms>
+
 ## Criteria map
 
 | Acceptance criterion | Evidence | Gap or risk |
@@ -45,4 +51,5 @@ Use this template when `change-check` needs to show exactly how each acceptance 
 
 - Do not collapse multiple criteria into one generic statement.
 - If no reliable command exists, say that explicitly and recommend the smallest missing test or check.
+- For debug tasks, fill the debug-closure section before claiming the fix is complete.
 - Keep this artifact aligned with the Task Card so humans can audit the evidence trail quickly.

@@ -9,11 +9,19 @@ test("install.sh copies debug workflow assets", async () => {
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
   const skill = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "debug-investigation", "SKILL.md"));
+  const implementer = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "implementer", "SKILL.md"));
+  const resumeWork = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "resume-work", "SKILL.md"));
+  const changeCheck = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "change-check", "SKILL.md"));
   const template = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "debug-investigation", "DEBUG-TEMPLATE.md"));
   const doc = await readText(path.join(targetRepo, "docs", "codex-debug-workflow.md"));
 
   assert.match(skill, /hypotheses/);
+  assert.match(implementer, /root cause is still unconfirmed/);
+  assert.match(resumeWork, /`debug\.md` when debug mode is active/);
+  assert.match(changeCheck, /which hypothesis became the root cause/);
   assert.match(template, /Hypothesis table/);
+  assert.match(template, /Confirmed root cause/);
   assert.match(doc, /Codex Debug Workflow/);
+  assert.match(doc, /Until then, `implementer` should stay in minimal experiment mode/);
   assert.ok(TEMPLATE_DOCS.includes("docs/codex-debug-workflow.md"));
 });

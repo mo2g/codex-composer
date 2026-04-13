@@ -39,6 +39,9 @@ Use `planner` when:
 
 A minimal Task Card should capture:
 
+- `Mode` (`implementation` by default; `debug` when root cause is not yet confirmed)
+- `Required artifacts`
+- `Root-cause status` for debug work
 - `Goal`
 - `In scope`
 - `Out of scope`
@@ -49,6 +52,7 @@ A minimal Task Card should capture:
 - `Risks`
 
 Use `implementer` once the intent is locked and the change is bounded and ready to code.
+If debug mode is active and root cause is still unconfirmed, `implementer` should stay in minimal experiment mode or hand the task back to `debug-investigation` instead of making a broad fix.
 
 ## When To Use Debug Mode
 
@@ -81,7 +85,7 @@ A task journal can live at `docs/_codex/<task-slug>/journal.md` and should stay 
 - verification evidence
 - next smallest step
 
-Use `resume-work` to reconstruct the task from the journal, diff, and nearby tests before coding resumes.
+Use `resume-work` to reconstruct the task from the Task Card, `debug.md` when present, journal, diff, and nearby tests before coding resumes.
 
 ## When To Split Work
 
@@ -104,6 +108,7 @@ Use `change-check` when:
 - add or update direct tests when behavior changed
 - detect the stack and choose the best-fit verification commands
 - treat `.codex/config.toml` hooks as hints or overrides, not the only truth
+- for debug tasks, confirm the root cause, ruled-out hypotheses, and whether the fix targets cause rather than only symptoms
 - map each acceptance criterion to evidence, a gap, or an explicit risk
 - report evidence, remaining risk, and a recommended commit message
 

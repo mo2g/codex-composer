@@ -15,9 +15,11 @@ For any task expected to span sessions, keep these artifacts together:
 
 1. `task-card.md`
    - bounded intent
+   - current mode and required artifacts
    - acceptance criteria
    - verification gate
    - isolation choice
+   - root-cause status when debug mode is active
 
 2. `journal.md`
    - current code truth

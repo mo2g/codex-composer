@@ -27,11 +27,15 @@ test("install.sh copies task-card, journal, and evidence templates into installe
   const evidenceTemplate = await readText(evidenceTemplatePath);
 
   assert.match(plannerTemplate, /One Task Card should represent one reviewable change\./);
+  assert.match(plannerTemplate, /- Mode: implementation \| debug/);
+  assert.match(plannerTemplate, /- Root-cause status: n\/a \| unconfirmed \| confirmed/);
   assert.match(plannerTemplate, /## Acceptance criteria/);
 
   assert.match(journalTemplate, /Treat the code and diff as source of truth/);
+  assert.match(journalTemplate, /- Root-cause status: <n\/a \| unconfirmed \| confirmed>/);
   assert.match(journalTemplate, /## Drift check/);
 
   assert.match(evidenceTemplate, /Map evidence to acceptance criteria directly\./);
+  assert.match(evidenceTemplate, /## Debug closure \(debug tasks only\)/);
   assert.match(evidenceTemplate, /## Criteria map/);
 });

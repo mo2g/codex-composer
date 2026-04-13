@@ -29,11 +29,12 @@ Other files should either:
 ## Update together when these change
 
 - Task Card structure
+- Task Card debug metadata such as mode, required artifacts, and root-cause status
 - task journal structure
 - acceptance evidence structure
 - split rules
 - external memory rules
-- debug artifact layout and hypothesis rules
+- debug artifact layout, hypothesis rules, and debug-closure rules
 - human review boundary
 
 ## Drift to avoid

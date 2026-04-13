@@ -23,6 +23,8 @@ Use this journal when work spans sessions, threads, or worktrees. Treat the code
 
 - Goal: <current accepted goal>
 - Scope boundary: <what still belongs to this card>
+- Mode: <implementation | debug>
+- Root-cause status: <n/a | unconfirmed | confirmed>
 - Verification gate: <what still has to pass>
 
 ## Current code truth
@@ -67,6 +69,6 @@ Use this journal when work spans sessions, threads, or worktrees. Treat the code
 
 ## Notes For Resume Work
 
-- Reconstruct intent from `AGENTS.md`, the Task Card, the journal, the diff, and nearby tests in that order.
+- Reconstruct intent from `AGENTS.md`, the Task Card, `debug.md` when active, the journal, the diff, and nearby tests in that order.
 - Call out drift before proposing the next step.
 - If the journal is stale, repair the journal after the code truth is understood.

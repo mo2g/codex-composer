@@ -74,8 +74,8 @@ docs/_codex/<task-slug>/
 - For non-trivial work, `planner` should emit a Task Card before implementation starts.
 - Keep one thread by default, and split only when the work is independently reviewable.
 - For long-running or cross-session work, keep a small journal in a repo-owned path such as `docs/_codex/<task-slug>/journal.md`.
-- Use `resume-work` to reconstruct intent from the Task Card, journal, diff, and nearby tests before implementation resumes.
-- Use `change-check` to map acceptance criteria to evidence, remaining gaps, or explicit risks.
+- Use `resume-work` to reconstruct intent from the Task Card, `debug.md` when present, journal, diff, and nearby tests before implementation resumes.
+- Use `change-check` to map acceptance criteria to evidence, remaining gaps, explicit risks, and debug closure when applicable.
 - Use `docs/codex-task-card-workflow.md` as the canonical description when workflow wording elsewhere is ambiguous.
 
 ## Debug Rules
