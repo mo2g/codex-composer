@@ -28,10 +28,39 @@ Use `planner` when:
 `planner` should:
 
 - clarify the goal, success criteria, in-scope and out-of-scope behavior
-- identify risks and whether split or worktree is even necessary
+- choose whether the work stays in the current thread or needs isolation
+- emit a Task Card before implementation starts
 - only then write the bounded implementation plan and `change-check` gate
 
+A minimal Task Card should capture:
+
+- `Goal`
+- `In scope`
+- `Out of scope`
+- `Files likely involved`
+- `Acceptance criteria`
+- `Verification gate`
+- `Isolation`
+- `Risks`
+
 Use `implementer` once the intent is locked and the change is bounded and ready to code.
+
+## When To Keep A Task Journal
+
+- the task is likely to span multiple sessions
+- multiple bounded steps are expected
+- a worktree or branch handoff happened
+- important decisions or verification evidence would be costly to rediscover
+
+A task journal can live in a repo-owned path such as `docs/_codex/<task-slug>.md` and should stay small:
+
+- current Task Card
+- decisions made
+- files changed
+- verification evidence
+- next smallest step
+
+Use `resume-work` to reconstruct the task from the journal, diff, and nearby tests before coding resumes.
 
 ## When To Split Work
 
@@ -50,9 +79,11 @@ Use `change-check` when:
 `change-check` should:
 
 - inspect the diff and nearby tests
+- reconstruct the acceptance criteria and verification gate
 - add or update direct tests when behavior changed
 - detect the stack and choose the best-fit verification commands
 - treat `.codex/config.toml` hooks as hints or overrides, not the only truth
+- map each acceptance criterion to evidence, a gap, or an explicit risk
 - report evidence, remaining risk, and a recommended commit message
 
 If no reliable verification path can be inferred, stop and say why instead of claiming the change was fully verified.

@@ -7,7 +7,7 @@ A lightweight source template for adding a Codex app workflow to a repository.
 Most Codex-enabled repositories need the same small set of workflow primitives:
 
 - a durable repository contract in `AGENTS.md`
-- a few high-value skills for planning, implementation, and change checking
+- a few high-value skills for planning, implementation, resume, and change checking
 - an optional place for repo-owned defaults or verification hints when a repository truly needs them
 - explicit human review and merge responsibility
 
@@ -25,8 +25,10 @@ This template packages those pieces without adding a repo-local protocol or comm
 
 4. Open the target repository in Codex app and read `AGENTS.md`.
 5. Stay in the current thread by default.
-6. For non-trivial work, use `planner` to clarify the intent first and then write the implementation plan.
-7. Implement with `implementer`, then use `change-check` before commit or manual merge.
+6. For non-trivial work, use `planner` to clarify the intent, emit a Task Card, and then write the implementation plan.
+7. Implement with `implementer`.
+8. For long-running work, keep an optional task journal and use `resume-work` when context needs to be reconstructed.
+9. Use `change-check` before commit or manual merge.
 
 ## Recommended Structure
 
@@ -57,22 +59,25 @@ install.sh
 - Start in the current thread.
 - Open a new thread only when work can be reviewed independently.
 - Add a worktree only when branch or filesystem isolation will reduce merge risk.
+- For non-trivial work, shape it into a bounded Task Card before coding.
+- For long-running work, keep an optional task journal in a repo-owned path.
 - Keep merge manual on purpose.
 
 ## Verification And Merge
 
 - `npm test` runs the contract tests for this template repository.
-- Target repositories should let `change-check` inspect the repo, the diff, and nearby tests before choosing verification.
+- Target repositories should let `change-check` inspect the repo, the diff, nearby tests, and any Task Card or task journal before choosing verification.
 - Optional hooks in `.codex/config.toml` can speed up verification, but they are not the only source of truth.
 - Human review and merge remain explicit.
 
 ## Minimal Task Flow
 
 1. Ask Codex to inspect the repo and clarify the task.
-2. Use `planner` if the task is ambiguous or spans multiple subsystems. Let it lock the intent before it writes the plan.
+2. Use `planner` if the task is ambiguous or spans multiple subsystems. Let it lock the intent, emit a Task Card, and then write the plan.
 3. Make the smallest useful implementation with `implementer`.
-4. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence.
-5. Use the suggested commit message or adjust it, then let a human decide whether to commit or merge.
+4. If the task pauses or moves across sessions, update the task journal and use `resume-work` before continuing.
+5. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence against the acceptance criteria.
+6. Use the suggested commit message or adjust it, then let a human decide whether to commit or merge.
 
 ## Repository Assets
 

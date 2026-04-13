@@ -8,6 +8,7 @@ This repository was initialized with the Codex App Template.
 2. Review `AGENTS.md` and keep it accurate for this repository.
 3. Keep only the skills and docs that are useful for the repository.
 4. Add `.codex/config.toml` later only if this repository truly benefits from repo-owned defaults or verification hints.
+5. For long-running work, decide whether this repository wants a small task-journal path such as `docs/_codex/`.
 
 ## Installed Workflow Files
 

@@ -20,8 +20,9 @@ This repository is the source template for installing a low-friction Codex app w
 
 ## Skill Selection
 
-- Use `planner` when scope or acceptance criteria are unclear, or the change spans multiple subsystems. It should clarify intent before it writes the implementation plan.
+- Use `planner` when scope or acceptance criteria are unclear, or the change spans multiple subsystems. It should clarify intent, produce a Task Card, and only then write the implementation plan.
 - Use `implementer` when scope is approved and the task is ready to edit.
+- Use `resume-work` when a non-trivial task is being continued across sessions, threads, or worktrees.
 - Use `change-check` for the final evidence pass before commit or manual merge.
 
 ## Constraints
@@ -29,9 +30,18 @@ This repository is the source template for installing a low-friction Codex app w
 1. Keep the terminology `Codex App Template` and `codex-template` consistent across docs, scripts, config, tests, and installed assets.
 2. Keep the installable workflow in `template/`, `docs/`, and `.agents/skills/codex-template/` synchronized with the installer and tests.
 3. Keep configuration responsibilities aligned: this source repo may keep stable verification hints in `.codex/config.toml`, but installed target repos should stay light by default and only add `.codex/config.toml` later when repo-owned defaults or verification hints are actually worth keeping.
-4. Do not reintroduce bundled example scaffolds, disposable smoke wrappers, or repo-local protocol/state-machine concepts as the primary workflow.
-5. Do not edit unrelated files or broaden scope to opportunistic cleanup.
-6. Merge stays manual after verification and review.
+4. Prefer bounded task shaping over repo-local orchestration: use Task Cards, optional task journals, threads, and worktrees instead of adding a command-state machine.
+5. Do not reintroduce bundled example scaffolds, disposable smoke wrappers, or repo-local protocol/state-machine concepts as the primary workflow.
+6. Do not edit unrelated files or broaden scope to opportunistic cleanup.
+7. Merge stays manual after verification and review.
+
+## Task Shaping And Resume Rules
+
+- For non-trivial work, `planner` should emit a Task Card before implementation starts.
+- Keep one thread by default, and split only when the work is independently reviewable.
+- For long-running or cross-session work, keep a small task journal in a repo-owned path such as `docs/_codex/<task-slug>.md`.
+- A task journal should be minimal and current: accepted goal, key decisions, files changed, verification evidence, and the next smallest step.
+- Use `resume-work` to reconstruct intent from the Task Card, task journal, diff, and nearby tests before implementation resumes.
 
 ## Documentation Sync
 

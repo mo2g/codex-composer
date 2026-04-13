@@ -1,6 +1,6 @@
 export const TEMPLATE_PRODUCT_NAME = "Codex App Template";
 export const TEMPLATE_NAMESPACE = "codex-template";
-export const TEMPLATE_SKILLS = ["planner", "implementer", "change-check"];
+export const TEMPLATE_SKILLS = ["planner", "implementer", "resume-work", "change-check"];
 export const TEMPLATE_TYPES = ["existing", "blank"];
 export const TEMPLATE_DOCS = ["docs/codex-quickstart.md"];
 export const TEMPLATE_DIR = "template";

@@ -23,11 +23,20 @@ description: Clarify scope, lock acceptance criteria, and produce a bounded impl
 1. Inspect the current implementation and gather the facts that can be derived locally.
 2. Clarify the intent: lock the goal, success criteria, in-scope and out-of-scope behavior, and the risks that would change the work.
 3. Decide whether the work should stay in the current thread or use an optional split or worktree.
-4. Only after the intent is clear, break the work into bounded implementation steps and define the `change-check` evidence gate before coding starts.
+4. For non-trivial work, write a Task Card that captures the accepted goal, scope, evidence gate, and isolation choice.
+5. Only after the intent is clear, break the work into bounded implementation steps and define the `change-check` evidence gate before coding starts.
 
 ## Output format
 
-- concise intent summary
+- `Task Card`
+  - `Goal`
+  - `In scope`
+  - `Out of scope`
+  - `Files likely involved`
+  - `Acceptance criteria`
+  - `Verification gate`
+  - `Isolation`
+  - `Risks`
 - ordered implementation steps
 - explicit verification plan
 - assumptions or risks that still matter

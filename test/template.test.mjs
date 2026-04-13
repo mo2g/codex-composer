@@ -70,7 +70,7 @@ Keep existing content.
   assert.match(agents, /# Team Rules/);
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
-  assert.match(agents, /Skills: `planner`, `implementer`, `change-check`\./);
+  assert.match(agents, /Skills: `planner`, `implementer`, `resume-work`, `change-check`\./);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -112,6 +112,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "docs/codex-quickstart.md",
     ".agents/skills/codex-template/planner/SKILL.md",
     ".agents/skills/codex-template/implementer/SKILL.md",
+    ".agents/skills/codex-template/resume-work/SKILL.md",
     ".agents/skills/codex-template/change-check/SKILL.md",
     "template/AGENTS.md",
     "template/AGENTS-BLOCK.md",
@@ -144,14 +145,18 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const readme = await readText(path.join(repoRoot, "README.md"));
   const agents = await readText(path.join(repoRoot, "AGENTS.md"));
   const planner = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "planner", "SKILL.md"));
+  const resumeWork = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "resume-work", "SKILL.md"));
+  const changeCheck = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "change-check", "SKILL.md"));
 
   for (const skill of TEMPLATE_SKILLS) {
     assert.match(readme, new RegExp(skill.replace("-", "\\-")));
     assert.match(agents, new RegExp(skill.replace("-", "\\-")));
   }
 
-  assert.match(planner, /Clarify the intent:/);
+  assert.match(planner, /Task Card/);
   assert.match(planner, /Only after the intent is clear/);
+  assert.match(resumeWork, /Reconstruct a paused task/);
+  assert.match(changeCheck, /acceptance criteria coverage with evidence or gaps/);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {

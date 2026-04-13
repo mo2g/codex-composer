@@ -1,7 +1,8 @@
 ## Codex App Template
 
-- Skills: `planner`, `implementer`, `change-check`.
-- Start complex work with `planner` and let it clarify intent before it writes the plan.
+- Skills: `planner`, `implementer`, `resume-work`, `change-check`.
+- Start complex work with `planner`, let it emit a Task Card, and only then write the plan.
 - Stay in the current thread by default. Split only when work is independently reviewable and isolation helps.
-- Use `change-check` to build verification evidence and commit guidance.
+- For long-running work, keep an optional task journal and use `resume-work` before continuing.
+- Use `change-check` to build verification evidence and map acceptance criteria to evidence or gaps.
 - Merge stays manual.
