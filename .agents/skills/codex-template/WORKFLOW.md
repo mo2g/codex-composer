@@ -5,14 +5,7 @@ Use this file as the short operational reference for the installed workflow. The
 - `docs/codex-task-card-workflow.md`
 - `docs/codex-debug-workflow.md`
 
-## Use It For
-
-- non-trivial work
-- long-running work
-- work that may survive thread compression or handoff
-- debug tasks where evidence needs to stay auditable
-
-## Artifact Set
+## Default Artifact Set
 
 Keep one reviewable change under a repo-owned path such as:
 
@@ -33,8 +26,8 @@ docs/_codex/<task-slug>/
 5. Resume with `resume-work` when the task must be reconstructed from artifacts, the diff, and nearby tests.
 6. Verify with `change-check`, refresh `acceptance-evidence.md`, and keep merge manual.
 
-## Reminders
+## Notes
 
 - Do not begin implementation until the Task Card is bounded.
 - Split into another Task Card when acceptance criteria, verification gate, isolation, or reviewability change.
-- For active debug work, use `debug-investigation/DEBUG-TEMPLATE.md` and follow the canonical debug rules instead of making broad speculative fixes.
+- For active debug work, use `debug-investigation/DEBUG-TEMPLATE.md` instead of making broad speculative fixes.

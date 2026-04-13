@@ -23,6 +23,12 @@ async function expectMissing(targetPath) {
   await assert.rejects(fs.access(targetPath));
 }
 
+function assertIncludesAll(content, patterns) {
+  for (const pattern of patterns) {
+    assert.match(content, pattern);
+  }
+}
+
 async function assertInstalledAssets(targetRepo) {
   await expectExists(path.join(targetRepo, "AGENTS.md"));
   await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
@@ -74,9 +80,11 @@ Keep existing content.
   assert.match(agents, /# Team Rules/);
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
-  assert.match(agents, /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./);
-  assert.match(agents, /docs\/codex-task-card-workflow\.md/);
-  assert.match(agents, /docs\/codex-debug-workflow\.md/);
+  assertIncludesAll(agents, [
+    /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./,
+    /docs\/codex-task-card-workflow\.md/,
+    /docs\/codex-debug-workflow\.md/
+  ]);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -165,25 +173,16 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
-  assert.match(readme, /docs\/codex-task-card-workflow\.md/);
-  assert.match(readme, /docs\/codex-debug-workflow\.md/);
-  assert.match(readme, /planner/);
-  assert.match(readme, /change-check/);
-  assert.match(agents, /docs\/codex-task-card-workflow\.md/);
-  assert.match(agents, /docs\/codex-debug-workflow\.md/);
-  assert.match(agents, /debug-investigation/);
+  assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /planner/, /change-check/]);
+  assertIncludesAll(agents, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /debug-investigation/]);
 
-  assert.match(planner, /Task Card/);
-  assert.match(planner, /Only after the intent is clear/);
-  assert.match(implementer, /broad speculative fixes while debug mode is active and root cause is still unconfirmed/);
-  assert.match(resumeWork, /Reconstruct a paused task/);
-  assert.match(resumeWork, /`debug\.md` when debug mode is active/);
-  assert.match(changeCheck, /acceptance criteria coverage with evidence or gaps/);
-  assert.match(changeCheck, /which hypothesis became the root cause/);
-  assert.match(debugInvestigation, /unclear root cause bugs/);
-  assert.match(workflow, /docs\/codex-task-card-workflow\.md/);
-  assert.match(workflow, /docs\/codex-debug-workflow\.md/);
-  assert.match(memory, /Code truth beats note truth\./);
+  assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
+  assertIncludesAll(implementer, [/debug mode is active/, /root cause is still unconfirmed/, /minimal .*experiment mode/]);
+  assertIncludesAll(resumeWork, [/Reconstruct a paused task/, /`debug\.md`/, /diff/, /nearby tests/]);
+  assertIncludesAll(changeCheck, [/acceptance criteria/, /root cause/, /merge stays manual/]);
+  assertIncludesAll(debugInvestigation, [/hypotheses/, /debug\.md/, /root cause/]);
+  assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
+  assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {

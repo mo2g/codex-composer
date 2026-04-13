@@ -22,6 +22,7 @@ test("install.sh copies debug workflow assets", async () => {
   assert.match(template, /Hypothesis table/);
   assert.match(template, /Confirmed root cause/);
   assert.match(doc, /Codex Debug Workflow/);
-  assert.match(doc, /Until then, `implementer` should stay in minimal experiment mode/);
+  assert.match(doc, /minimal experiment mode/);
+  assert.match(doc, /confirmed cause/);
   assert.ok(TEMPLATE_DOCS.includes("docs/codex-debug-workflow.md"));
 });
