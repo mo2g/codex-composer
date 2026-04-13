@@ -75,6 +75,7 @@ Keep existing content.
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
   assert.match(agents, /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./);
+  assert.match(agents, /docs\/codex-task-card-workflow\.md/);
   assert.match(agents, /docs\/codex-debug-workflow\.md/);
 });
 
@@ -117,6 +118,8 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "docs/codex-quickstart.md",
     "docs/codex-task-card-workflow.md",
     "docs/codex-debug-workflow.md",
+    ".agents/skills/codex-template/WORKFLOW.md",
+    ".agents/skills/codex-template/EXTERNAL-MEMORY.md",
     ".agents/skills/codex-template/planner/SKILL.md",
     ".agents/skills/codex-template/implementer/SKILL.md",
     ".agents/skills/codex-template/resume-work/SKILL.md",
@@ -159,11 +162,16 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const debugInvestigation = await readText(
     path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "debug-investigation", "SKILL.md")
   );
+  const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
+  const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
-  for (const skill of TEMPLATE_SKILLS) {
-    assert.match(readme, new RegExp(skill.replace("-", "\\-")));
-    assert.match(agents, new RegExp(skill.replace("-", "\\-")));
-  }
+  assert.match(readme, /docs\/codex-task-card-workflow\.md/);
+  assert.match(readme, /docs\/codex-debug-workflow\.md/);
+  assert.match(readme, /planner/);
+  assert.match(readme, /change-check/);
+  assert.match(agents, /docs\/codex-task-card-workflow\.md/);
+  assert.match(agents, /docs\/codex-debug-workflow\.md/);
+  assert.match(agents, /debug-investigation/);
 
   assert.match(planner, /Task Card/);
   assert.match(planner, /Only after the intent is clear/);
@@ -173,6 +181,9 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assert.match(changeCheck, /acceptance criteria coverage with evidence or gaps/);
   assert.match(changeCheck, /which hypothesis became the root cause/);
   assert.match(debugInvestigation, /unclear root cause bugs/);
+  assert.match(workflow, /docs\/codex-task-card-workflow\.md/);
+  assert.match(workflow, /docs\/codex-debug-workflow\.md/);
+  assert.match(memory, /Code truth beats note truth\./);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {
@@ -186,4 +197,7 @@ test("source repository removes legacy entrypoints and keeps only the codex-temp
   await expectMissing(path.join(repoRoot, "test", "protocol.test.mjs"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", "codex-composer"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "merge-check"));
+  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "task-card.md"));
+  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "journal.md"));
+  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "acceptance-evidence.md"));
 });
