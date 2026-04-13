@@ -23,8 +23,12 @@ test("install.sh copies default workflow entry and external memory contract", as
   assert.match(workflow, /Default Task-Card Workflow/);
   assert.match(workflow, /docs\/_codex\/<task-slug>\//);
   assert.match(workflow, /Do not begin implementation until the Task Card is bounded\./);
+  assert.match(workflow, /When root cause is unclear, switch into debug mode before broad fixes\./);
+  assert.match(workflow, /debug-investigation\/DEBUG-TEMPLATE\.md/);
 
   assert.match(memory, /Code truth beats note truth\./);
+  assert.match(memory, /When debug mode is enabled for an unclear root cause, add:/);
+  assert.match(memory, /one experiment per hypothesis/);
   assert.match(memory, /recover from repository artifacts first/);
   assert.match(memory, /without rereading the entire Codex conversation\./);
 });

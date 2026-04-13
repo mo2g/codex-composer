@@ -30,6 +30,14 @@ For any task expected to span sessions, keep these artifacts together:
    - criterion-to-evidence mapping
    - gaps and residual risks
 
+When debug mode is enabled for an unclear root cause, add:
+
+4. `debug.md`
+   - ranked hypotheses
+   - one experiment per hypothesis
+   - evidence added after each experiment
+   - confirmed root cause once investigation converges
+
 ## Drift policy
 
 When notes disagree with the diff or tests:

@@ -7,6 +7,11 @@
 3. Check whether the repository keeps extra skills under `.agents/skills/`.
 4. If the task is not trivial, start with `planner`.
 
+Use these docs as the workflow source of truth:
+
+- `docs/codex-task-card-workflow.md`
+- `docs/codex-debug-workflow.md`
+
 Typical verification signals:
 
 - `package.json` and lockfiles
@@ -45,6 +50,22 @@ A minimal Task Card should capture:
 
 Use `implementer` once the intent is locked and the change is bounded and ready to code.
 
+## When To Use Debug Mode
+
+Use `debug-investigation` when:
+
+- root cause is not yet confirmed
+- the issue is flaky, intermittent, timing-sensitive, or race-like
+- previous fix attempts changed symptoms without proving cause
+
+In debug mode, keep `docs/_codex/<task-slug>/debug.md` and follow the canonical rules in `docs/codex-debug-workflow.md`:
+
+- list hypotheses before patching
+- run one experiment per hypothesis
+- keep experiments minimal and attributable
+- externalize evidence after every experiment
+- re-rank hypotheses after two failed attempts in one direction without new support
+
 ## When To Keep A Task Journal
 
 - the task is likely to span multiple sessions
@@ -52,7 +73,7 @@ Use `implementer` once the intent is locked and the change is bounded and ready 
 - a worktree or branch handoff happened
 - important decisions or verification evidence would be costly to rediscover
 
-A task journal can live in a repo-owned path such as `docs/_codex/<task-slug>.md` and should stay small:
+A task journal can live at `docs/_codex/<task-slug>/journal.md` and should stay small:
 
 - current Task Card
 - decisions made
@@ -87,3 +108,5 @@ Use `change-check` when:
 - report evidence, remaining risk, and a recommended commit message
 
 If no reliable verification path can be inferred, stop and say why instead of claiming the change was fully verified.
+
+When workflow wording is ambiguous, defer to `docs/codex-task-card-workflow.md` and `docs/codex-debug-workflow.md`.

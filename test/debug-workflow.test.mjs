@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+import { TEMPLATE_DOCS } from "../tools/lib/template-contract.mjs";
 import { createExistingRepo, readText, runInstall } from "./helpers/repo.mjs";
 
 test("install.sh copies debug workflow assets", async () => {
@@ -14,4 +15,5 @@ test("install.sh copies debug workflow assets", async () => {
   assert.match(skill, /hypotheses/);
   assert.match(template, /Hypothesis table/);
   assert.match(doc, /Codex Debug Workflow/);
+  assert.ok(TEMPLATE_DOCS.includes("docs/codex-debug-workflow.md"));
 });

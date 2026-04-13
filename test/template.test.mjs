@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   LEGACY_USER_FACING_TERMS,
   MANAGED_BLOCK_START,
+  TEMPLATE_DOCS,
   TEMPLATE_NAMESPACE,
   TEMPLATE_PRODUCT_NAME,
   TEMPLATE_SKILLS
@@ -25,8 +26,11 @@ async function expectMissing(targetPath) {
 async function assertInstalledAssets(targetRepo) {
   await expectExists(path.join(targetRepo, "AGENTS.md"));
   await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
-  await expectExists(path.join(targetRepo, "docs", "codex-quickstart.md"));
   await expectMissing(path.join(targetRepo, "docs", "manual-merge-checklist.md"));
+
+  for (const relativePath of TEMPLATE_DOCS) {
+    await expectExists(path.join(targetRepo, relativePath));
+  }
 
   for (const skill of TEMPLATE_SKILLS) {
     await expectExists(path.join(targetRepo, ".agents", "skills", TEMPLATE_NAMESPACE, skill, "SKILL.md"));
@@ -70,7 +74,8 @@ Keep existing content.
   assert.match(agents, /# Team Rules/);
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
-  assert.match(agents, /Skills: `planner`, `implementer`, `resume-work`, `change-check`\./);
+  assert.match(agents, /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./);
+  assert.match(agents, /docs\/codex-debug-workflow\.md/);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -110,10 +115,13 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "README.md",
     "AGENTS.md",
     "docs/codex-quickstart.md",
+    "docs/codex-task-card-workflow.md",
+    "docs/codex-debug-workflow.md",
     ".agents/skills/codex-template/planner/SKILL.md",
     ".agents/skills/codex-template/implementer/SKILL.md",
     ".agents/skills/codex-template/resume-work/SKILL.md",
     ".agents/skills/codex-template/change-check/SKILL.md",
+    ".agents/skills/codex-template/debug-investigation/SKILL.md",
     "template/AGENTS.md",
     "template/AGENTS-BLOCK.md",
     "template/README.md",
@@ -147,6 +155,9 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const planner = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "planner", "SKILL.md"));
   const resumeWork = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "resume-work", "SKILL.md"));
   const changeCheck = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "change-check", "SKILL.md"));
+  const debugInvestigation = await readText(
+    path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "debug-investigation", "SKILL.md")
+  );
 
   for (const skill of TEMPLATE_SKILLS) {
     assert.match(readme, new RegExp(skill.replace("-", "\\-")));
@@ -157,6 +168,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assert.match(planner, /Only after the intent is clear/);
   assert.match(resumeWork, /Reconstruct a paused task/);
   assert.match(changeCheck, /acceptance criteria coverage with evidence or gaps/);
+  assert.match(debugInvestigation, /unclear root cause bugs/);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {

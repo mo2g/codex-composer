@@ -1,6 +1,6 @@
 # Default Task-Card Workflow
 
-This file turns the installed `planner`, `implementer`, `resume-work`, and `change-check` skills into one explicit default loop.
+This file turns the installed `planner`, `implementer`, `resume-work`, `change-check`, and `debug-investigation` skills into one explicit default loop.
 
 ## When to use this workflow
 
@@ -24,6 +24,13 @@ docs/_codex/<task-slug>/
 
 Keep one directory per reviewable change.
 
+When debugging an unclear root cause, extend the artifact set with:
+
+```text
+docs/_codex/<task-slug>/
+  debug.md
+```
+
 ## Default loop
 
 1. **Plan with `planner`.**
@@ -45,6 +52,17 @@ Keep one directory per reviewable change.
    - Use `acceptance-evidence.md` to map every acceptance criterion to evidence, a gap, or a risk.
    - Prefer the narrowest reliable verification first.
    - Keep merge manual.
+
+## Debug-mode extension
+
+When root cause is unclear, switch into debug mode before broad fixes.
+
+1. Use `debug-investigation`.
+2. Create or refresh `debug.md` using `debug-investigation/DEBUG-TEMPLATE.md`.
+3. List hypotheses before patching.
+4. Run one attributable experiment per hypothesis.
+5. Externalize every result before moving to the next step.
+6. Re-rank hypotheses after two failed attempts in one direction without new support.
 
 ## Split rules
 
@@ -73,4 +91,5 @@ A task is in good shape when a fresh Codex thread can recover it by reading only
 - `AGENTS.md`
 - `docs/_codex/<task-slug>/task-card.md`
 - `docs/_codex/<task-slug>/journal.md`
+- `docs/_codex/<task-slug>/debug.md` when debug mode is active
 - the current diff and nearby tests

@@ -1,8 +1,12 @@
 export const TEMPLATE_PRODUCT_NAME = "Codex App Template";
 export const TEMPLATE_NAMESPACE = "codex-template";
-export const TEMPLATE_SKILLS = ["planner", "implementer", "resume-work", "change-check"];
+export const TEMPLATE_SKILLS = ["planner", "implementer", "resume-work", "change-check", "debug-investigation"];
 export const TEMPLATE_TYPES = ["existing", "blank"];
-export const TEMPLATE_DOCS = ["docs/codex-quickstart.md"];
+export const TEMPLATE_DOCS = [
+  "docs/codex-quickstart.md",
+  "docs/codex-task-card-workflow.md",
+  "docs/codex-debug-workflow.md"
+];
 export const TEMPLATE_DIR = "template";
 export const TEMPLATE_ASSET_FILES = ["AGENTS.md", "AGENTS-BLOCK.md", "README.md"];
 export const MANAGED_BLOCK_START = "<!-- CODEX APP TEMPLATE START -->";
