@@ -9,22 +9,15 @@ This repository is the source template for installing a lightweight Codex App wo
 - `docs/codex-task-card-workflow.md`: canonical task-card and external-memory workflow
 - `docs/codex-debug-workflow.md`: canonical debug workflow
 - `docs/workflow-sync-rules.md`: sync rules for workflow surfaces
-- `.agents/skills/codex-template/`: reusable core skills and templates
+- `.agents/skills/codex-template/`: reusable core skills (`planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`)
 - `template/`: installed repository files
 - `tools/`: installer logic and contract constants
 - `test/`: installer and workflow contract tests
 
-## Core Skills
-
-- `planner`
-- `implementer`
-- `resume-work`
-- `change-check`
-- `debug-investigation`
-
 ## Working Rules
 
-- Use `docs/codex-quickstart.md` for installed-repo first pass and `docs/` for detailed workflow rules.
+- Use `docs/codex-quickstart.md` for installed-repo first pass.
+- Keep detailed workflow rules in canonical docs and skill assets.
 - Keep `template/`, `docs/`, `.agents/skills/codex-template/`, installer logic, and tests aligned.
 - Preserve the task-card, external-memory, and debug-aware workflow without adding a repo-local protocol or state machine.
 - Keep installed repositories lightweight by default; `docs/_codex/<task-slug>/` and `.codex/config.toml` remain optional and repo-owned.

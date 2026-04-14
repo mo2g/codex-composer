@@ -13,6 +13,12 @@ function skillFile(...parts) {
   );
 }
 
+function assertIncludesAll(content, patterns) {
+  for (const pattern of patterns) {
+    assert.match(content, pattern);
+  }
+}
+
 test("install.sh copies default workflow entry and external memory contract", async () => {
   const targetRepo = await createExistingRepo({ packageManager: "npm" });
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
@@ -20,7 +26,7 @@ test("install.sh copies default workflow entry and external memory contract", as
   const workflow = await readText(path.join(targetRepo, skillFile("WORKFLOW.md")));
   const memory = await readText(path.join(targetRepo, skillFile("EXTERNAL-MEMORY.md")));
 
-  for (const pattern of [
+  assertIncludesAll(workflow, [
     /Default Task-Card Workflow/,
     /docs\/codex-task-card-workflow\.md/,
     /docs\/codex-debug-workflow\.md/,
@@ -29,11 +35,9 @@ test("install.sh copies default workflow entry and external memory contract", as
     /minimal experiment mode/,
     /`debug-investigation`/,
     /acceptance-evidence\.md/
-  ]) {
-    assert.match(workflow, pattern);
-  }
+  ]);
 
-  for (const pattern of [
+  assertIncludesAll(memory, [
     /Code truth beats note truth\./,
     /task-card\.md/,
     /journal\.md/,
@@ -41,7 +45,5 @@ test("install.sh copies default workflow entry and external memory contract", as
     /debug\.md/,
     /root-cause status when debug mode is active/,
     /recover from repository artifacts first/
-  ]) {
-    assert.match(memory, pattern);
-  }
+  ]);
 });

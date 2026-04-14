@@ -2,7 +2,7 @@
 
 This document is the canonical debug-mode extension for `docs/codex-task-card-workflow.md`.
 
-Use it when a Task Card enters debug mode because long threads, context compression, or repeated speculative edits would otherwise hide the real cause.
+Use it only when a Task Card enters debug mode because long threads, context compression, or repeated speculative edits would otherwise hide the real cause.
 
 ## When to enable debug mode
 
@@ -13,16 +13,12 @@ Enable debug mode when any of these are true:
 - previous fix attempts failed
 - the issue looks like a race condition, flaky test, ordering bug, or state leak
 
-## Recommended artifact set
+## Additional artifact
 
-This extends the normal artifact set from `docs/codex-task-card-workflow.md` with debug-specific evidence.
+Add debug-specific evidence to the base artifact set from `docs/codex-task-card-workflow.md`:
 
 ```text
-docs/_codex/<task-slug>/
-  task-card.md
-  debug.md
-  journal.md
-  acceptance-evidence.md
+docs/_codex/<task-slug>/debug.md
 ```
 
 ## Debug-mode additions
@@ -98,4 +94,4 @@ Use `change-check` and `acceptance-evidence.md` to prove:
 
 ## Why this fits Codex app
 
-This workflow extends the base task-card workflow instead of replacing it. It keeps the stable map small, stores debug state in repository artifacts only when needed, and preserves a full debug-aware closure without making trivial tasks heavier.
+This workflow extends the base task-card workflow instead of replacing it. It keeps the stable map small, adds debug state only when needed, and preserves a full debug-aware closure without making trivial tasks heavier.
