@@ -15,6 +15,8 @@ Enable debug mode when any of these are true:
 
 ## Recommended artifact set
 
+This extends the normal artifact set from `docs/codex-task-card-workflow.md` with debug-specific evidence.
+
 ```text
 docs/_codex/<task-slug>/
   task-card.md
@@ -23,7 +25,7 @@ docs/_codex/<task-slug>/
   acceptance-evidence.md
 ```
 
-## Workflow
+## Debug-mode additions
 
 ### 1. Plan the debug task
 
@@ -96,4 +98,4 @@ Use `change-check` and `acceptance-evidence.md` to prove:
 
 ## Why this fits Codex app
 
-This workflow keeps the stable map small, stores debug state in repository artifacts only when needed, and preserves a full debug-aware closure without making trivial tasks heavier.
+This workflow extends the base task-card workflow instead of replacing it. It keeps the stable map small, stores debug state in repository artifacts only when needed, and preserves a full debug-aware closure without making trivial tasks heavier.

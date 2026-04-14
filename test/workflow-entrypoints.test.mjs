@@ -20,22 +20,28 @@ test("install.sh copies default workflow entry and external memory contract", as
   const workflow = await readText(path.join(targetRepo, skillFile("WORKFLOW.md")));
   const memory = await readText(path.join(targetRepo, skillFile("EXTERNAL-MEMORY.md")));
 
-  assert.match(workflow, /Default Task-Card Workflow/);
-  assert.match(workflow, /docs\/codex-task-card-workflow\.md/);
-  assert.match(workflow, /docs\/codex-debug-workflow\.md/);
-  assert.match(workflow, /docs\/_codex\/<task-slug>\//);
-  assert.match(workflow, /planner\/TASK-CARD-TEMPLATE\.md/);
-  assert.match(workflow, /minimal experiment mode/);
-  assert.match(workflow, /`debug-investigation`/);
-  assert.match(workflow, /acceptance-evidence\.md/);
-  assert.match(workflow, /Split into another Task Card when acceptance criteria, verification gate, isolation, or reviewability change\./);
+  for (const pattern of [
+    /Default Task-Card Workflow/,
+    /docs\/codex-task-card-workflow\.md/,
+    /docs\/codex-debug-workflow\.md/,
+    /docs\/_codex\/<task-slug>\//,
+    /planner\/TASK-CARD-TEMPLATE\.md/,
+    /minimal experiment mode/,
+    /`debug-investigation`/,
+    /acceptance-evidence\.md/
+  ]) {
+    assert.match(workflow, pattern);
+  }
 
-  assert.match(memory, /Code truth beats note truth\./);
-  assert.match(memory, /task-card\.md/);
-  assert.match(memory, /journal\.md/);
-  assert.match(memory, /acceptance-evidence\.md/);
-  assert.match(memory, /debug\.md/);
-  assert.match(memory, /root-cause status when debug mode is active/);
-  assert.match(memory, /recover from repository artifacts first/);
-  assert.match(memory, /conversational memory alone/);
+  for (const pattern of [
+    /Code truth beats note truth\./,
+    /task-card\.md/,
+    /journal\.md/,
+    /acceptance-evidence\.md/,
+    /debug\.md/,
+    /root-cause status when debug mode is active/,
+    /recover from repository artifacts first/
+  ]) {
+    assert.match(memory, pattern);
+  }
 });

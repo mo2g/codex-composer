@@ -24,7 +24,7 @@ This repository is the source template for installing a lightweight Codex App wo
 
 ## Working Rules
 
-- Keep this file short. Put detailed workflow rules in `docs/` and skill assets.
+- Use `docs/codex-quickstart.md` for installed-repo first pass and `docs/` for detailed workflow rules.
 - Keep `template/`, `docs/`, `.agents/skills/codex-template/`, installer logic, and tests aligned.
 - Preserve the task-card, external-memory, and debug-aware workflow without adding a repo-local protocol or state machine.
 - Keep installed repositories lightweight by default; `docs/_codex/<task-slug>/` and `.codex/config.toml` remain optional and repo-owned.
