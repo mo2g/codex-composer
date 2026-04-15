@@ -8,6 +8,7 @@ A lightweight source template for adding a practical Codex App workflow to a rep
 - `docs/codex-quickstart.md`: installed-repo first-pass and default loop
 - `docs/codex-task-card-workflow.md`: canonical task-card and external-memory spec
 - `docs/codex-debug-workflow.md`: canonical debug-mode spec
+- `docs/codex-upgrade-guide.md`: upgrade behavior for already-installed repositories
 - `.agents/skills/codex-template/`: reusable execution skills
 - `template/`: installed entrypoint files
 - `test/`: installer and workflow contract tests
@@ -29,6 +30,28 @@ A lightweight source template for adding a practical Codex App workflow to a rep
    ```
 
 4. In the target repo, read `AGENTS.md` first, then `docs/codex-quickstart.md`.
+
+## Upgrade Installed Repositories
+
+Preview the upgrade without writing files:
+
+```bash
+bash install.sh --repo /path/to/repo --template existing --source . --upgrade --dry-run
+```
+
+Apply the upgrade:
+
+```bash
+bash install.sh --repo /path/to/repo --template existing --source . --upgrade
+```
+
+Upgrade behavior:
+
+* overwrite managed docs and `codex-template` skills
+* upsert the managed `AGENTS.md` block
+* skip repo-owned `README.md`, `.codex/config.toml`, and `docs/_codex/` task artifacts
+
+See `docs/codex-upgrade-guide.md` for the detailed policy.
 
 ## Verification
 

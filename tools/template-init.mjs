@@ -45,13 +45,30 @@ async function main() {
 
   const repoRoot = path.resolve(requireArg(args, "repo"));
   const template = args.template ?? "existing";
-  const result = await bootstrapTemplateRepo({ repoRoot, template });
-  process.stdout.write([
-    `repo_root=${result.repoRoot}`,
-    `initialized_git=${result.initializedGit}`,
-    `template=${result.template}`
-  ].join("\n"));
+  const upgrade = args.upgrade === true;
+  const dryRun = args.dry_run === true;
+
+  const result = await bootstrapTemplateRepo({
+    repoRoot,
+    template,
+    upgrade,
+    dryRun
+  });
+
+  process.stdout.write(
+    [
+      `repo_root=${result.repoRoot}`,
+      `initialized_git=${result.initializedGit}`,
+      `template=${result.template}`,
+      `mode=${result.mode}`,
+      `dry_run=${result.dryRun}`
+    ].join("\n")
+  );
   process.stdout.write("\n");
+
+  for (const action of result.actions) {
+    process.stdout.write(`action=${action.kind} ${action.target}\n`);
+  }
 }
 
 await main();

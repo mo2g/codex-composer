@@ -5,12 +5,27 @@ export const TEMPLATE_TYPES = ["existing", "blank"];
 export const TEMPLATE_DOCS = [
   "docs/codex-quickstart.md",
   "docs/codex-task-card-workflow.md",
-  "docs/codex-debug-workflow.md"
+  "docs/codex-debug-workflow.md",
+  "docs/codex-upgrade-guide.md"
 ];
 export const TEMPLATE_DIR = "template";
 export const TEMPLATE_ASSET_FILES = ["AGENTS.md", "AGENTS-BLOCK.md", "README.md"];
 export const MANAGED_BLOCK_START = "<!-- CODEX APP TEMPLATE START -->";
 export const MANAGED_BLOCK_END = "<!-- CODEX APP TEMPLATE END -->";
+
+export const UPGRADE_OVERWRITE_TARGETS = [
+  ...TEMPLATE_DOCS,
+  ".agents/skills/codex-template/"
+];
+
+export const UPGRADE_UPSERT_TARGETS = ["AGENTS.md"];
+
+export const UPGRADE_SKIP_TARGETS = [
+  "README.md",
+  ".codex/config.toml",
+  "docs/_codex/"
+];
+
 export const LEGACY_USER_FACING_TERMS = [
   "Codex Composer",
   "protocol.test.mjs",

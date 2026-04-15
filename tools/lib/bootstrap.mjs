@@ -96,10 +96,22 @@ function renderManagedBlock(content) {
 }
 
 function upsertManagedBlock(existing, block) {
-  const pattern = new RegExp(`${MANAGED_BLOCK_START}[\\s\\S]*?${MANAGED_BLOCK_END}`, "m");
+  const startIndex = existing.indexOf(MANAGED_BLOCK_START);
+  const endIndex = existing.indexOf(MANAGED_BLOCK_END);
 
-  if (pattern.test(existing)) {
-    return existing.replace(pattern, block);
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    const before = existing.slice(0, startIndex).trimEnd();
+    const after = existing.slice(endIndex + MANAGED_BLOCK_END.length).trimStart();
+    if (before && after) {
+      return `${before}\n\n${block}\n\n${after}\n`;
+    }
+    if (before) {
+      return `${before}\n\n${block}\n`;
+    }
+    if (after) {
+      return `${block}\n\n${after}\n`;
+    }
+    return `${block}\n`;
   }
 
   const trimmed = existing.trimEnd();
@@ -110,8 +122,26 @@ function upsertManagedBlock(existing, block) {
   return `${trimmed}\n\n${block}\n`;
 }
 
-async function copyFile(sourcePath, targetPath, { overwrite = true } = {}) {
-  if (!overwrite && await pathExists(targetPath)) {
+function toRelative(repoRoot, targetPath) {
+  return path.relative(repoRoot, targetPath).split(path.sep).join("/");
+}
+
+function recordAction(actions, kind, target) {
+  actions.push({ kind, target });
+}
+
+async function copyFile(sourcePath, targetPath, { overwrite = true, dryRun = false, actions, repoRoot }) {
+  const relativePath = toRelative(repoRoot, targetPath);
+  const exists = await pathExists(targetPath);
+
+  if (!overwrite && exists) {
+    recordAction(actions, "skip", relativePath);
+    return;
+  }
+
+  recordAction(actions, exists ? "overwrite" : "create", relativePath);
+
+  if (dryRun) {
     return;
   }
 
@@ -119,7 +149,7 @@ async function copyFile(sourcePath, targetPath, { overwrite = true } = {}) {
   await fs.copyFile(sourcePath, targetPath);
 }
 
-async function copyDir(sourceDir, targetDir, { overwrite = true } = {}) {
+async function copyDir(sourceDir, targetDir, { overwrite = true, dryRun = false, actions, repoRoot }) {
   const entries = await fs.readdir(sourceDir, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -131,67 +161,129 @@ async function copyDir(sourceDir, targetDir, { overwrite = true } = {}) {
     const targetPath = path.join(targetDir, entry.name);
 
     if (entry.isDirectory()) {
-      await copyDir(sourcePath, targetPath, { overwrite });
+      await copyDir(sourcePath, targetPath, { overwrite, dryRun, actions, repoRoot });
       continue;
     }
 
-    await copyFile(sourcePath, targetPath, { overwrite });
+    await copyFile(sourcePath, targetPath, { overwrite, dryRun, actions, repoRoot });
   }
 }
 
-async function copySkills(repoRoot) {
-  await copyDir(sourceSkillsRoot, path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE));
+async function copySkills(repoRoot, { dryRun, actions }) {
+  await copyDir(sourceSkillsRoot, path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE), {
+    overwrite: true,
+    dryRun,
+    actions,
+    repoRoot
+  });
 }
 
-async function copyDocs(repoRoot) {
+async function copyDocs(repoRoot, { dryRun, actions }) {
   for (const relativePath of TEMPLATE_DOCS) {
-    await copyFile(path.join(sourceRepoRoot, relativePath), path.join(repoRoot, relativePath));
+    await copyFile(path.join(sourceRepoRoot, relativePath), path.join(repoRoot, relativePath), {
+      overwrite: true,
+      dryRun,
+      actions,
+      repoRoot
+    });
   }
 }
 
-async function writeTemplateReadme(repoRoot) {
+async function writeTemplateReadme(repoRoot, { dryRun, actions }) {
   await copyFile(
     path.join(sourceTemplateRoot, "README.md"),
     path.join(repoRoot, "README.md"),
-    { overwrite: false }
+    {
+      overwrite: false,
+      dryRun,
+      actions,
+      repoRoot
+    }
   );
 }
 
-async function writeAgentsFile(repoRoot) {
+async function writeAgentsFile(repoRoot, { dryRun, actions }) {
   const agentsPath = path.join(repoRoot, "AGENTS.md");
   const templateAgents = await readText(path.join(sourceTemplateRoot, "AGENTS.md"));
 
   if (!(await pathExists(agentsPath))) {
-    await writeText(agentsPath, templateAgents);
+    recordAction(actions, "create", "AGENTS.md");
+    if (!dryRun) {
+      await writeText(agentsPath, templateAgents);
+    }
     return;
   }
 
   const existing = await readText(agentsPath, "");
   if (existing.trim() === templateAgents.trim()) {
+    recordAction(actions, "skip", "AGENTS.md");
     return;
   }
 
   const blockContent = await readText(path.join(sourceTemplateRoot, "AGENTS-BLOCK.md"));
-  await writeText(agentsPath, upsertManagedBlock(existing, renderManagedBlock(blockContent)));
+  const next = upsertManagedBlock(existing, renderManagedBlock(blockContent));
+
+  if (next === existing) {
+    recordAction(actions, "skip", "AGENTS.md");
+    return;
+  }
+
+  recordAction(actions, "upsert", "AGENTS.md");
+  if (!dryRun) {
+    await writeText(agentsPath, next);
+  }
 }
 
-export async function bootstrapTemplateRepo({ repoRoot, template = "existing" }) {
+async function recordUpgradeSkips(repoRoot, actions) {
+  const configPath = path.join(repoRoot, ".codex", "config.toml");
+  const codexArtifactsPath = path.join(repoRoot, "docs", "_codex");
+
+  if (await pathExists(configPath)) {
+    recordAction(actions, "skip", ".codex/config.toml");
+  }
+
+  if (await pathExists(codexArtifactsPath)) {
+    recordAction(actions, "skip", "docs/_codex/");
+  }
+}
+
+export async function bootstrapTemplateRepo({
+  repoRoot,
+  template = "existing",
+  upgrade = false,
+  dryRun = false
+}) {
   if (!TEMPLATE_TYPES.includes(template)) {
     throw new Error(`Unsupported template: ${template}`);
   }
 
-  await ensureDir(repoRoot);
-  const mainBranch = "main";
-  const initializedGit = await ensureGitRepository(repoRoot, mainBranch);
+  if (upgrade && template !== "existing") {
+    throw new Error("Upgrade mode only supports --template existing.");
+  }
 
-  await writeTemplateReadme(repoRoot);
-  await writeAgentsFile(repoRoot);
-  await copyDocs(repoRoot);
-  await copySkills(repoRoot);
+  if (!dryRun) {
+    await ensureDir(repoRoot);
+  }
+
+  const mainBranch = "main";
+  const initializedGit = dryRun ? false : await ensureGitRepository(repoRoot, mainBranch);
+  const actions = [];
+
+  if (upgrade) {
+    await recordUpgradeSkips(repoRoot, actions);
+  }
+
+  await writeTemplateReadme(repoRoot, { dryRun, actions });
+  await writeAgentsFile(repoRoot, { dryRun, actions });
+  await copyDocs(repoRoot, { dryRun, actions });
+  await copySkills(repoRoot, { dryRun, actions });
 
   return {
     repoRoot,
     template,
-    initializedGit
+    initializedGit,
+    mode: upgrade ? "upgrade" : "install",
+    dryRun,
+    actions
   };
 }

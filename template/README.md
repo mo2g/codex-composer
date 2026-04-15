@@ -9,3 +9,4 @@ This repository was initialized with the Codex App Template.
 3. Use `docs/codex-quickstart.md` as the quick map and the canonical workflow docs for detail.
 4. Add `.codex/config.toml` and `docs/_codex/` artifacts only when they provide real value.
 5. Keep merge manual after verification and review.
+6. To refresh managed docs and skills later, rerun the installer with `--upgrade`; use `--dry-run` first to preview changes.
