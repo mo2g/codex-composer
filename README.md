@@ -25,13 +25,15 @@ A lightweight source template for adding a practical Codex App workflow to a rep
 2. Run `npm test`.
 3. Bootstrap a target repository with `existing` to add the workflow to an existing repo, or `blank` to initialize an empty repo:
 
-   ```bash
-   bash install.sh --repo /path/to/repo --template existing --source .
-   ```
+```bash
+bash install.sh --repo /path/to/repo --template existing --source .
+```
 
 4. In the target repo, read `AGENTS.md` first, then `docs/codex-quickstart.md`.
 
 ## Upgrade Installed Repositories
+
+Use upgrade mode only for a repository that is already bootstrapped and already lives inside an existing Git repository.
 
 Preview the upgrade without writing files:
 
@@ -50,6 +52,11 @@ Upgrade behavior:
 * overwrite managed docs and `codex-template` skills
 * upsert the managed `AGENTS.md` block
 * skip repo-owned `README.md`, `.codex/config.toml`, and `docs/_codex/` task artifacts
+
+Notes:
+
+* `--upgrade` fails if the target path is not already an existing Git repository
+* `--upgrade` does not create or restore `README.md`; README stays repo-owned
 
 See `docs/codex-upgrade-guide.md` for the detailed policy.
 

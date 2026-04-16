@@ -91,6 +91,17 @@ async function ensureGitRepository(repoRoot, mainBranch) {
   return true;
 }
 
+async function requireExistingGitRepository(repoRoot) {
+  if (!(await pathExists(repoRoot))) {
+    throw new Error("--upgrade requires an existing git repository.");
+  }
+
+  const result = await git(repoRoot, ["rev-parse", "--show-toplevel"], { allowFailure: true });
+  if (result.code !== 0) {
+    throw new Error("--upgrade requires an existing git repository.");
+  }
+}
+
 function renderManagedBlock(content) {
   return `${MANAGED_BLOCK_START}\n${content.trim()}\n${MANAGED_BLOCK_END}`;
 }
@@ -102,6 +113,7 @@ function upsertManagedBlock(existing, block) {
   if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
     const before = existing.slice(0, startIndex).trimEnd();
     const after = existing.slice(endIndex + MANAGED_BLOCK_END.length).trimStart();
+
     if (before && after) {
       return `${before}\n\n${block}\n\n${after}\n`;
     }
@@ -235,6 +247,8 @@ async function writeAgentsFile(repoRoot, { dryRun, actions }) {
 }
 
 async function recordUpgradeSkips(repoRoot, actions) {
+  recordAction(actions, "skip", "README.md");
+
   const configPath = path.join(repoRoot, ".codex", "config.toml");
   const codexArtifactsPath = path.join(repoRoot, "docs", "_codex");
 
@@ -261,19 +275,26 @@ export async function bootstrapTemplateRepo({
     throw new Error("Upgrade mode only supports --template existing.");
   }
 
-  if (!dryRun) {
-    await ensureDir(repoRoot);
-  }
-
   const mainBranch = "main";
-  const initializedGit = dryRun ? false : await ensureGitRepository(repoRoot, mainBranch);
+  let initializedGit = false;
   const actions = [];
 
   if (upgrade) {
+    await requireExistingGitRepository(repoRoot);
     await recordUpgradeSkips(repoRoot, actions);
+  } else {
+    if (!dryRun) {
+      await ensureDir(repoRoot);
+      initializedGit = await ensureGitRepository(repoRoot, mainBranch);
+    }
   }
 
-  await writeTemplateReadme(repoRoot, { dryRun, actions });
+  if (upgrade) {
+    // README.md is repo-owned during upgrade, so do not create or modify it.
+  } else {
+    await writeTemplateReadme(repoRoot, { dryRun, actions });
+  }
+
   await writeAgentsFile(repoRoot, { dryRun, actions });
   await copyDocs(repoRoot, { dryRun, actions });
   await copySkills(repoRoot, { dryRun, actions });

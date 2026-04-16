@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { TEMPLATE_NAMESPACE } from "../tools/lib/template-contract.mjs";
-import { createExistingRepo, readText, runInstall } from "./helpers/repo.mjs";
+import { createExistingRepo, makeTempDir, readText, runInstall } from "./helpers/repo.mjs";
 
 function plannerSkillPath(repoRoot) {
   return path.join(
@@ -116,4 +116,44 @@ Keep existing content.
   assert.equal(config, "repo_owned = true\n");
   assert.equal(taskCard, "# keep me\n");
   assert.match(upgradeGuide, /# Codex App Template Upgrade Guide/);
+});
+
+test("upgrade fails when target is not an existing git repository", async () => {
+  const targetRepo = await makeTempDir("codex-app-template-upgrade-non-git-");
+
+  const result = await runInstall(
+    ["--repo", targetRepo, "--template", "existing", "--source", path.resolve("."), "--upgrade"],
+    { allowFailure: true }
+  );
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /--upgrade requires an existing git repository\./);
+});
+
+test("upgrade does not recreate README.md when it is intentionally absent", async () => {
+  const targetRepo = await createExistingRepo({
+    packageManager: "npm",
+    agentsContent: `# Team Rules
+
+Keep existing content.
+`
+  });
+
+  await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
+
+  const readmePath = path.join(targetRepo, "README.md");
+  await fs.unlink(readmePath);
+
+  const dryRun = await runInstall(
+    ["--repo", targetRepo, "--template", "existing", "--source", path.resolve("."), "--upgrade", "--dry-run"]
+  );
+  assert.match(dryRun.stdout, /action=skip README\.md/);
+  await assert.rejects(fs.access(readmePath));
+
+  const result = await runInstall(
+    ["--repo", targetRepo, "--template", "existing", "--source", path.resolve("."), "--upgrade"]
+  );
+
+  assert.match(result.stdout, /action=skip README\.md/);
+  await assert.rejects(fs.access(readmePath));
 });
