@@ -16,19 +16,25 @@ description: Build verification evidence for a change, strengthen direct tests w
 - `AGENTS.md`
 - `.codex/config.toml` if the repo already keeps optional verification hints there
 - the approved scope or plan
+- the Task Card, task journal, and `debug.md` when debug mode is active
 - the diff, changed files, nearby tests, and repo manifests or tool configs
 
 ## Execution steps
 
 1. Inspect the diff, changed files, and nearby tests to decide whether behavior changed.
-2. Add or update the most direct tests you can justify when coverage is missing.
-3. Detect the stack and the best-fit verification commands from the repo, then use `.codex/config.toml` hooks only as optional hints or overrides.
-4. Run the narrowest reliable verification first, expand only when the repo or risk requires it, and report any remaining gaps.
-5. Return verification evidence, residual risks, and one preferred git commit message plus optional alternates.
+2. Reconstruct the acceptance criteria and verification gate from the approved plan or Task Card.
+3. Add or update the most direct tests you can justify when coverage is missing.
+4. Detect the stack and the best-fit verification commands from the repo, then use `.codex/config.toml` hooks only as optional hints or overrides.
+5. Run the narrowest reliable verification first, expand only when the repo or risk requires it, and report any remaining gaps.
+6. For debug tasks, confirm which hypothesis became the root cause, which hypotheses were ruled out, and whether the fix targets cause rather than only symptoms.
+7. Map each acceptance criterion to direct evidence, a remaining gap, or an explicit risk.
+8. Return verification evidence, residual risks, and one preferred git commit message plus optional alternates.
 
 ## Output format
 
 - verification evidence summary
+- debug closure summary when applicable
+- acceptance criteria coverage with evidence or gaps
 - tests added, updated, or still missing
 - residual risks or unverified areas
 - preferred git commit message
@@ -39,4 +45,5 @@ description: Build verification evidence for a change, strengthen direct tests w
 
 - merging on behalf of the user
 - using a checklist as a substitute for real verification
+- claiming a debug fix is verified when the evidence only shows a symptom changed
 - claiming the change is verified when no reliable command or test path could be inferred

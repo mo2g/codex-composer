@@ -1,26 +1,20 @@
 # Codex App Template
 
-This repository is configured for Codex app with a lightweight workflow.
+This repository is configured for Codex App with a lightweight workflow.
 
-## Repository Map
+## Map
 
-- `AGENTS.md`: repository-level collaboration rules
-- `.agents/skills/codex-template/`: reusable `planner`, `implementer`, and `change-check` skills
-- `docs/codex-quickstart.md`: quickstart guidance for Codex app
+- `docs/codex-task-card-workflow.md`: canonical task-card and external-memory workflow
+- `docs/codex-debug-workflow.md`: canonical debug workflow
+- `docs/codex-quickstart.md`: first-pass and default loop
+- `.agents/skills/codex-template/`: reusable workflow skills
 
 ## Working Rules
 
-1. Use `planner` before implementing non-trivial work. It should clarify the intent first and then write the plan.
-2. Keep each change scoped and reviewable.
-3. Stay in the current thread by default. Use a new Codex thread or worktree only when the work is independently reviewable and isolation will reduce risk.
-4. Use `change-check` before commit or manual merge when scope or risk is non-trivial.
-5. If this repository keeps `.codex/config.toml`, treat its hooks as optional hints or overrides. Verify against the actual code, tests, and toolchain.
-6. A human decides commit and merge after the evidence is clear.
+1. Start non-trivial work with `planner`.
+2. Use `docs/_codex/<task-slug>/` only when the task needs durable state; keep `debug.md` only for active debug work.
+3. Use `debug-investigation` for unconfirmed root cause, `resume-work` for recovery, and `change-check` before commit or manual merge.
+4. Stay in the current thread by default; split thread or worktree only when reviewability or isolation clearly improves.
+5. Treat `.codex/config.toml` as optional hints and keep merge manual.
 
-## Definition Of Done
-
-- Changes are within approved scope.
-- Relevant verification has passed.
-- Risks and follow-ups are called out.
-- Docs or skills are updated when the workflow changes.
-- Merge remains a human decision.
+When wording is ambiguous, defer to `docs/codex-quickstart.md` first, then the canonical docs.

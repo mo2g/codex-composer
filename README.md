@@ -1,81 +1,68 @@
 # Codex App Template
 
-A lightweight source template for adding a Codex app workflow to a repository.
+A lightweight source template for adding a practical Codex App workflow to a repository.
 
-## What It Solves
+## Map
 
-Most Codex-enabled repositories need the same small set of workflow primitives:
+- `AGENTS.md`: short source-repo map and maintenance rules
+- `docs/codex-quickstart.md`: installed-repo first-pass and default loop
+- `docs/codex-task-card-workflow.md`: canonical task-card and external-memory spec
+- `docs/codex-debug-workflow.md`: canonical debug-mode spec
+- `docs/codex-upgrade-guide.md`: upgrade behavior for already-installed repositories
+- `.agents/skills/codex-template/`: reusable execution skills
+- `template/`: installed entrypoint files
+- `test/`: installer and workflow contract tests
 
-- a durable repository contract in `AGENTS.md`
-- a few high-value skills for planning, implementation, and change checking
-- an optional place for repo-owned defaults or verification hints when a repository truly needs them
-- explicit human review and merge responsibility
+## Source Of Truth
 
-This template packages those pieces without adding a repo-local protocol or command-state machine.
+- `docs/codex-task-card-workflow.md`
+- `docs/codex-debug-workflow.md`
+- `docs/workflow-sync-rules.md`
 
-## Quickstart
+## Bootstrap
 
-1. Clone this repository and run `npm install`.
-2. Run `npm test` to confirm the template source repository is healthy.
-3. Bootstrap a target repository:
+1. Run `npm install`.
+2. Run `npm test`.
+3. Bootstrap a target repository with `existing` to add the workflow to an existing repo, or `blank` to initialize an empty repo:
 
-   ```bash
-   bash install.sh --repo /path/to/repo --template existing --source .
-   ```
-
-4. Open the target repository in Codex app and read `AGENTS.md`.
-5. Stay in the current thread by default.
-6. For non-trivial work, use `planner` to clarify the intent first and then write the implementation plan.
-7. Implement with `implementer`, then use `change-check` before commit or manual merge.
-
-## Recommended Structure
-
-```text
-AGENTS.md
-.agents/skills/codex-template/
-docs/
-template/
-test/
-tools/
-install.sh
+```bash
+bash install.sh --repo /path/to/repo --template existing --source .
 ```
 
-## Why These Pieces Exist
+4. In the target repo, read `AGENTS.md` first, then `docs/codex-quickstart.md`.
 
-- `AGENTS.md` carries the stable repo-level rules Codex should always know.
-- `.agents/skills/codex-template/` holds opt-in workflows for the few tasks that benefit from reusable guidance.
-- `template/` contains the files that get installed into target repositories.
-- `.codex/config.toml` stays available in the source repository, and target repositories can add it later if they need repo-owned defaults or verification hints.
+## Upgrade Installed Repositories
 
-## Supported Bootstrap Modes
+Use upgrade mode only for a repository that is already bootstrapped and already lives inside an existing Git repository.
 
-- `existing`: add Codex workflow files to an existing repository without replacing its README
-- `blank`: initialize an empty repository with template defaults
+Preview the upgrade without writing files:
 
-## Default Collaboration Flow
+```bash
+bash install.sh --repo /path/to/repo --template existing --source . --upgrade --dry-run
+```
 
-- Start in the current thread.
-- Open a new thread only when work can be reviewed independently.
-- Add a worktree only when branch or filesystem isolation will reduce merge risk.
-- Keep merge manual on purpose.
+Apply the upgrade:
 
-## Verification And Merge
+```bash
+bash install.sh --repo /path/to/repo --template existing --source . --upgrade
+```
 
-- `npm test` runs the contract tests for this template repository.
-- Target repositories should let `change-check` inspect the repo, the diff, and nearby tests before choosing verification.
-- Optional hooks in `.codex/config.toml` can speed up verification, but they are not the only source of truth.
-- Human review and merge remain explicit.
+Upgrade behavior:
 
-## Minimal Task Flow
+* overwrite managed docs and `codex-template` skills
+* upsert the managed `AGENTS.md` block
+* skip repo-owned `README.md`, `.codex/config.toml`, and `docs/_codex/` task artifacts
 
-1. Ask Codex to inspect the repo and clarify the task.
-2. Use `planner` if the task is ambiguous or spans multiple subsystems. Let it lock the intent before it writes the plan.
-3. Make the smallest useful implementation with `implementer`.
-4. Use `change-check` to decide whether tests should be added or expanded, run the best-fit verification, and summarize the evidence.
-5. Use the suggested commit message or adjust it, then let a human decide whether to commit or merge.
+Notes:
 
-## Repository Assets
+* `--upgrade` fails if the target path is not already an existing Git repository
+* `--upgrade` does not create or restore `README.md`; README stays repo-owned
 
-- `docs/codex-quickstart.md`: quickstart guidance copied into target repositories
-- `template/`: installed repository-level files such as `AGENTS.md` and the bootstrap README
-- `tools/template-init.mjs`: installer entrypoint used by `install.sh`
+See `docs/codex-upgrade-guide.md` for the detailed policy.
+
+## Verification
+
+- `npm test` validates the source template contract.
+- Installed repositories stay lightweight by default.
+- `docs/_codex/<task-slug>/` stays optional and is only for work that needs durable state.
+- Merge stays manual after verification and review.

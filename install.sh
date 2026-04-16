@@ -6,16 +6,20 @@ TEMPLATE="existing"
 SOURCE_DIR=""
 REPO_SLUG="${CODEX_TEMPLATE_REPO:-mo2g/codex-composer}"
 REF="${CODEX_TEMPLATE_REF:-main}"
+UPGRADE="false"
+DRY_RUN="false"
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--repo PATH] [--template existing|blank] [--source DIR] [--repo-slug OWNER/REPO] [--ref BRANCH|TAG|COMMIT]
+Usage: install.sh [--repo PATH] [--template existing|blank] [--source DIR] [--repo-slug OWNER/REPO] [--ref BRANCH|TAG|COMMIT] [--upgrade] [--dry-run]
 
 Examples:
   bash install.sh --repo . --template existing
   bash install.sh --repo . --template existing --ref main
   bash install.sh --repo . --template existing --ref v1.0.0
   bash install.sh --repo . --template existing --ref 3c8cb5746aa57efa4ffcc2ca013239c63b1ebd3a
+  bash install.sh --repo . --template existing --source . --upgrade --dry-run
+  bash install.sh --repo . --template existing --source . --upgrade
   curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | \
     bash -s -- --repo . --template existing --ref 3c8cb5746aa57efa4ffcc2ca013239c63b1ebd3a
 EOF
@@ -28,6 +32,8 @@ while [[ $# -gt 0 ]]; do
     --source) SOURCE_DIR="$2"; shift 2 ;;
     --repo-slug) REPO_SLUG="$2"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
+    --upgrade) UPGRADE="true"; shift ;;
+    --dry-run) DRY_RUN="true"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -70,8 +76,27 @@ if [[ -z "$SOURCE_DIR" ]]; then
   download_source
 fi
 
-node "$SOURCE_DIR/tools/template-init.mjs" init-repo \
-  --repo "$TARGET_REPO" \
+NODE_ARGS=(
+  "$SOURCE_DIR/tools/template-init.mjs"
+  init-repo
+  --repo "$TARGET_REPO"
   --template "$TEMPLATE"
+)
 
-echo "Codex App Template installed into $TARGET_REPO with template $TEMPLATE from ref $REF"
+if [[ "$UPGRADE" == "true" ]]; then
+  NODE_ARGS+=(--upgrade)
+fi
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  NODE_ARGS+=(--dry-run)
+fi
+
+node "${NODE_ARGS[@]}"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo "Codex App Template dry run completed for $TARGET_REPO with template $TEMPLATE from ref $REF"
+elif [[ "$UPGRADE" == "true" ]]; then
+  echo "Codex App Template upgraded in $TARGET_REPO with template $TEMPLATE from ref $REF"
+else
+  echo "Codex App Template installed into $TARGET_REPO with template $TEMPLATE from ref $REF"
+fi

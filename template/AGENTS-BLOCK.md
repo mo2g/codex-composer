@@ -1,7 +1,7 @@
 ## Codex App Template
 
-- Skills: `planner`, `implementer`, `change-check`.
-- Start complex work with `planner` and let it clarify intent before it writes the plan.
-- Stay in the current thread by default. Split only when work is independently reviewable and isolation helps.
-- Use `change-check` to build verification evidence and commit guidance.
-- Merge stays manual.
+- Source of truth: `docs/codex-task-card-workflow.md` and `docs/codex-debug-workflow.md`.
+- Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`.
+- Start non-trivial work with `planner`.
+- Use `debug-investigation` for unclear root cause, `resume-work` for recovery, and `change-check` before commit or manual merge.
+- Keep merge manual.

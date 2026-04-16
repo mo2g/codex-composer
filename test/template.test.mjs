@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   LEGACY_USER_FACING_TERMS,
   MANAGED_BLOCK_START,
+  TEMPLATE_DOCS,
   TEMPLATE_NAMESPACE,
   TEMPLATE_PRODUCT_NAME,
   TEMPLATE_SKILLS
@@ -22,11 +23,27 @@ async function expectMissing(targetPath) {
   await assert.rejects(fs.access(targetPath));
 }
 
+function assertIncludesAll(content, patterns) {
+  for (const pattern of patterns) {
+    assert.match(content, pattern);
+  }
+}
+
+function assertMentionsAny(content, patterns) {
+  assert.ok(
+    patterns.some((pattern) => pattern.test(content)),
+    `Expected content to match one of: ${patterns.map((pattern) => pattern.toString()).join(", ")}`
+  );
+}
+
 async function assertInstalledAssets(targetRepo) {
   await expectExists(path.join(targetRepo, "AGENTS.md"));
   await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
-  await expectExists(path.join(targetRepo, "docs", "codex-quickstart.md"));
   await expectMissing(path.join(targetRepo, "docs", "manual-merge-checklist.md"));
+
+  for (const relativePath of TEMPLATE_DOCS) {
+    await expectExists(path.join(targetRepo, relativePath));
+  }
 
   for (const skill of TEMPLATE_SKILLS) {
     await expectExists(path.join(targetRepo, ".agents", "skills", TEMPLATE_NAMESPACE, skill, "SKILL.md"));
@@ -70,7 +87,11 @@ Keep existing content.
   assert.match(agents, /# Team Rules/);
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
-  assert.match(agents, /Skills: `planner`, `implementer`, `change-check`\./);
+  assertIncludesAll(agents, [
+    /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./,
+    /docs\/codex-task-card-workflow\.md/,
+    /docs\/codex-debug-workflow\.md/
+  ]);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -110,9 +131,15 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "README.md",
     "AGENTS.md",
     "docs/codex-quickstart.md",
+    "docs/codex-task-card-workflow.md",
+    "docs/codex-debug-workflow.md",
+    ".agents/skills/codex-template/WORKFLOW.md",
+    ".agents/skills/codex-template/EXTERNAL-MEMORY.md",
     ".agents/skills/codex-template/planner/SKILL.md",
     ".agents/skills/codex-template/implementer/SKILL.md",
+    ".agents/skills/codex-template/resume-work/SKILL.md",
     ".agents/skills/codex-template/change-check/SKILL.md",
+    ".agents/skills/codex-template/debug-investigation/SKILL.md",
     "template/AGENTS.md",
     "template/AGENTS-BLOCK.md",
     "template/README.md",
@@ -144,14 +171,27 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const readme = await readText(path.join(repoRoot, "README.md"));
   const agents = await readText(path.join(repoRoot, "AGENTS.md"));
   const planner = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "planner", "SKILL.md"));
+  const implementer = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "implementer", "SKILL.md"));
+  const resumeWork = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "resume-work", "SKILL.md"));
+  const changeCheck = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "change-check", "SKILL.md"));
+  const debugInvestigation = await readText(
+    path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "debug-investigation", "SKILL.md")
+  );
+  const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
+  const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
-  for (const skill of TEMPLATE_SKILLS) {
-    assert.match(readme, new RegExp(skill.replace("-", "\\-")));
-    assert.match(agents, new RegExp(skill.replace("-", "\\-")));
-  }
+  assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /docs\/codex-quickstart\.md/, /template\//, /test\//]);
+  assertIncludesAll(agents, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /debug-investigation/]);
 
-  assert.match(planner, /Clarify the intent:/);
-  assert.match(planner, /Only after the intent is clear/);
+  assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
+  assertIncludesAll(implementer, [/debug mode is active/, /root cause is still unconfirmed/, /minimal .*experiment mode/]);
+  assertIncludesAll(resumeWork, [/Reconstruct a paused task/, /`debug\.md`/, /diff/, /nearby tests/]);
+  assertIncludesAll(changeCheck, [/acceptance criteria/, /root cause/, /merge stays manual/]);
+  assertIncludesAll(debugInvestigation, [/hypotheses/, /debug\.md/, /root cause/]);
+  assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
+  assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
+  assertMentionsAny(readme, [/Merge stays manual/, /manual after verification and review/]);
+  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /installed-repo first-pass and default loop/]);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {
@@ -165,4 +205,7 @@ test("source repository removes legacy entrypoints and keeps only the codex-temp
   await expectMissing(path.join(repoRoot, "test", "protocol.test.mjs"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", "codex-composer"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "merge-check"));
+  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "task-card.md"));
+  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "journal.md"));
+  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "acceptance-evidence.md"));
 });

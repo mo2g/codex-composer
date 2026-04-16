@@ -1,58 +1,22 @@
 # Codex App Quickstart
 
-## First Pass In A Repository
+## First Pass
 
 1. Read `AGENTS.md`.
-2. Inspect the repo manifests, nearby tests, and `.codex/config.toml` if the repository already keeps one.
-3. Check whether the repository keeps extra skills under `.agents/skills/`.
-4. If the task is not trivial, start with `planner`.
+2. Inspect repo manifests, nearby tests, repo-local skills under `.agents/skills/`, and `.codex/config.toml` only if the repo already keeps one.
+3. If the task is non-trivial, start with `planner`.
 
-Typical verification signals:
+## Default Loop
 
-- `package.json` and lockfiles
-- `go.mod`
-- `Cargo.toml`
-- `pyproject.toml`
-- test configs, scripts, CI entrypoints, and nearby test files
-- optional hooks in `.codex/config.toml`
+1. Use `planner` to bound one reviewable change and define the verification gate.
+2. Use `docs/_codex/<task-slug>/` only when the task needs durable state.
+3. Stay in the current thread by default; split to another thread or worktree only when reviewability or isolation clearly improves.
+4. Use `implementer` for the approved step, `resume-work` for recovery, and `change-check` before commit or manual merge.
+5. If root cause is still unconfirmed, switch to `debug-investigation`, keep `debug.md`, and keep `implementer` in minimal experiment mode until the cause is confirmed.
 
-## When To Plan First
+## Source Of Truth
 
-Use `planner` when:
+- `docs/codex-task-card-workflow.md`
+- `docs/codex-debug-workflow.md`
 
-- scope is ambiguous
-- multiple subsystems are involved
-- regression risk is meaningful
-- you may need to split work into another thread or worktree
-
-`planner` should:
-
-- clarify the goal, success criteria, in-scope and out-of-scope behavior
-- identify risks and whether split or worktree is even necessary
-- only then write the bounded implementation plan and `change-check` gate
-
-Use `implementer` once the intent is locked and the change is bounded and ready to code.
-
-## When To Split Work
-
-- Keep one thread by default.
-- Use a new Codex thread when the work can be reviewed independently.
-- Add a worktree when filesystem or branch isolation will reduce merge risk.
-
-## Final Change Check
-
-Use `change-check` when:
-
-- implementation is complete or close enough for a final evidence pass
-- the diff may need new or stronger tests
-- a human needs verification evidence and commit guidance before commit or manual merge
-
-`change-check` should:
-
-- inspect the diff and nearby tests
-- add or update direct tests when behavior changed
-- detect the stack and choose the best-fit verification commands
-- treat `.codex/config.toml` hooks as hints or overrides, not the only truth
-- report evidence, remaining risk, and a recommended commit message
-
-If no reliable verification path can be inferred, stop and say why instead of claiming the change was fully verified.
+When wording conflicts, defer to the canonical workflow docs instead of this quickstart.
