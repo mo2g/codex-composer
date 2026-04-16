@@ -14,7 +14,7 @@ Preview the upgrade without changing files:
 
 ```bash
 bash install.sh --repo /path/to/repo --template existing --source . --upgrade --dry-run
-````
+```
 
 Apply the upgrade:
 
