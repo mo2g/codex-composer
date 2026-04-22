@@ -28,7 +28,8 @@ description: Build verification evidence for a change, strengthen direct tests w
 5. Run the narrowest reliable verification first, expand only when the repo or risk requires it, and report any remaining gaps.
 6. For debug tasks, confirm which hypothesis became the root cause, which hypotheses were ruled out, and whether the fix targets cause rather than only symptoms.
 7. Map each acceptance criterion to direct evidence, a remaining gap, or an explicit risk.
-8. Return verification evidence, residual risks, and one preferred git commit message plus optional alternates.
+8. Perform structural checks: function length, file size growth, module boundary clarity, circular dependency risk, and whether new abstractions have clear reuse points.
+9. Return verification evidence, residual risks, and one preferred git commit message plus optional alternates.
 
 ## Output format
 

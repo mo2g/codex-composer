@@ -13,6 +13,8 @@ Keep the Codex workflow description consistent across the repository.
 - `.agents/skills/codex-template/EXTERNAL-MEMORY.md`
 - skill docs and templates for `planner`, `implementer`, `resume-work`, and `change-check`
 - skill docs and templates for `debug-investigation`
+- skill docs and templates for `task-orchestrator` (plan mode)
+- `EPIC-CARD-TEMPLATE.md` and `BLOCKER-TEMPLATE.md` (plan mode)
 - installer tests that prove these files are copied into target repositories
 
 ## Canonical source

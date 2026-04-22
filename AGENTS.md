@@ -15,6 +15,7 @@ This repository is the source template for a lightweight Codex App workflow.
 - resume-work
 - change-check
 - debug-investigation
+- task-orchestrator (optional, for plan mode)
 
 ## Working Rules
 

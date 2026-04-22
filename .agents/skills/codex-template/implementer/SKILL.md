@@ -27,6 +27,7 @@ description: Apply an approved change with minimal surface area, update relevant
 4. Update or add the most direct tests you can when behavior changes.
 5. Run the most relevant verification you can justify from the repo and diff, then note anything that still needs `change-check`.
 6. Keep `journal.md` current after meaningful progress and keep `debug.md` current when the task is still in debug mode.
+7. When plan mode fields are present, respect the failure budget: track attempt count, stop and escalate if max attempts exceeded or 3 same-direction retries fail without new evidence.
 
 ## Output format
 

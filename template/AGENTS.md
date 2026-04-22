@@ -9,6 +9,8 @@ This repository is configured for Codex App with a lightweight workflow.
 - `docs/codex-quickstart.md`: first-pass and default loop
 - `.agents/skills/codex-template/`: reusable workflow skills
 
+Plan mode adds `task-orchestrator` for coordinating multiple Task Cards through an Epic Card.
+
 ## Working Rules
 
 1. Start non-trivial work with `planner`.

@@ -77,6 +77,91 @@ It should:
 - map each criterion to evidence, a gap, or a residual risk
 - write or refresh `acceptance-evidence.md`
 - suggest commit messages without taking merge responsibility
+- perform structural acceptance checks: function length, file size growth, module boundary clarity
+
+### `task-orchestrator` (optional, for plan mode)
+
+Responsible for global task scheduling, failure budget tracking, and escalation decisions in complex multi-card work.
+
+It should:
+
+- read Epic Card and all Task Cards to identify currently executable tasks
+- check dependencies and determine which tasks are ready to execute
+- verify tasks stay within their assigned failure budget
+- recommend model class based on complexity score
+- decide transitions between implement, check, debug, replan, or ask-user states
+- escalate to `blocked-needs-user` when information is missing or failure budget is exceeded
+
+## Plan mode (optional enhancement)
+
+For complex tasks that span multiple reviewable changes, use plan mode to coordinate work through a task graph.
+
+### Task graph structure
+
+Plan mode represents work as a directed graph of tasks rather than a linear sequence:
+
+- **Task nodes**: Individual reviewable units with clear acceptance criteria
+- **Dependency edges**: Which tasks must complete before others start
+- **Complexity scores**: 1-10 estimate used for model selection and split decisions
+- **Model class**: `cheap`, `standard`, or `strong` recommendation
+- **Failure budget**: Maximum attempts and retry rules before escalation
+
+### Extended Task Card fields (plan mode)
+
+When operating in plan mode, Task Cards should include:
+
+- `task_type`: `decision` | `execution` | `verification` | `question` | `investigation`
+- `dependencies`: List of Task Card IDs that must complete first
+- `complexity_score`: 1-10 (1-3 = cheap, 4-6 = standard, 7+ = strong or split)
+- `model_class`: `cheap` | `standard` | `strong`
+- `failure_budget`: Object with `max_attempts`, `max_same_direction_retries`, `stop_if_no_new_evidence_after`
+- `blocker_policy`: Escalation rules when blocked
+- `structure_impact`: Notes on module boundaries, file responsibilities, test structure
+
+### Task states
+
+Tasks in plan mode move through states:
+
+```
+planned -> in-progress -> verifying -> done
+   |           |              |
+   v           v              v
+blocked-needs-user  replanning  abandoned
+```
+
+Transitions to `blocked-needs-user` occur when:
+- Acceptance criteria cannot be determined from context
+- Multiple valid implementations exist with different tradeoffs
+- Missing reproduction case or real response samples
+- External system permissions or credentials needed
+- Cross-module refactoring required without authorization
+- Root cause unconfirmed and continued patching would expand diff
+
+### Failure budget rules
+
+Each Task Card has a failure budget that limits speculative attempts:
+
+- Track `attempt_count`, `failed_attempt_count`, `same_direction_retry_count`
+- Stop conditions:
+  - 2 consecutive changes fail verification with no new evidence → escalate
+  - 3 retries in same direction without progress → block and replan
+  - Root cause unconfirmed but implementation started → force investigation mode
+
+"New evidence" means: narrowed scope, ruled out hypothesis, obtained real fixture/response, discovered new error boundary. Not: same test fails again, same patch produces same result, only logging added.
+
+### Epic Card (for multi-task work)
+
+Complex requirements use an Epic Card to coordinate multiple Task Cards:
+
+- Goal, non-goals, scope
+- Global acceptance criteria
+- Task list with IDs
+- Dependency graph (text or diagram)
+- User decision points
+- Global blockers
+- Progress summary
+
+Epic Cards live at `docs/_codex/<epic-slug>/epic-card.md` alongside their Task Cards.
 
 ## Strong constraints
 
@@ -137,6 +222,12 @@ This spec is implemented by these installed assets:
 - `.agents/skills/codex-template/planner/TASK-CARD-TEMPLATE.md`
 - `.agents/skills/codex-template/resume-work/TASK-JOURNAL-TEMPLATE.md`
 - `.agents/skills/codex-template/change-check/ACCEPTANCE-EVIDENCE-TEMPLATE.md`
+
+Plan mode adds these optional assets:
+
+- `.agents/skills/codex-template/planner/EPIC-CARD-TEMPLATE.md`
+- `.agents/skills/codex-template/planner/BLOCKER-TEMPLATE.md`
+- `.agents/skills/codex-template/task-orchestrator/SKILL.md`
 
 Debug-specific operating rules live in `docs/codex-debug-workflow.md` and should extend this spec rather than replace it.
 

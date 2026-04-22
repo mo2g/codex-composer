@@ -24,11 +24,12 @@ description: Clarify scope, lock acceptance criteria, and produce a bounded impl
 2. Clarify the intent: lock the goal, success criteria, in-scope and out-of-scope behavior, and the risks that would change the work.
 3. Decide whether the work should stay in the current thread or use an optional split or worktree.
 4. For non-trivial work, write a Task Card that captures the accepted goal, scope, evidence gate, isolation choice, current mode, and required artifacts. When debug mode is active, record that root cause is still unconfirmed until the evidence says otherwise.
-5. Only after the intent is clear, break the work into bounded implementation steps and define the `change-check` evidence gate before coding starts.
+5. For complex work that spans multiple reviewable changes, use plan mode: create an Epic Card, split work into 2-5 Task Cards with dependencies, and assign complexity scores and model classes.
+6. Only after the intent is clear, break the work into bounded implementation steps and define the `change-check` evidence gate before coding starts.
 
 ## Output format
 
-- `Task Card`
+- `Task Card` (or `Epic Card` for multi-task work)
   - `Mode`
   - `Required artifacts`
   - `Root-cause status`
@@ -40,6 +41,13 @@ description: Clarify scope, lock acceptance criteria, and produce a bounded impl
   - `Verification gate`
   - `Isolation`
   - `Risks`
+- Plan mode fields (when applicable):
+  - `Task Type`: decision | execution | verification | question | investigation
+  - `Dependencies`: list of blocking task IDs
+  - `Complexity Score`: 1-10
+  - `Model Class`: cheap | standard | strong
+  - `Failure Budget`: max attempts, same-direction retries
+  - `Structure Impact`: notes on boundaries and responsibilities
 - ordered implementation steps
 - explicit verification plan
 - assumptions or risks that still matter
@@ -49,3 +57,4 @@ description: Clarify scope, lock acceptance criteria, and produce a bounded impl
 - implementing code directly from the planning pass
 - inventing a merge checklist as a required workflow layer
 - inventing parallel work splits without a clear isolation boundary
+- assigning all tasks to `strong` model class without attempting to split or use `cheap` for low-complexity work

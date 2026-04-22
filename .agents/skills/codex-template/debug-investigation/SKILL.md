@@ -30,6 +30,8 @@ description: Investigate non-deterministic or unclear bugs with explicit hypothe
 4. Externalize every observation, experiment result, and conclusion into `debug.md`.
 5. If the same hypothesis direction fails twice without new supporting evidence, stop and re-rank hypotheses.
 
+"New evidence" means: narrowed scope, ruled out a hypothesis, obtained real fixture/response, discovered new error boundary. Not: same test fails again, same patch produces same result, only logging added without new insight.
+
 ## Execution steps
 
 1. Restate the symptom, repro shape, and current uncertainty.

@@ -34,6 +34,16 @@ Use this template when `change-check` needs to show exactly how each acceptance 
 | <criterion 1> | <test, diff, or inspection evidence> | <none / remaining gap> |
 | <criterion 2> | <test, diff, or inspection evidence> | <none / remaining gap> |
 
+## Structural Checks
+
+| Check | Threshold | Observed | Pass/Fail |
+|-------|-----------|----------|-----------|
+| Max function length | <threshold> | <observed> | pass / fail |
+| Max file growth | <threshold lines> | <observed> | pass / fail |
+| Module boundary clarity | clear / unclear | <observed> | pass / fail |
+| Circular dependency risk | none / low / high | <observed> | pass / fail |
+| New abstraction has clear reuse | yes / no | <observed> | pass / fail |
+
 ## Tests added or updated
 
 - <test file or command>

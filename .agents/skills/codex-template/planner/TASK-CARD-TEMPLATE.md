@@ -22,6 +22,24 @@ Use this template when a task is non-trivial or likely to outlive the current Co
 - Required artifacts: task-card.md, journal.md, acceptance-evidence.md[, debug.md]
 - Root-cause status: n/a | unconfirmed | confirmed
 
+## Plan mode fields (optional)
+
+Use these when coordinating multiple tasks through an Epic Card:
+
+- Task ID: `<epic-shortname>-<number>` (e.g., auth-01, auth-02)
+- Parent Epic: `<epic-slug>`
+- Task Type: decision | execution | verification | question | investigation
+- Dependencies: `<task-id-1>, <task-id-2>` (comma-separated list of blocking tasks)
+- Complexity Score: `<1-10>` (1-3 = cheap, 4-6 = standard, 7+ = strong or split)
+- Model Class: cheap | standard | strong
+- Failure Budget:
+  - Max attempts: `<number>`
+  - Max same-direction retries: `<number>`
+  - Stop if no new evidence after: `<number>` attempts
+- Blocker Policy: replan | ask-user | escalate-to-strong
+- Structure Impact: (notes on module boundaries, file responsibilities, test structure)
+- Escalation Conditions: (when to escalate: missing spec, ambiguous intent, cross-module risk, etc.)
+
 ## Goal
 
 <one concrete outcome>
@@ -81,3 +99,12 @@ Use this template when a task is non-trivial or likely to outlive the current Co
 - Set `Mode: debug` only when the root cause is still unconfirmed and the task needs hypothesis-driven investigation.
 - Add `debug.md` to `Required artifacts` only when debug mode is active.
 - If the task needs multiple cards, name the dependency order explicitly instead of hiding it inside one large plan.
+
+## Plan Mode Notes
+
+- Use `Task Type: decision` for architecture or boundary choices; use `execution` for implementation work.
+- Assign `Complexity Score` honestly: low scores allow cheap models, high scores require splitting or strong models.
+- Fill `Dependencies` so `task-orchestrator` can identify ready-to-run tasks.
+- Set `Failure Budget` to prevent infinite speculative retries; typical values are 3-5 max attempts, 2 same-direction retries.
+- Document `Structure Impact` to prevent "add more code to existing large file" anti-patterns.
+- When a task exceeds its failure budget, transition to `blocked` and record what information is missing in `journal.md`.

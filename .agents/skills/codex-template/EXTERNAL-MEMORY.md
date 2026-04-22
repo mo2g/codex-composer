@@ -21,7 +21,12 @@ When debug mode is enabled for an unclear root cause, add:
 
 4. `debug.md`
 
-These artifacts should capture current mode, required artifacts, acceptance criteria, verification, the next bounded step, and root-cause status when debug mode is active.
+When plan mode coordinates multiple tasks, also keep:
+
+5. `epic-card.md` — goal, scope, task list, dependency graph
+6. `blockers.md` — current blockers, missing information, user decision points
+
+These artifacts should capture current mode, required artifacts, acceptance criteria, verification, the next bounded step, and root-cause status when debug mode is active. In plan mode, also capture complexity scores, model classes, and failure budgets.
 
 ## Recovery Rules
 

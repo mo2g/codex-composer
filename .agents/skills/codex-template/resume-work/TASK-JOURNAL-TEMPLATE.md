@@ -44,10 +44,33 @@ Use this journal when work spans sessions, threads, or worktrees. Treat the code
 - Correction:
   - <what changed in reality>
 
-## Decisions kept
+## Decisions
 
-- <decision>
-- <decision>
+- <decision and rationale>
+- <decision and rationale>
+
+## Attempts
+
+| # | Approach | Result | New Evidence? |
+|---|----------|--------|---------------|
+| 1 | <what was tried> | <outcome> | yes / no |
+| 2 | <what was tried> | <outcome> | yes / no |
+
+## Evidence Gained
+
+- <confirmed facts we learned>
+- <hypotheses ruled out>
+- <boundaries discovered>
+
+## Dead Ends
+
+- <approach that was tried and abandoned>
+- <hypothesis that was disproven>
+
+## Open Questions
+
+- <question that needs answer before proceeding>
+- <uncertainty that affects the approach>
 
 ## Verification evidence
 

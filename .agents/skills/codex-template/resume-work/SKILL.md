@@ -22,10 +22,11 @@ description: Reconstruct a paused task from AGENTS.md, the task journal, any deb
 ## Execution steps
 
 1. Read `AGENTS.md`, the Task Card, `debug.md` when debug mode is active, and the task journal if the repository keeps them.
-2. Inspect the current diff, changed files, and nearby tests to recover the true state of the work.
-3. Reconstruct the accepted goal, scope, mode, root-cause status, acceptance criteria, and verification gate.
-4. Call out any drift between the saved notes and the actual code.
-5. Propose the next smallest safe step before editing, and say whether the task should stay in debug mode or can move into confirmed-cause fix work.
+2. If plan mode is active, also read the Epic Card and any `blockers.md` to identify current blockers and next smallest step.
+3. Inspect the current diff, changed files, and nearby tests to recover the true state of the work.
+4. Reconstruct the accepted goal, scope, mode, root-cause status, acceptance criteria, and verification gate.
+5. Call out any drift between the saved notes and the actual code.
+6. Propose the next smallest safe step before editing, and say whether the task should stay in debug mode or can move into confirmed-cause fix work.
 
 ## Output format
 
