@@ -37,32 +37,17 @@ bash install.sh --repo /path/to/repo --template existing --source .
 
 ## Upgrade Installed Repositories
 
-Use upgrade mode only for a repository that is already bootstrapped and already lives inside an existing Git repository.
-
-Preview the upgrade without writing files:
+For repositories already bootstrapped with this template:
 
 ```bash
+# Preview
 bash install.sh --repo /path/to/repo --template existing --source . --upgrade --dry-run
-```
 
-Apply the upgrade:
-
-```bash
+# Apply
 bash install.sh --repo /path/to/repo --template existing --source . --upgrade
 ```
 
-Upgrade behavior:
-
-* overwrite managed docs and `codex-template` skills
-* upsert the managed `AGENTS.md` block
-* skip repo-owned `README.md`, `.codex/config.toml`, and `docs/_codex/` task artifacts
-
-Notes:
-
-* `--upgrade` fails if the target path is not already an existing Git repository
-* `--upgrade` does not create or restore `README.md`; README stays repo-owned
-
-See `docs/codex-upgrade-guide.md` for the detailed policy.
+See `docs/codex-upgrade-guide.md` for the full policy.
 
 ## Verification
 
