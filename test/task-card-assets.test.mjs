@@ -112,6 +112,19 @@ test("root AGENTS.md and template/AGENTS.md stay aligned on key content", async 
   assert.match(templateAgents, /codex-task-card-workflow\.md/);
 
   // Both should mention source-of-truth concept
-  assert.match(rootAgents, /Source Of Truth|wording conflicts/);
-  assert.match(templateAgents, /Source Of Truth|wording conflicts/);
+  assert.match(rootAgents, /Source Of Truth/);
+  assert.match(templateAgents, /Source Of Truth/);
+});
+
+test("AGENTS.md files point to sync-rules for source-of-truth ordering instead of restating it", async () => {
+  const rootAgents = await readText(path.join(process.cwd(), "AGENTS.md"));
+  const templateAgents = await readText(path.join(process.cwd(), "template", "AGENTS.md"));
+
+  // Should reference workflow-sync-rules.md for canonical ordering
+  assert.match(rootAgents, /workflow-sync-rules/);
+  assert.match(templateAgents, /workflow-sync-rules/);
+
+  // Should NOT contain the literal ordering pattern (enforcing single-location ownership)
+  assert.doesNotMatch(rootAgents, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
+  assert.doesNotMatch(templateAgents, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
 });

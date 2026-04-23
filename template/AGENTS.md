@@ -15,4 +15,4 @@
 
 ## Source Of Truth
 
-If wording conflicts: `codex-task-card-workflow.md` > `codex-debug-workflow.md` > `workflow-sync-rules.md`
+See `docs/workflow-sync-rules.md` for the canonical ordering.
