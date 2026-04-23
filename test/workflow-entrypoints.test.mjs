@@ -30,7 +30,7 @@ test("install.sh copies default workflow entry and external memory contract", as
     /Default Task-Card Workflow/,
     /docs\/codex-task-card-workflow\.md/,
     /docs\/codex-debug-workflow\.md/,
-    /docs\/_codex\/<task-slug>\//,
+    /\.codex\/codex-composer\/<task-slug>\//,
     /planner\/TASK-CARD-TEMPLATE\.md/,
     /minimal experiment mode/,
     /`debug-investigation`/,

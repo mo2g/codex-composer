@@ -1,10 +1,10 @@
-# Codex App Template Source Repository
+# Codex App Template
 
 ## Start Here
 
 **New?** Read `docs/codex-quickstart.md`
 
-**Developing?** Run `npm test` after any template/skill/docs changes
+**Developing?** Run `npm test` after workflow changes
 
 ## Layout
 

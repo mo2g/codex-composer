@@ -1,22 +1,39 @@
 # Codex App Quickstart
 
-## First Pass
+## Default Path (single task)
 
-1. Read `AGENTS.md`.
-2. Inspect repo manifests, nearby tests, repo-local skills under `.agents/skills/`, and `.codex/config.toml` only if the repo already keeps one.
-3. If the task is non-trivial, start with `planner`.
+```
+planner → implementer → change-check → commit
+```
 
-## Default Loop
+1. `planner` — create `.codex/codex-composer/<task>/task-card.md`
+2. `implementer` — make the change
+3. `change-check` — verify and write `acceptance-evidence.md`
+4. Commit and merge manually
 
-1. Use `planner` to bound one reviewable change and define the verification gate.
-2. Use `docs/_codex/<task-slug>/` only when the task needs durable state.
-3. Stay in the current thread by default; split to another thread or worktree only when reviewability or isolation clearly improves.
-4. Use `implementer` for the approved step, `resume-work` for recovery, and `change-check` before commit or manual merge.
-5. If root cause is still unconfirmed, switch to `debug-investigation`, keep `debug.md`, and keep `implementer` in minimal experiment mode until the cause is confirmed.
+## Plan Mode Path (complex work)
 
-## Source Of Truth
+For requirements spanning 2+ reviewable changes:
 
-- `docs/codex-task-card-workflow.md`
-- `docs/codex-debug-workflow.md`
+```
+planner → task-orchestrator → [loop] → done
+```
 
-When wording conflicts, defer to the canonical workflow docs instead of this quickstart.
+1. `planner` — create Epic Card + 2-5 Task Cards
+2. `task-orchestrator` — schedules tasks, tracks dependencies
+3. Loop: orchestrator → implementer/check → orchestrator
+
+See `docs/codex-task-card-workflow.md` for the walkthrough.
+
+## What to Do
+
+| Situation | Use |
+|-----------|-----|
+| Simple bounded change | Default path |
+| Multiple related changes | Plan mode path |
+| Debug unknown root cause | `debug-investigation` skill |
+| Interrupted work | `resume-work` skill |
+
+## Verification
+
+After changes: `npm test`

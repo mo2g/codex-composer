@@ -10,11 +10,27 @@ Use this file as the short operational reference for the installed workflow. The
 Keep one reviewable change under a repo-owned path such as:
 
 ```text
-docs/_codex/<task-slug>/
+.codex/codex-composer/<task-slug>/
   task-card.md
   journal.md
   acceptance-evidence.md
   debug.md   # only when root cause is still unconfirmed
+```
+
+### Plan Mode Artifact Set (optional)
+
+For complex multi-task work, also keep:
+
+```text
+.codex/codex-composer/<epic-slug>/
+  epic-card.md      # coordinates multiple Task Cards
+  <task-01>/
+    task-card.md
+    journal.md
+    acceptance-evidence.md
+  <task-02>/
+    ...
+  blockers.md        # when tasks are blocked
 ```
 
 ## Default Loop
@@ -31,3 +47,13 @@ docs/_codex/<task-slug>/
 - Do not begin implementation until the Task Card is bounded.
 - Split into another Task Card when acceptance criteria, verification gate, isolation, or reviewability change.
 - For active debug work, use `debug-investigation/DEBUG-TEMPLATE.md` instead of making broad speculative fixes.
+
+## Plan Mode (optional)
+
+For complex requirements spanning multiple reviewable changes:
+
+1. Create an Epic Card with goal, scope, task list, and dependency graph.
+2. Split work into 2-5 Task Cards, each with complexity score and model class.
+3. Assign failure budgets to prevent speculative retry loops.
+4. Use `task-orchestrator` to track dependencies and decide next executable task.
+5. Escalate to `blocked-needs-user` when information is missing or failure budget exceeded.

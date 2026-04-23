@@ -28,13 +28,13 @@ bash install.sh --repo /path/to/repo --template existing --source . --upgrade
 
 ### Overwrite
 
-Upgrade mode overwrites the template-managed docs and `codex-template` skills:
+Upgrade mode overwrites the template-managed docs and `codex-composer` skills:
 
 - `docs/codex-quickstart.md`
 - `docs/codex-task-card-workflow.md`
 - `docs/codex-debug-workflow.md`
 - `docs/codex-upgrade-guide.md`
-- `.agents/skills/codex-template/**`
+- `.agents/skills/codex-composer/**`
 
 ### Upsert
 
@@ -50,7 +50,7 @@ Upgrade mode does not modify:
 
 - `README.md`
 - `.codex/config.toml`
-- `docs/_codex/` task artifacts
+- `.codex/codex-composer/` task artifacts
 
 These are treated as repo-owned or task-owned state.
 

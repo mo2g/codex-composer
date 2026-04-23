@@ -28,13 +28,21 @@ description: Build verification evidence for a change, strengthen direct tests w
 5. Run the narrowest reliable verification first, expand only when the repo or risk requires it, and report any remaining gaps.
 6. For debug tasks, confirm which hypothesis became the root cause, which hypotheses were ruled out, and whether the fix targets cause rather than only symptoms.
 7. Map each acceptance criterion to direct evidence, a remaining gap, or an explicit risk.
-8. Return verification evidence, residual risks, and one preferred git commit message plus optional alternates.
+8. **Perform structural checks with state implications**:
+   - Check function length (>100 lines), file growth (>200 lines), circular dependencies, layer mixing, god functions
+   - **Hard fail**: If any hard fail condition met, set task status to `replanning`, document violation, require replan before continuing
+   - **Soft fail**: If minor issues found, document as residual risk in acceptance evidence, require explanation in Task Card `structure_impact`
+9. Verify failure budget tracking is current; if budget exceeded, flag for immediate escalation.
+10. Return verification evidence, structural check results, residual risks, and one preferred git commit message plus optional alternates.
 
 ## Output format
 
 - verification evidence summary
 - debug closure summary when applicable
 - acceptance criteria coverage with evidence or gaps
+- structural check results (pass/hard fail/soft fail with details)
+- failure budget status (current/max attempts, same-direction retries)
+- recommended state transition (continue, replanning, blocked-needs-user)
 - tests added, updated, or still missing
 - residual risks or unverified areas
 - preferred git commit message

@@ -5,7 +5,7 @@ Use this file for non-trivial debugging work where root cause is not yet confirm
 Suggested path:
 
 ```text
-docs/_codex/<task-slug>/debug.md
+.codex/codex-composer/<task-slug>/debug.md
 ```
 
 ## Rules

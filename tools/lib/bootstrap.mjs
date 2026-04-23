@@ -3,8 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
-  MANAGED_BLOCK_END,
-  MANAGED_BLOCK_START,
+  CODEX_COMPOSER_REF,
   TEMPLATE_DIR,
   TEMPLATE_DOCS,
   TEMPLATE_NAMESPACE,
@@ -102,38 +101,6 @@ async function requireExistingGitRepository(repoRoot) {
   }
 }
 
-function renderManagedBlock(content) {
-  return `${MANAGED_BLOCK_START}\n${content.trim()}\n${MANAGED_BLOCK_END}`;
-}
-
-function upsertManagedBlock(existing, block) {
-  const startIndex = existing.indexOf(MANAGED_BLOCK_START);
-  const endIndex = existing.indexOf(MANAGED_BLOCK_END);
-
-  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
-    const before = existing.slice(0, startIndex).trimEnd();
-    const after = existing.slice(endIndex + MANAGED_BLOCK_END.length).trimStart();
-
-    if (before && after) {
-      return `${before}\n\n${block}\n\n${after}\n`;
-    }
-    if (before) {
-      return `${before}\n\n${block}\n`;
-    }
-    if (after) {
-      return `${block}\n\n${after}\n`;
-    }
-    return `${block}\n`;
-  }
-
-  const trimmed = existing.trimEnd();
-  if (!trimmed) {
-    return `${block}\n`;
-  }
-
-  return `${trimmed}\n\n${block}\n`;
-}
-
 function toRelative(repoRoot, targetPath) {
   return path.relative(repoRoot, targetPath).split(path.sep).join("/");
 }
@@ -214,34 +181,44 @@ async function writeTemplateReadme(repoRoot, { dryRun, actions }) {
   );
 }
 
+async function writeCodexComposerFile(repoRoot, { dryRun, actions }) {
+  await copyFile(
+    path.join(sourceTemplateRoot, "CODEX-COMPOSER.md"),
+    path.join(repoRoot, "CODEX-COMPOSER.md"),
+    {
+      overwrite: true,
+      dryRun,
+      actions,
+      repoRoot
+    }
+  );
+}
+
 async function writeAgentsFile(repoRoot, { dryRun, actions }) {
   const agentsPath = path.join(repoRoot, "AGENTS.md");
-  const templateAgents = await readText(path.join(sourceTemplateRoot, "AGENTS.md"));
+  const refLine = CODEX_COMPOSER_REF;
 
   if (!(await pathExists(agentsPath))) {
     recordAction(actions, "create", "AGENTS.md");
     if (!dryRun) {
-      await writeText(agentsPath, templateAgents);
+      await writeText(agentsPath, `${refLine}\n`);
     }
     return;
   }
 
   const existing = await readText(agentsPath, "");
-  if (existing.trim() === templateAgents.trim()) {
-    recordAction(actions, "skip", "AGENTS.md");
-    return;
-  }
+  const lines = existing.split(/\r?\n/);
+  const hasRef = lines.some((line) => line.trim() === refLine);
 
-  const blockContent = await readText(path.join(sourceTemplateRoot, "AGENTS-BLOCK.md"));
-  const next = upsertManagedBlock(existing, renderManagedBlock(blockContent));
-
-  if (next === existing) {
+  if (hasRef) {
     recordAction(actions, "skip", "AGENTS.md");
     return;
   }
 
   recordAction(actions, "upsert", "AGENTS.md");
   if (!dryRun) {
+    const trimmed = existing.trimEnd();
+    const next = trimmed ? `${trimmed}\n${refLine}\n` : `${refLine}\n`;
     await writeText(agentsPath, next);
   }
 }
@@ -250,14 +227,14 @@ async function recordUpgradeSkips(repoRoot, actions) {
   recordAction(actions, "skip", "README.md");
 
   const configPath = path.join(repoRoot, ".codex", "config.toml");
-  const codexArtifactsPath = path.join(repoRoot, "docs", "_codex");
+  const codexArtifactsPath = path.join(repoRoot, ".codex", "codex-composer");
 
   if (await pathExists(configPath)) {
     recordAction(actions, "skip", ".codex/config.toml");
   }
 
   if (await pathExists(codexArtifactsPath)) {
-    recordAction(actions, "skip", "docs/_codex/");
+    recordAction(actions, "skip", ".codex/codex-composer/");
   }
 }
 
@@ -295,6 +272,7 @@ export async function bootstrapTemplateRepo({
     await writeTemplateReadme(repoRoot, { dryRun, actions });
   }
 
+  await writeCodexComposerFile(repoRoot, { dryRun, actions });
   await writeAgentsFile(repoRoot, { dryRun, actions });
   await copyDocs(repoRoot, { dryRun, actions });
   await copySkills(repoRoot, { dryRun, actions });

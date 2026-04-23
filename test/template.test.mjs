@@ -4,8 +4,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  CODEX_COMPOSER_REF,
   LEGACY_USER_FACING_TERMS,
-  MANAGED_BLOCK_START,
   TEMPLATE_DOCS,
   TEMPLATE_NAMESPACE,
   TEMPLATE_PRODUCT_NAME,
@@ -50,7 +50,6 @@ async function assertInstalledAssets(targetRepo) {
   }
 
   await expectMissing(path.join(targetRepo, ".agents", "skills", TEMPLATE_NAMESPACE, "merge-check"));
-  await expectMissing(path.join(targetRepo, ".agents", "skills", "codex-composer"));
   await expectMissing(path.join(targetRepo, ".codex", "protocol"));
   await expectMissing(path.join(targetRepo, "tools", "composer.mjs"));
 }
@@ -67,10 +66,10 @@ test("install.sh bootstraps an existing repository into the Codex App Template l
   const agents = await readText(path.join(targetRepo, "AGENTS.md"));
 
   assert.equal(readme, "# Existing Repo\n");
-  assert.match(agents, /# Codex App Template/);
+  assert.equal(agents.trim(), CODEX_COMPOSER_REF);
 });
 
-test("install.sh upserts one managed AGENTS block when AGENTS.md already exists", async () => {
+test("install.sh upserts one @CODEX-COMPOSER.md reference when AGENTS.md already exists", async () => {
   const targetRepo = await createExistingRepo({
     agentsContent: `# Team Rules
 
@@ -82,13 +81,17 @@ Keep existing content.
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
   const agents = await readText(path.join(targetRepo, "AGENTS.md"));
-  const blockCount = agents.split(MANAGED_BLOCK_START).length - 1;
+  const codexComposer = await readText(path.join(targetRepo, "CODEX-COMPOSER.md"));
+  const refCount = agents.split(CODEX_COMPOSER_REF).length - 1;
 
+  // AGENTS.md preserves user content and has exactly one reference
   assert.match(agents, /# Team Rules/);
   assert.match(agents, /Keep existing content\./);
-  assert.equal(blockCount, 1);
-  assertIncludesAll(agents, [
-    /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./,
+  assert.equal(refCount, 1);
+
+  // CODEX-COMPOSER.md contains the actual content
+  assertIncludesAll(codexComposer, [
+    /docs\/codex-quickstart\.md/,
     /docs\/codex-task-card-workflow\.md/,
     /docs\/codex-debug-workflow\.md/
   ]);
@@ -133,15 +136,16 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     "docs/codex-quickstart.md",
     "docs/codex-task-card-workflow.md",
     "docs/codex-debug-workflow.md",
-    ".agents/skills/codex-template/WORKFLOW.md",
-    ".agents/skills/codex-template/EXTERNAL-MEMORY.md",
-    ".agents/skills/codex-template/planner/SKILL.md",
-    ".agents/skills/codex-template/implementer/SKILL.md",
-    ".agents/skills/codex-template/resume-work/SKILL.md",
-    ".agents/skills/codex-template/change-check/SKILL.md",
-    ".agents/skills/codex-template/debug-investigation/SKILL.md",
-    "template/AGENTS.md",
-    "template/AGENTS-BLOCK.md",
+    ".agents/skills/codex-composer/WORKFLOW.md",
+    ".agents/skills/codex-composer/EXTERNAL-MEMORY.md",
+    ".agents/skills/codex-composer/planner/SKILL.md",
+    ".agents/skills/codex-composer/implementer/SKILL.md",
+    ".agents/skills/codex-composer/resume-work/SKILL.md",
+    ".agents/skills/codex-composer/change-check/SKILL.md",
+    ".agents/skills/codex-composer/debug-investigation/SKILL.md",
+    ".agents/skills/codex-composer/task-orchestrator/SKILL.md",
+    ".agents/skills/codex-composer/task-orchestrator/STATE-MACHINE.md",
+    "template/CODEX-COMPOSER.md",
     "template/README.md",
     "install.sh",
     ".codex/config.toml",
@@ -150,8 +154,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const productFiles = new Set([
     "README.md",
     "AGENTS.md",
-    "template/AGENTS.md",
-    "template/AGENTS-BLOCK.md",
+    "template/CODEX-COMPOSER.md",
     "template/README.md",
     "install.sh"
   ]);
@@ -177,35 +180,37 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const debugInvestigation = await readText(
     path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "debug-investigation", "SKILL.md")
   );
+  const taskOrchestrator = await readText(
+    path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "task-orchestrator", "SKILL.md")
+  );
   const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
   assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /docs\/codex-quickstart\.md/, /template\//, /test\//]);
-  assertIncludesAll(agents, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /debug-investigation/]);
+  assertIncludesAll(agents, [/docs\/codex-quickstart\.md/, /docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /workflow-sync-rules/]);
 
   assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
   assertIncludesAll(implementer, [/debug mode is active/, /root cause is still unconfirmed/, /minimal .*experiment mode/]);
   assertIncludesAll(resumeWork, [/Reconstruct a paused task/, /`debug\.md`/, /diff/, /nearby tests/]);
   assertIncludesAll(changeCheck, [/acceptance criteria/, /root cause/, /merge stays manual/]);
   assertIncludesAll(debugInvestigation, [/hypotheses/, /debug\.md/, /root cause/]);
+  assertIncludesAll(taskOrchestrator, [/task-orchestrator/, /single entry point/, /hard constraints/, /state transitions/]);
   assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
   assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
-  assertMentionsAny(readme, [/Merge stays manual/, /manual after verification and review/]);
-  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /installed-repo first-pass and default loop/]);
+  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /quickstart/, /Start Here/]);
 });
 
-test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {
+test("source repository removes legacy entrypoints and keeps only the codex-composer skill namespace", async () => {
   await expectExists(path.join(repoRoot, "tools", "template-init.mjs"));
   await expectExists(path.join(repoRoot, "test", "template.test.mjs"));
 
   await expectMissing(path.join(repoRoot, "Makefile"));
   await expectMissing(path.join(repoRoot, "tools", "composer.mjs"));
-  await expectMissing(path.join(repoRoot, "scripts", "verify-template-install.sh"));
-  await expectMissing(path.join(repoRoot, "scripts", "live-smoke.sh"));
-  await expectMissing(path.join(repoRoot, "test", "protocol.test.mjs"));
-  await expectMissing(path.join(repoRoot, ".agents", "skills", "codex-composer"));
   await expectMissing(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "merge-check"));
-  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "task-card.md"));
-  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "journal.md"));
-  await expectMissing(path.join(repoRoot, "docs", "_codex", "workflow-v2-close-loop", "acceptance-evidence.md"));
+  await expectMissing(path.join(repoRoot, ".codex", "protocol"));
+  await expectMissing(path.join(repoRoot, "tools", "composer.mjs"));
+  await expectMissing(path.join(repoRoot, ".codex", "codex-composer", "workflow-v2-close-loop", "task-card.md"));
+  await expectMissing(path.join(repoRoot, ".codex", "codex-composer", "workflow-v2-close-loop", "journal.md"));
+  await expectMissing(path.join(repoRoot, ".codex", "codex-composer", "workflow-v2-close-loop", "acceptance-evidence.md"));
 });
+

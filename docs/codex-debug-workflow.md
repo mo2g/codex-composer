@@ -18,7 +18,7 @@ Enable debug mode when any of these are true:
 Add debug-specific evidence to the base artifact set from `docs/codex-task-card-workflow.md`:
 
 ```text
-docs/_codex/<task-slug>/debug.md
+.codex/codex-composer/<task-slug>/debug.md
 ```
 
 ## Debug-mode additions

@@ -2,22 +2,26 @@
 
 A lightweight source template for adding a practical Codex App workflow to a repository.
 
-## Map
+## Documentation Map
 
-- `AGENTS.md`: short source-repo map and maintenance rules
-- `docs/codex-quickstart.md`: installed-repo first-pass and default loop
-- `docs/codex-task-card-workflow.md`: canonical task-card and external-memory spec
-- `docs/codex-debug-workflow.md`: canonical debug-mode spec
-- `docs/codex-upgrade-guide.md`: upgrade behavior for already-installed repositories
-- `.agents/skills/codex-template/`: reusable execution skills
-- `template/`: installed entrypoint files
-- `test/`: installer and workflow contract tests
+**Start here:**
+- `AGENTS.md` — Quick reference for this source repository
+- `docs/codex-quickstart.md` — 5-step default loop for installed repos
 
-## Source Of Truth
+**Workflow specs (canonical):**
+- `docs/codex-task-card-workflow.md` — Task Card workflow + Plan Mode spec
+- `docs/codex-debug-workflow.md` — Debug mode spec
+- `docs/workflow-sync-rules.md` — What must stay synchronized
 
-- `docs/codex-task-card-workflow.md`
-- `docs/codex-debug-workflow.md`
-- `docs/workflow-sync-rules.md`
+**Templates:**
+- `.agents/skills/codex-composer/planner/TASK-CARD-TEMPLATE.md` — Single task template
+- `.agents/skills/codex-composer/planner/EPIC-CARD-TEMPLATE.md` — Multi-task Epic template
+- `.agents/skills/codex-composer/task-orchestrator/` — Plan mode scheduler
+
+**Operations:**
+- `docs/codex-upgrade-guide.md` — Upgrade behavior for installed repositories
+- `test/` — Contract tests (run `npm test` after any template/skill change)
+- `template/` — Files installed into target repositories
 
 ## Bootstrap
 
@@ -33,36 +37,19 @@ bash install.sh --repo /path/to/repo --template existing --source .
 
 ## Upgrade Installed Repositories
 
-Use upgrade mode only for a repository that is already bootstrapped and already lives inside an existing Git repository.
-
-Preview the upgrade without writing files:
+For repositories already bootstrapped with this template:
 
 ```bash
+# Preview
 bash install.sh --repo /path/to/repo --template existing --source . --upgrade --dry-run
-```
 
-Apply the upgrade:
-
-```bash
+# Apply
 bash install.sh --repo /path/to/repo --template existing --source . --upgrade
 ```
 
-Upgrade behavior:
-
-* overwrite managed docs and `codex-template` skills
-* upsert the managed `AGENTS.md` block
-* skip repo-owned `README.md`, `.codex/config.toml`, and `docs/_codex/` task artifacts
-
-Notes:
-
-* `--upgrade` fails if the target path is not already an existing Git repository
-* `--upgrade` does not create or restore `README.md`; README stays repo-owned
-
-See `docs/codex-upgrade-guide.md` for the detailed policy.
+See `docs/codex-upgrade-guide.md` for the full policy.
 
 ## Verification
 
-- `npm test` validates the source template contract.
-- Installed repositories stay lightweight by default.
-- `docs/_codex/<task-slug>/` stays optional and is only for work that needs durable state.
-- Merge stays manual after verification and review.
+- `npm test` validates the source template contract
+- See `docs/workflow-sync-rules.md` for maintenance policy
