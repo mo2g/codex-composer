@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { TEMPLATE_DOCS } from "../tools/lib/template-contract.mjs";
 import { createExistingRepo, readText, runInstall } from "./helpers/repo.mjs";
 
 test("install.sh copies debug workflow assets", async () => {
@@ -13,7 +12,6 @@ test("install.sh copies debug workflow assets", async () => {
   const resumeWork = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "resume-work", "SKILL.md"));
   const changeCheck = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "change-check", "SKILL.md"));
   const template = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "debug-investigation", "DEBUG-TEMPLATE.md"));
-  const doc = await readText(path.join(targetRepo, "docs", "codex-debug-workflow.md"));
 
   assert.match(skill, /hypotheses/);
   assert.match(implementer, /root cause is still unconfirmed/);
@@ -21,9 +19,4 @@ test("install.sh copies debug workflow assets", async () => {
   assert.match(changeCheck, /which hypothesis became the root cause/);
   assert.match(template, /Hypothesis table/);
   assert.match(template, /Confirmed root cause/);
-  assert.match(doc, /Codex Debug Workflow/);
-  assert.match(doc, /minimal experiment mode/);
-  assert.match(doc, /confirmed cause/);
-  assert.match(doc, /canonical debug-mode extension/);
-  assert.ok(TEMPLATE_DOCS.includes("docs/codex-debug-workflow.md"));
 });

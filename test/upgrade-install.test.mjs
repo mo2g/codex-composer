@@ -27,7 +27,7 @@ Keep existing content.
 
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
-  const quickstartPath = path.join(targetRepo, "docs", "codex-quickstart.md");
+  const codexComposerPath = path.join(targetRepo, "CODEX-COMPOSER.md");
   const plannerPath = plannerSkillPath(targetRepo);
   const agentsPath = path.join(targetRepo, "AGENTS.md");
 
@@ -36,7 +36,7 @@ Keep existing content.
   await fs.mkdir(path.join(targetRepo, ".codex", "codex-composer", "sample"), { recursive: true });
   await fs.writeFile(path.join(targetRepo, ".codex", "codex-composer", "sample", "task-card.md"), "# keep me\n", "utf8");
 
-  await fs.writeFile(quickstartPath, "STALE QUICKSTART\n", "utf8");
+  await fs.writeFile(codexComposerPath, "STALE CODEX-COMPOSER\n", "utf8");
   await fs.writeFile(plannerPath, "STALE PLANNER\n", "utf8");
 
   // Modify AGENTS.md to mark it as "old" version
@@ -48,7 +48,7 @@ Keep existing content.
 
   assert.match(result.stdout, /mode=upgrade/);
   assert.match(result.stdout, /dry_run=true/);
-  assert.match(result.stdout, /action=overwrite docs\/codex-quickstart\.md/);
+  assert.match(result.stdout, /action=overwrite CODEX-COMPOSER\.md/);
   assert.match(result.stdout, /action=overwrite \.agents\/skills\/codex-composer\/planner\/SKILL\.md/);
   assert.match(result.stdout, /action=upsert AGENTS\.md/);
   assert.match(result.stdout, /action=skip README\.md/);
@@ -56,7 +56,7 @@ Keep existing content.
   assert.match(result.stdout, /action=skip \.codex\/codex-composer\//);
 
   // In dry-run mode, no files are actually modified
-  assert.equal(await readText(quickstartPath), "STALE QUICKSTART\n");
+  assert.equal(await readText(codexComposerPath), "STALE CODEX-COMPOSER\n");
   assert.equal(await readText(plannerPath), "STALE PLANNER\n");
   assert.match(await readText(agentsPath), /@OLD-CODEX-COMPOSER\.md/);
 });
@@ -72,7 +72,7 @@ Keep existing content.
 
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
-  const quickstartPath = path.join(targetRepo, "docs", "codex-quickstart.md");
+  const codexComposerPath = path.join(targetRepo, "CODEX-COMPOSER.md");
   const plannerPath = plannerSkillPath(targetRepo);
   const agentsPath = path.join(targetRepo, "AGENTS.md");
 
@@ -81,7 +81,7 @@ Keep existing content.
   await fs.mkdir(path.join(targetRepo, ".codex", "codex-composer", "sample"), { recursive: true });
   await fs.writeFile(path.join(targetRepo, ".codex", "codex-composer", "sample", "task-card.md"), "# keep me\n", "utf8");
 
-  await fs.writeFile(quickstartPath, "STALE QUICKSTART\n", "utf8");
+  await fs.writeFile(codexComposerPath, "STALE CODEX-COMPOSER\n", "utf8");
   await fs.writeFile(plannerPath, "STALE PLANNER\n", "utf8");
 
   const agentsBefore = (await readText(agentsPath)).replace(/debug-investigation/g, "debug-old");
@@ -94,16 +94,15 @@ Keep existing content.
   assert.match(result.stdout, /mode=upgrade/);
   assert.match(result.stdout, /dry_run=false/);
 
-  const quickstart = await readText(quickstartPath);
+  const codexComposer = await readText(codexComposerPath);
   const planner = await readText(plannerPath);
   const agents = await readText(agentsPath);
   const readme = await readText(path.join(targetRepo, "README.md"));
   const config = await readText(path.join(targetRepo, ".codex", "config.toml"));
   const taskCard = await readText(path.join(targetRepo, ".codex", "codex-composer", "sample", "task-card.md"));
-  const upgradeGuide = await readText(path.join(targetRepo, "docs", "codex-upgrade-guide.md"));
 
-  assert.match(quickstart, /# Codex App Quickstart/);
-  assert.doesNotMatch(quickstart, /STALE QUICKSTART/);
+  assert.match(codexComposer, /# Codex Composer/);
+  assert.doesNotMatch(codexComposer, /STALE CODEX-COMPOSER/);
 
   assert.match(planner, /Task Card/);
   assert.doesNotMatch(planner, /STALE PLANNER/);
@@ -116,7 +115,6 @@ Keep existing content.
   assert.equal(readme, "# Existing Repo\n");
   assert.equal(config, "repo_owned = true\n");
   assert.equal(taskCard, "# keep me\n");
-  assert.match(upgradeGuide, /# Codex App Template Upgrade Guide/);
 });
 
 test("upgrade fails when target is not an existing git repository", async () => {

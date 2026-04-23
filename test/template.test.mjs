@@ -89,11 +89,12 @@ Keep existing content.
   assert.match(agents, /Keep existing content\./);
   assert.equal(refCount, 1);
 
-  // CODEX-COMPOSER.md contains the actual content
+  // CODEX-COMPOSER.md contains the actual content (Quickstart guide)
   assertIncludesAll(codexComposer, [
-    /docs\/codex-quickstart\.md/,
-    /docs\/codex-task-card-workflow\.md/,
-    /docs\/codex-debug-workflow\.md/
+    /## Quickstart/,
+    /## Skills/,
+    /## Task States/,
+    /## Artifacts/
   ]);
 });
 
@@ -102,7 +103,6 @@ test("blank template initializes a git repository and installs template defaults
   await runInstall(["--repo", targetRepo, "--template", "blank", "--source", path.resolve(".")]);
 
   await assertInstalledAssets(targetRepo);
-  await expectExists(path.join(targetRepo, "README.md"));
 
   const gitStatus = await runGit(targetRepo, ["rev-parse", "--is-inside-work-tree"]);
   const branch = await runGit(targetRepo, ["branch", "--show-current"], { allowFailure: true });
@@ -129,11 +129,10 @@ test("installed repositories stay light and skip target config even when the sta
   await expectMissing(path.join(targetRepo, ".codex", "config.toml"));
 });
 
-test("source repository keeps one canonical vocabulary across docs, config, installer, and template assets", async () => {
+test("source repository keeps one canonical vocabulary across docs, config, installer, and assets", async () => {
   const filesToCheck = [
     "README.md",
-    "AGENTS.md",
-    "docs/codex-quickstart.md",
+    "CODEX-COMPOSER.md",
     "docs/codex-task-card-workflow.md",
     "docs/codex-debug-workflow.md",
     ".agents/skills/codex-composer/WORKFLOW.md",
@@ -145,17 +144,12 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     ".agents/skills/codex-composer/debug-investigation/SKILL.md",
     ".agents/skills/codex-composer/task-orchestrator/SKILL.md",
     ".agents/skills/codex-composer/task-orchestrator/STATE-MACHINE.md",
-    "template/CODEX-COMPOSER.md",
-    "template/README.md",
     "install.sh",
-    ".codex/config.toml",
     "package.json"
   ];
   const productFiles = new Set([
     "README.md",
-    "AGENTS.md",
-    "template/CODEX-COMPOSER.md",
-    "template/README.md",
+    "CODEX-COMPOSER.md",
     "install.sh"
   ]);
 
@@ -172,7 +166,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   }
 
   const readme = await readText(path.join(repoRoot, "README.md"));
-  const agents = await readText(path.join(repoRoot, "AGENTS.md"));
+  const codexComposer = await readText(path.join(repoRoot, "CODEX-COMPOSER.md"));
   const planner = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "planner", "SKILL.md"));
   const implementer = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "implementer", "SKILL.md"));
   const resumeWork = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "resume-work", "SKILL.md"));
@@ -186,8 +180,8 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
-  assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /docs\/codex-quickstart\.md/, /template\//, /test\//]);
-  assertIncludesAll(agents, [/docs\/codex-quickstart\.md/, /docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /workflow-sync-rules/]);
+  assertIncludesAll(readme, [/CODEX-COMPOSER\.md/, /docs\//, /test\//]);
+  assertIncludesAll(codexComposer, [/## Quickstart/, /## Skills/, /## Task States/, /## Artifacts/]);
 
   assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
   assertIncludesAll(implementer, [/debug mode is active/, /root cause is still unconfirmed/, /minimal .*experiment mode/]);
@@ -195,9 +189,8 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assertIncludesAll(changeCheck, [/acceptance criteria/, /root cause/, /merge stays manual/]);
   assertIncludesAll(debugInvestigation, [/hypotheses/, /debug\.md/, /root cause/]);
   assertIncludesAll(taskOrchestrator, [/task-orchestrator/, /single entry point/, /hard constraints/, /state transitions/]);
-  assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
+  assertIncludesAll(workflow, [/\.codex\/codex-composer/, /acceptance-evidence\.md/]);
   assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
-  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /quickstart/, /Start Here/]);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-composer skill namespace", async () => {

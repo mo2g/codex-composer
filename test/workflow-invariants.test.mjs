@@ -155,29 +155,6 @@ test("docs/workflow-sync-rules.md is canonical for source-of-truth ordering", as
   }
 });
 
-// AGENTS.md and CODEX-COMPOSER.md must not duplicate canonical ownership table
-test("AGENTS.md and CODEX-COMPOSER.md reference sync-rules instead of duplicating ordering", async () => {
-  const rootAgents = await readText(path.join(repoRoot, "AGENTS.md"));
-  const templateCodexComposer = await readText(path.join(repoRoot, "template", "CODEX-COMPOSER.md"));
-
-  // Should reference workflow-sync-rules.md
-  assert.match(rootAgents, /workflow-sync-rules/, "Root AGENTS.md must reference workflow-sync-rules.md");
-  assert.match(templateCodexComposer, /workflow-sync-rules/, "Template CODEX-COMPOSER.md must reference workflow-sync-rules.md");
-
-  // Should NOT contain the literal canonical ownership table rows
-  // (enforcing single-location ownership)
-  assert.doesNotMatch(
-    rootAgents,
-    /Workflow spec.*task-card-workflow.*Reference/,
-    "Root AGENTS.md must not duplicate canonical ownership table"
-  );
-  assert.doesNotMatch(
-    templateCodexComposer,
-    /Workflow spec.*task-card-workflow.*Reference/,
-    "Template CODEX-COMPOSER.md must not duplicate canonical ownership table"
-  );
-});
-
 // Task Type enum completeness (plan mode)
 test("Task Type enum includes all required types", async () => {
   const taskCardTemplatePath = path.join(repoRoot, skillAsset("planner", "TASK-CARD-TEMPLATE.md"));

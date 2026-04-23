@@ -4,15 +4,12 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   CODEX_COMPOSER_REF,
-  TEMPLATE_DIR,
-  TEMPLATE_DOCS,
   TEMPLATE_NAMESPACE,
   TEMPLATE_TYPES
 } from "./template-contract.mjs";
 
 const sourceRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const sourceSkillsRoot = path.join(sourceRepoRoot, ".agents", "skills", TEMPLATE_NAMESPACE);
-const sourceTemplateRoot = path.join(sourceRepoRoot, TEMPLATE_DIR);
 const COPY_IGNORE = new Set([".DS_Store"]);
 
 async function pathExists(targetPath) {
@@ -157,33 +154,9 @@ async function copySkills(repoRoot, { dryRun, actions }) {
   });
 }
 
-async function copyDocs(repoRoot, { dryRun, actions }) {
-  for (const relativePath of TEMPLATE_DOCS) {
-    await copyFile(path.join(sourceRepoRoot, relativePath), path.join(repoRoot, relativePath), {
-      overwrite: true,
-      dryRun,
-      actions,
-      repoRoot
-    });
-  }
-}
-
-async function writeTemplateReadme(repoRoot, { dryRun, actions }) {
-  await copyFile(
-    path.join(sourceTemplateRoot, "README.md"),
-    path.join(repoRoot, "README.md"),
-    {
-      overwrite: false,
-      dryRun,
-      actions,
-      repoRoot
-    }
-  );
-}
-
 async function writeCodexComposerFile(repoRoot, { dryRun, actions }) {
   await copyFile(
-    path.join(sourceTemplateRoot, "CODEX-COMPOSER.md"),
+    path.join(sourceRepoRoot, "CODEX-COMPOSER.md"),
     path.join(repoRoot, "CODEX-COMPOSER.md"),
     {
       overwrite: true,
@@ -266,15 +239,8 @@ export async function bootstrapTemplateRepo({
     }
   }
 
-  if (upgrade) {
-    // README.md is repo-owned during upgrade, so do not create or modify it.
-  } else {
-    await writeTemplateReadme(repoRoot, { dryRun, actions });
-  }
-
   await writeCodexComposerFile(repoRoot, { dryRun, actions });
   await writeAgentsFile(repoRoot, { dryRun, actions });
-  await copyDocs(repoRoot, { dryRun, actions });
   await copySkills(repoRoot, { dryRun, actions });
 
   return {

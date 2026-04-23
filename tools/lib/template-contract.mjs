@@ -2,18 +2,11 @@ export const TEMPLATE_PRODUCT_NAME = "Codex App Template";
 export const TEMPLATE_NAMESPACE = "codex-composer";
 export const TEMPLATE_SKILLS = ["planner", "implementer", "resume-work", "change-check", "debug-investigation", "task-orchestrator"];
 export const TEMPLATE_TYPES = ["existing", "blank"];
-export const TEMPLATE_DOCS = [
-  "docs/codex-quickstart.md",
-  "docs/codex-task-card-workflow.md",
-  "docs/codex-debug-workflow.md",
-  "docs/codex-upgrade-guide.md"
-];
-export const TEMPLATE_DIR = "template";
-export const TEMPLATE_ASSET_FILES = ["CODEX-COMPOSER.md", "README.md"];
+export const TEMPLATE_DOCS = [];
+export const TEMPLATE_ASSET_FILES = ["CODEX-COMPOSER.md"];
 export const CODEX_COMPOSER_REF = "@CODEX-COMPOSER.md";
 
 export const UPGRADE_OVERWRITE_TARGETS = [
-  ...TEMPLATE_DOCS,
   "CODEX-COMPOSER.md",
   ".agents/skills/codex-composer/"
 ];
@@ -25,7 +18,6 @@ export const UPGRADE_SKIP_TARGETS = [
 ];
 
 export const LEGACY_USER_FACING_TERMS = [
-  "Codex Composer",
   "protocol.test.mjs",
   "composer.mjs",
   "validate-tmp",

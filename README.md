@@ -1,55 +1,103 @@
-# Codex App Template
+# Codex Composer
 
-A lightweight source template for adding a practical Codex App workflow to a repository.
+> Make AI Your Pair Programming Partner — Structured Task Workflow Template
 
-## Documentation Map
+[![Install](https://img.shields.io/badge/Install-curl%20%7C%20bash-blue)](install.sh)
+[![Tests](https://img.shields.io/badge/Tests-passing-brightgreen)]()
+[![License](https://img.shields.io/badge/License-MIT-green)]()
 
-**Start here:**
-- `AGENTS.md` — Quick reference for this source repository
-- `docs/codex-quickstart.md` — 5-step default loop for installed repos
+[English](README.md) | [中文](README-zh.md)
 
-**Workflow specs (canonical):**
-- `docs/codex-task-card-workflow.md` — Task Card workflow + Plan Mode spec
-- `docs/codex-debug-workflow.md` — Debug mode spec
-- `docs/workflow-sync-rules.md` — What must stay synchronized
+## What is Codex Composer?
 
-**Templates:**
-- `.agents/skills/codex-composer/planner/TASK-CARD-TEMPLATE.md` — Single task template
-- `.agents/skills/codex-composer/planner/EPIC-CARD-TEMPLATE.md` — Multi-task Epic template
-- `.agents/skills/codex-composer/task-orchestrator/` — Plan mode scheduler
+Codex Composer is a lightweight workflow template that helps your Codex collaborate in a **structured and traceable** way.
 
-**Operations:**
-- `docs/codex-upgrade-guide.md` — Upgrade behavior for installed repositories
-- `test/` — Contract tests (run `npm test` after any template/skill change)
-- `template/` — Files installed into target repositories
+No more endless back-and-forth chats. Instead, you get:
 
-## Bootstrap
+- **Task-driven** — Every requirement becomes a trackable task card
+- **State-driven** — Clear workflow states (planned → in-progress → verifying → done)
+- **Evidence preserved** — Automatic logging of decisions, verification results, and debug sessions
+- **Complex project support** — Plan Mode lets AI coordinate multi-task projects
 
-1. Run `npm install`.
-2. Run `npm test`.
-3. Bootstrap a target repository with `existing` to add the workflow to an existing repo, or `blank` to initialize an empty repo:
+## Quick Start (30-Second Install)
 
 ```bash
-bash install.sh --repo /path/to/repo --template existing --source .
+# Install into an existing project
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing
 ```
 
-4. In the target repo, read `AGENTS.md` first, then `docs/codex-quickstart.md`.
+After installation, your project gets:
 
-## Upgrade Installed Repositories
+```
+my-project/
+├── AGENTS.md              # AI assistant entry point (references workflow guide)
+├── CODEX-COMPOSER.md      # Complete usage guide
+└── .agents/skills/        # AI skill library
+    ├── planner/           # Task planning
+    ├── implementer/       # Code implementation
+    ├── change-check/      # Change verification
+    ├── debug-investigation/  # Debug investigation
+    └── task-orchestrator/    # Multi-task coordination
+```
 
-For repositories already bootstrapped with this template:
+## How to Use
+
+### Mode 1: Single Task (Recommended for Daily Dev)
+
+Tell your AI:
+> "Use the planner skill to create a task card for implementing user login"
+
+The AI will:
+1. Create a task card (requirements + acceptance criteria)
+2. Implement the code step by step
+3. Verify and record results
+
+### Mode 2: Complex Requirements (Plan Mode)
+
+> "This feature needs 3 PRs to complete. Launch Plan Mode."
+
+The AI will:
+1. Create an Epic card and break down tasks
+2. Coordinate execution order of subtasks
+3. Track dependencies
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Non-intrusive** | Only adds `.agents/` and docs, zero dependencies, doesn't affect existing code |
+| **Upgradable** | One-command skill library upgrade, preserves your project config |
+| **Dual Mode** | Single-task quick mode + multi-task Plan Mode |
+| **Debug-friendly** | Dedicated debug investigation flow for root cause tracking |
+| **Resume work** | resume-work skill lets AI pick up unfinished tasks |
+
+## Upgrade Installed Projects
 
 ```bash
-# Preview
-bash install.sh --repo /path/to/repo --template existing --source . --upgrade --dry-run
+# Preview upgrade
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing --upgrade --dry-run
 
-# Apply
-bash install.sh --repo /path/to/repo --template existing --source . --upgrade
+# Apply upgrade
+curl -fsSL https://raw.githubusercontent.com/mo2g/codex-composer/main/install.sh | bash -s -- --repo . --template existing --upgrade
 ```
 
-See `docs/codex-upgrade-guide.md` for the full policy.
+## Documentation
 
-## Verification
+- **Quick Start** — Read `CODEX-COMPOSER.md` after installation
+- **Workflow Spec** — `docs/codex-task-card-workflow.md`
+- **Debug Mode** — `docs/codex-debug-workflow.md`
+- **Upgrade Guide** — `docs/codex-upgrade-guide.md`
 
-- `npm test` validates the source template contract
-- See `docs/workflow-sync-rules.md` for maintenance policy
+## Contributing
+
+```bash
+# Clone and test
+git clone https://github.com/mo2g/codex-composer.git
+cd codex-composer
+npm install
+npm test
+```
+
+## License
+
+MIT License — Free to use, contributions welcome!

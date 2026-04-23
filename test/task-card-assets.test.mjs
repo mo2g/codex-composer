@@ -101,30 +101,15 @@ test("install.sh copies task-card, journal, and evidence templates into installe
   assert.match(stateMachine, /State transitions \(orchestrator-enforced\)/);
 });
 
-test("root AGENTS.md and template/CODEX-COMPOSER.md stay aligned on key content", async () => {
-  const rootAgents = await readText(path.join(process.cwd(), "AGENTS.md"));
-  const templateCodexComposer = await readText(path.join(process.cwd(), "template", "CODEX-COMPOSER.md"));
+test("CODEX-COMPOSER.md contains required sections and product name", async () => {
+  const codexComposer = await readText(path.join(process.cwd(), "CODEX-COMPOSER.md"));
 
-  // Both should reference the same canonical docs
-  assert.match(rootAgents, /codex-quickstart\.md/);
-  assert.match(templateCodexComposer, /codex-quickstart\.md/);
-  assert.match(rootAgents, /codex-task-card-workflow\.md/);
-  assert.match(templateCodexComposer, /codex-task-card-workflow\.md/);
+  // CODEX-COMPOSER.md should contain Quickstart and Skills sections
+  assert.match(codexComposer, /## Quickstart/);
+  assert.match(codexComposer, /## Skills/);
+  assert.match(codexComposer, /## Task States/);
+  assert.match(codexComposer, /## Artifacts/);
 
-  // Both should mention source-of-truth concept
-  assert.match(rootAgents, /Source Of Truth/);
-  assert.match(templateCodexComposer, /Source Of Truth/);
-});
-
-test("AGENTS.md and CODEX-COMPOSER.md point to sync-rules for source-of-truth ordering instead of restating it", async () => {
-  const rootAgents = await readText(path.join(process.cwd(), "AGENTS.md"));
-  const templateCodexComposer = await readText(path.join(process.cwd(), "template", "CODEX-COMPOSER.md"));
-
-  // Should reference workflow-sync-rules.md for canonical ordering
-  assert.match(rootAgents, /workflow-sync-rules/);
-  assert.match(templateCodexComposer, /workflow-sync-rules/);
-
-  // Should NOT contain the literal ordering pattern (enforcing single-location ownership)
-  assert.doesNotMatch(rootAgents, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
-  assert.doesNotMatch(templateCodexComposer, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
+  // Should mention the product name
+  assert.match(codexComposer, /Codex App Template/);
 });
