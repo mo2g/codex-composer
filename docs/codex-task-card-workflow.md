@@ -357,26 +357,19 @@ Split into another card when any of these differs:
 - isolation boundary
 - expected reviewer surface area
 
-### Structural checks are hard gates
+### Structural checks
 
-**Hard fail (must transition to `replanning`):**
-- Function exceeds 100 lines without clear decomposition
-- Single file grows by >200 lines without architectural justification
-- Introduction of circular dependencies
-- UI/domain/infra layers mixed without explicit architecture decision
-- New "god" function/hook/util that violates single responsibility
+See `ACCEPTANCE-EVIDENCE-TEMPLATE.md` for the canonical structural-check policy.
 
-**Soft fail (must document residual risk):**
-- Module boundary clarity questionable but not violated
-- New abstraction lacks immediate reuse point but has potential
-- Test coverage partial due to external dependencies
-- Minor coupling introduced that doesn't block current scope
+**Summary:**
+- **Hard fail** → transition to `replanning` (e.g., >100 line functions, circular dependencies)
+- **Soft fail** → document residual risk (e.g., questionable boundaries, partial test coverage)
 
-**Actions on structural issues:**
-- `change-check`: Must run structural checks, classify as hard/soft fail
-- `planner`: Must document structure impact before implementation
-- `implementer`: Must check structure impact before changes, escalate if constraints violated
-- `task-orchestrator`: Enforces transition to `replanning` on hard fail
+**Who does what:**
+- `planner` — documents structure impact before implementation
+- `implementer` — checks structure impact before changes
+- `change-check` — runs structural checks, classifies hard/soft fail
+- `task-orchestrator` — enforces `replanning` transition on hard fail
 
 ### Code truth beats note truth
 

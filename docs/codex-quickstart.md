@@ -1,41 +1,52 @@
 # Codex App Quickstart
 
-## First Pass
+## How to Use This Repo
 
-1. Read `AGENTS.md` for this repository's workflow guidance.
-2. Inspect repo manifests, nearby tests, and `.codex/config.toml` if present.
-3. If the task is non-trivial, start with `planner` skill.
+### Simple Task (single reviewable change)
 
-## Default Loop (single task)
+```
+planner → implementer → change-check → commit
+```
 
-1. **Plan** — Use `planner` to bound one reviewable change
-2. **Implement** — Use `implementer` for the approved step
-3. **Verify** — Use `change-check` before commit
-4. **Commit & Merge** — Manual, after verification
+1. `planner` — create `docs/_codex/<task>/task-card.md`
+2. `implementer` — make the change
+3. `change-check` — verify and write `acceptance-evidence.md`
+4. Commit and merge manually
 
-Use `docs/_codex/<task-slug>/` only when the task needs durable state.
-Use `resume-work` to recover context after interruption.
-Use `debug-investigation` when root cause is unconfirmed.
+### Complex Task (multiple related changes)
 
-## Plan Mode (multiple related tasks)
+Use **plan mode** when requirements span 2+ reviewable changes:
 
-For complex requirements spanning multiple reviewable changes:
+```
+planner → task-orchestrator → [loop] → done
+```
 
-1. `planner` creates Epic Card + 2-5 Task Cards with dependencies
-2. `task-orchestrator` schedules tasks and tracks progress
+1. `planner` — create Epic Card + 2-5 Task Cards with dependencies
+2. `task-orchestrator` — schedules tasks, enforces constraints
 3. Loop: orchestrator → implementer/check → orchestrator
 4. Epic complete when all tasks done
 
-See `docs/codex-task-card-workflow.md` Plan Mode section for the walkthrough.
+See `docs/codex-task-card-workflow.md` for the plan mode walkthrough.
 
-## Verification
+### Decision Table
 
-Run the repo's verification command after changes:
-- Template/skill/docs changes: `npm test`
+| Scenario | Mode | First Skill |
+|----------|------|-------------|
+| Single bounded change | Regular | `planner` |
+| 2+ related changes with dependencies | Plan mode | `planner` |
+| Debug unknown root cause | Debug mode | `debug-investigation` |
+| Continue after interruption | Any | `resume-work` |
 
-## Source Of Truth
+### Verification
+
+After template/skill/docs changes:
+```bash
+npm test
+```
+
+**Done when:** `npm test` passes and changed templates have matching test assertions.
+
+### Source Of Truth
 
 - `docs/codex-task-card-workflow.md` — workflow spec
 - `docs/codex-debug-workflow.md` — debug mode spec
-
-When wording conflicts, defer to the canonical workflow docs.
