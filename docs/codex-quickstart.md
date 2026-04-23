@@ -6,7 +6,7 @@
 planner → implementer → change-check → commit
 ```
 
-1. `planner` — create `docs/_codex/<task>/task-card.md`
+1. `planner` — create `.codex/codex-composer/<task>/task-card.md`
 2. `implementer` — make the change
 3. `change-check` — verify and write `acceptance-evidence.md`
 4. Commit and merge manually

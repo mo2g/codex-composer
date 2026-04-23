@@ -11,7 +11,7 @@
 - `docs/codex-quickstart.md` — How to use this repo
 - `docs/codex-task-card-workflow.md` — Workflow spec
 - `docs/codex-debug-workflow.md` — Debug mode spec
-- `.agents/skills/codex-template/` — Skills
+- `.agents/skills/codex-composer/` — Skills
 
 ## Source Of Truth
 

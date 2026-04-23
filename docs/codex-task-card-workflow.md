@@ -19,7 +19,7 @@ The Task Card should record the working mode and artifact set explicitly enough 
 Recommended artifact layout:
 
 ```text
-docs/_codex/<task-slug>/
+.codex/codex-composer/<task-slug>/
   task-card.md
   journal.md
   acceptance-evidence.md
@@ -235,7 +235,7 @@ Complex requirements use an Epic Card to coordinate multiple Task Cards:
 - Global blockers
 - Progress summary
 
-Epic Cards live at `docs/_codex/<epic-slug>/epic-card.md` alongside their Task Cards.
+Epic Cards live at `.codex/codex-composer/<epic-slug>/epic-card.md` alongside their Task Cards.
 
 ### Plan Mode Walkthrough (End-to-End Example)
 
@@ -244,7 +244,7 @@ Epic Cards live at `docs/_codex/<epic-slug>/epic-card.md` alongside their Task C
 **Step 1: Create Epic and Task Cards**
 
 ```
-docs/_codex/auth-epic/
+.codex/codex-composer/auth-epic/
 ├── epic-card.md
 ├── auth-01-login/
 │   ├── task-card.md
@@ -414,17 +414,17 @@ A reviewer should be able to determine all of the following without reading the 
 
 This spec is implemented by these installed assets:
 
-- `.agents/skills/codex-template/WORKFLOW.md`
-- `.agents/skills/codex-template/EXTERNAL-MEMORY.md`
-- `.agents/skills/codex-template/planner/TASK-CARD-TEMPLATE.md`
-- `.agents/skills/codex-template/resume-work/TASK-JOURNAL-TEMPLATE.md`
-- `.agents/skills/codex-template/change-check/ACCEPTANCE-EVIDENCE-TEMPLATE.md`
+- `.agents/skills/codex-composer/WORKFLOW.md`
+- `.agents/skills/codex-composer/EXTERNAL-MEMORY.md`
+- `.agents/skills/codex-composer/planner/TASK-CARD-TEMPLATE.md`
+- `.agents/skills/codex-composer/resume-work/TASK-JOURNAL-TEMPLATE.md`
+- `.agents/skills/codex-composer/change-check/ACCEPTANCE-EVIDENCE-TEMPLATE.md`
 
 Plan mode adds these optional assets:
 
-- `.agents/skills/codex-template/planner/EPIC-CARD-TEMPLATE.md`
-- `.agents/skills/codex-template/planner/BLOCKER-TEMPLATE.md`
-- `.agents/skills/codex-template/task-orchestrator/SKILL.md`
+- `.agents/skills/codex-composer/planner/EPIC-CARD-TEMPLATE.md`
+- `.agents/skills/codex-composer/planner/BLOCKER-TEMPLATE.md`
+- `.agents/skills/codex-composer/task-orchestrator/SKILL.md`
 
 Debug-specific operating rules live in `docs/codex-debug-workflow.md` and should extend this spec rather than replace it.
 

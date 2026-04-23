@@ -14,9 +14,9 @@ A lightweight source template for adding a practical Codex App workflow to a rep
 - `docs/workflow-sync-rules.md` — What must stay synchronized
 
 **Templates:**
-- `.agents/skills/codex-template/planner/TASK-CARD-TEMPLATE.md` — Single task template
-- `.agents/skills/codex-template/planner/EPIC-CARD-TEMPLATE.md` — Multi-task Epic template
-- `.agents/skills/codex-template/task-orchestrator/` — Plan mode scheduler
+- `.agents/skills/codex-composer/planner/TASK-CARD-TEMPLATE.md` — Single task template
+- `.agents/skills/codex-composer/planner/EPIC-CARD-TEMPLATE.md` — Multi-task Epic template
+- `.agents/skills/codex-composer/task-orchestrator/` — Plan mode scheduler
 
 **Operations:**
 - `docs/codex-upgrade-guide.md` — Upgrade behavior for installed repositories

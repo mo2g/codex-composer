@@ -8,11 +8,11 @@ test("install.sh copies debug workflow assets", async () => {
   const targetRepo = await createExistingRepo({ packageManager: "npm" });
   await runInstall(["--repo", targetRepo, "--template", "existing", "--source", path.resolve(".")]);
 
-  const skill = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "debug-investigation", "SKILL.md"));
-  const implementer = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "implementer", "SKILL.md"));
-  const resumeWork = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "resume-work", "SKILL.md"));
-  const changeCheck = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "change-check", "SKILL.md"));
-  const template = await readText(path.join(targetRepo, ".agents", "skills", "codex-template", "debug-investigation", "DEBUG-TEMPLATE.md"));
+  const skill = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "debug-investigation", "SKILL.md"));
+  const implementer = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "implementer", "SKILL.md"));
+  const resumeWork = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "resume-work", "SKILL.md"));
+  const changeCheck = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "change-check", "SKILL.md"));
+  const template = await readText(path.join(targetRepo, ".agents", "skills", "codex-composer", "debug-investigation", "DEBUG-TEMPLATE.md"));
   const doc = await readText(path.join(targetRepo, "docs", "codex-debug-workflow.md"));
 
   assert.match(skill, /hypotheses/);

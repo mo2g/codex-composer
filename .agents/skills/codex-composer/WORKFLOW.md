@@ -10,7 +10,7 @@ Use this file as the short operational reference for the installed workflow. The
 Keep one reviewable change under a repo-owned path such as:
 
 ```text
-docs/_codex/<task-slug>/
+.codex/codex-composer/<task-slug>/
   task-card.md
   journal.md
   acceptance-evidence.md
@@ -22,7 +22,7 @@ docs/_codex/<task-slug>/
 For complex multi-task work, also keep:
 
 ```text
-docs/_codex/<epic-slug>/
+.codex/codex-composer/<epic-slug>/
   epic-card.md      # coordinates multiple Task Cards
   <task-01>/
     task-card.md

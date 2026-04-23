@@ -101,30 +101,30 @@ test("install.sh copies task-card, journal, and evidence templates into installe
   assert.match(stateMachine, /State transitions \(orchestrator-enforced\)/);
 });
 
-test("root AGENTS.md and template/AGENTS.md stay aligned on key content", async () => {
+test("root AGENTS.md and template/CODEX-COMPOSER.md stay aligned on key content", async () => {
   const rootAgents = await readText(path.join(process.cwd(), "AGENTS.md"));
-  const templateAgents = await readText(path.join(process.cwd(), "template", "AGENTS.md"));
+  const templateCodexComposer = await readText(path.join(process.cwd(), "template", "CODEX-COMPOSER.md"));
 
   // Both should reference the same canonical docs
   assert.match(rootAgents, /codex-quickstart\.md/);
-  assert.match(templateAgents, /codex-quickstart\.md/);
+  assert.match(templateCodexComposer, /codex-quickstart\.md/);
   assert.match(rootAgents, /codex-task-card-workflow\.md/);
-  assert.match(templateAgents, /codex-task-card-workflow\.md/);
+  assert.match(templateCodexComposer, /codex-task-card-workflow\.md/);
 
   // Both should mention source-of-truth concept
   assert.match(rootAgents, /Source Of Truth/);
-  assert.match(templateAgents, /Source Of Truth/);
+  assert.match(templateCodexComposer, /Source Of Truth/);
 });
 
-test("AGENTS.md files point to sync-rules for source-of-truth ordering instead of restating it", async () => {
+test("AGENTS.md and CODEX-COMPOSER.md point to sync-rules for source-of-truth ordering instead of restating it", async () => {
   const rootAgents = await readText(path.join(process.cwd(), "AGENTS.md"));
-  const templateAgents = await readText(path.join(process.cwd(), "template", "AGENTS.md"));
+  const templateCodexComposer = await readText(path.join(process.cwd(), "template", "CODEX-COMPOSER.md"));
 
   // Should reference workflow-sync-rules.md for canonical ordering
   assert.match(rootAgents, /workflow-sync-rules/);
-  assert.match(templateAgents, /workflow-sync-rules/);
+  assert.match(templateCodexComposer, /workflow-sync-rules/);
 
   // Should NOT contain the literal ordering pattern (enforcing single-location ownership)
   assert.doesNotMatch(rootAgents, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
-  assert.doesNotMatch(templateAgents, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
+  assert.doesNotMatch(templateCodexComposer, />.*`codex-task-card-workflow\.md`.*>.*`codex-debug-workflow\.md`/);
 });
