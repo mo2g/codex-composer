@@ -11,6 +11,14 @@ This repository is configured for Codex App with a lightweight workflow.
 
 Plan mode adds `task-orchestrator` for coordinating multiple Task Cards through an Epic Card.
 
+## Codex Best Practices (in Task Cards)
+
+Task Cards should include these fields for optimal Codex execution:
+
+- **Verification commands**: Specific commands to run (tests, typecheck, lint)
+- **Done criteria**: Checklist for when the task is truly complete
+- **Review expectations**: What reviewers should focus on and safe merge conditions
+
 ## Working Rules
 
 1. Start non-trivial work with `planner`.

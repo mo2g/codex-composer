@@ -14,7 +14,7 @@ Use this template when a requirement spans multiple reviewable Task Cards.
 ```md
 # Epic Card: <epic-slug>
 
-- Status: planned | in-progress | blocked | done
+- Status: planned | in-progress | blocked-needs-user | blocked-needs-evidence | replanning | done | abandoned
 - Last updated: <YYYY-MM-DD HH:MM TZ>
 - Parent: <parent-epic-or-none>
 
@@ -70,10 +70,27 @@ Or describe in text:
 
 ## Progress Summary
 
-- Completed: <count>/<total>
-- In Progress: <count>/<total>
-- Blocked: <count>/<total>
-- Not Started: <count>/<total>
+Updated by `task-orchestrator` after each state change:
+
+| State | Count | Task IDs |
+|-------|-------|----------|
+| planned | <count> | <ids> |
+| in-progress | <count> | <ids> |
+| verifying | <count> | <ids> |
+| blocked-needs-user | <count> | <ids> |
+| blocked-needs-evidence | <count> | <ids> |
+| replanning | <count> | <ids> |
+| done | <count> | <ids> |
+| abandoned | <count> | <ids> |
+
+**Overall**: <completed>/<total> complete, <blocked> blocked, <in-progress> in progress
+
+## Epic done criteria
+
+- [ ] All tasks `done` or `abandoned`
+- [ ] No tasks in `blocked-needs-user` or `blocked-needs-evidence`
+- [ ] Global acceptance criteria verified
+- [ ] `task-orchestrator` final summary written
 
 ## Next Actions
 

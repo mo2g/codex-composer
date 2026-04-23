@@ -88,10 +88,11 @@ Keep existing content.
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
   assertIncludesAll(agents, [
-    /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\./,
+    /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\.?/,
     /docs\/codex-task-card-workflow\.md/,
     /docs\/codex-debug-workflow\.md/
   ]);
+  assert.match(agents, /task-orchestrator/);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -140,6 +141,8 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
     ".agents/skills/codex-template/resume-work/SKILL.md",
     ".agents/skills/codex-template/change-check/SKILL.md",
     ".agents/skills/codex-template/debug-investigation/SKILL.md",
+    ".agents/skills/codex-template/task-orchestrator/SKILL.md",
+    ".agents/skills/codex-template/task-orchestrator/STATE-MACHINE.md",
     "template/AGENTS.md",
     "template/AGENTS-BLOCK.md",
     "template/README.md",
@@ -177,6 +180,9 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const debugInvestigation = await readText(
     path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "debug-investigation", "SKILL.md")
   );
+  const taskOrchestrator = await readText(
+    path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "task-orchestrator", "SKILL.md")
+  );
   const workflow = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "WORKFLOW.md"));
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
@@ -188,6 +194,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assertIncludesAll(resumeWork, [/Reconstruct a paused task/, /`debug\.md`/, /diff/, /nearby tests/]);
   assertIncludesAll(changeCheck, [/acceptance criteria/, /root cause/, /merge stays manual/]);
   assertIncludesAll(debugInvestigation, [/hypotheses/, /debug\.md/, /root cause/]);
+  assertIncludesAll(taskOrchestrator, [/task-orchestrator/, /single entry point/, /hard constraints/, /state transitions/]);
   assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
   assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
   assertMentionsAny(readme, [/Merge stays manual/, /manual after verification and review/]);

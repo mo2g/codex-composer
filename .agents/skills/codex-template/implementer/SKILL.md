@@ -21,13 +21,15 @@ description: Apply an approved change with minimal surface area, update relevant
 
 ## Execution steps
 
-1. Re-read the relevant files, Task Card, and `debug.md` when present, then keep the change inside the approved boundary.
-2. If debug mode is active and root cause is still unconfirmed, stay in minimal single-hypothesis experiment mode or hand the task back to `debug-investigation` before any broad fix.
-3. Edit the minimum set of files needed to complete the approved step.
-4. Update or add the most direct tests you can when behavior changes.
-5. Run the most relevant verification you can justify from the repo and diff, then note anything that still needs `change-check`.
-6. Keep `journal.md` current after meaningful progress and keep `debug.md` current when the task is still in debug mode.
-7. When plan mode fields are present, respect the failure budget: track attempt count, stop and escalate if max attempts exceeded or 3 same-direction retries fail without new evidence.
+1. **Check failure budget first** (plan mode only): If `failed_attempt_count >= max_attempts`, stop immediately. Do not modify code. Transition task to `blocked-needs-user` and write blocker record. If `same_direction_retry_count >= max_same_direction_retries` without new evidence, stop and transition to `replanning`.
+2. Re-read the relevant files, Task Card, and `debug.md` when present, then keep the change inside the approved boundary.
+3. If debug mode is active and root cause is still unconfirmed, stay in minimal single-hypothesis experiment mode or hand the task back to `debug-investigation` before any broad fix.
+4. **Check structural constraints**: Review `structure_impact` in Task Card. If changes would cause hard fail (function >100 lines, file growth >200 lines, circular dependencies, layer mixing), stop and escalate to `replanning`.
+5. Edit the minimum set of files needed to complete the approved step.
+6. Update or add the most direct tests you can when behavior changes.
+7. Run the most relevant verification you can justify from the repo and diff, then note anything that still needs `change-check`.
+8. Keep `journal.md` current after meaningful progress and keep `debug.md` current when the task is still in debug mode.
+9. **Update failure budget tracking**: Increment `attempt_count`. If verification fails, increment `failed_attempt_count`. If retrying same approach without new evidence, increment `same_direction_retry_count`. Record timestamp if new evidence obtained.
 
 ## Output format
 

@@ -22,18 +22,33 @@ description: Reconstruct a paused task from AGENTS.md, the task journal, any deb
 ## Execution steps
 
 1. Read `AGENTS.md`, the Task Card, `debug.md` when debug mode is active, and the task journal if the repository keeps them.
-2. If plan mode is active, also read the Epic Card and any `blockers.md` to identify current blockers and next smallest step.
+2. **Restore plan mode state** (if plan mode fields present):
+   - Read Epic Card and `blockers.md`
+   - Restore `attempt_count`, `failed_attempt_count`, `same_direction_retry_count`, `last_new_evidence`
+   - Identify current blockers and their types (missing-spec, missing-repro, etc.)
+   - If task is in `blocked-needs-user` or `replanning` state, report this before proposing next steps
 3. Inspect the current diff, changed files, and nearby tests to recover the true state of the work.
-4. Reconstruct the accepted goal, scope, mode, root-cause status, acceptance criteria, and verification gate.
-5. Call out any drift between the saved notes and the actual code.
-6. Propose the next smallest safe step before editing, and say whether the task should stay in debug mode or can move into confirmed-cause fix work.
+4. Reconstruct the accepted goal, scope, mode, root-cause status, acceptance criteria, verification gate.
+5. **Call out any drift** between the saved notes and the actual code, including:
+   - Missing attempt history
+   - Undocumented retries
+   - State mismatches (e.g., task marked `in-progress` but failure budget exceeded)
+6. **Check failure budget before proposing next step**:
+   - If budget exceeded, propose escalation, not implementation
+   - If structural issues found in diff, flag for `replanning`
+   - If blocked, restate what information is needed
+7. Propose the next smallest safe step, respecting current state and constraints.
 
 ## Output format
 
 - reconstructed intent summary
-- drift found or not found
-- next bounded step
-- current mode and root-cause status
+- restored plan mode state:
+  - attempt history (attempt_count, failed_count, same_direction_retries)
+  - current blocker state and missing information
+  - task status and whether continuation is allowed
+- drift found or not found (including state mismatches)
+- next bounded step (or escalation if blocked/budget exceeded)
+- current mode, root-cause status, and structural check status
 - verification to run after that step
 - risks or missing context that still matter
 

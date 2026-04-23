@@ -120,34 +120,108 @@ When operating in plan mode, Task Cards should include:
 
 ### Task states
 
-Tasks in plan mode move through states:
+Tasks in plan mode move through these states:
 
+**Primary flow:**
 ```
 planned -> in-progress -> verifying -> done
-   |           |              |
-   v           v              v
-blocked-needs-user  replanning  abandoned
 ```
 
-Transitions to `blocked-needs-user` occur when:
+**Exception flows:**
+```
+planned -> abandoned
+in-progress -> blocked-needs-user
+in-progress -> blocked-needs-evidence
+in-progress -> replanning
+verifying -> blocked-needs-user
+verifying -> replanning
+```
+
+**Recovery flows:**
+```
+blocked-needs-user -> in-progress (after user provides input)
+blocked-needs-evidence -> in-progress (after evidence obtained)
+replanning -> planned (after replan complete)
+```
+
+**State definitions:**
+- `planned`: Task defined, dependencies may or may not be satisfied
+- `in-progress`: Actively being implemented
+- `verifying`: Implementation complete, undergoing verification
+- `done`: All acceptance criteria met with evidence
+- `blocked-needs-user`: Cannot proceed without user input (spec, decision, permission)
+- `blocked-needs-evidence`: Cannot proceed without additional evidence (fixture, repro, data)
+- `replanning`: Task needs restructuring (scope change, complexity too high, structural issues)
+- `abandoned`: Task no longer needed
+
+**Transitions to `blocked-needs-user` occur when:**
 - Acceptance criteria cannot be determined from context
 - Multiple valid implementations exist with different tradeoffs
 - Missing reproduction case or real response samples
 - External system permissions or credentials needed
 - Cross-module refactoring required without authorization
 - Root cause unconfirmed and continued patching would expand diff
+- Failure budget exceeded
 
-### Failure budget rules
+**Transitions to `blocked-needs-evidence` occur when:**
+- Missing test fixtures or data
+- No reproduction case available
+- External API contract unknown
+- Environment setup incomplete
 
-Each Task Card has a failure budget that limits speculative attempts:
+**Transitions to `replanning` occur when:**
+- Structural checks fail (hard fail)
+- Task complexity requires splitting
+- Scope changes invalidate current acceptance criteria
+- Dependencies change requiring task restructuring
 
-- Track `attempt_count`, `failed_attempt_count`, `same_direction_retry_count`
-- Stop conditions:
-  - 2 consecutive changes fail verification with no new evidence → escalate
-  - 3 retries in same direction without progress → block and replan
-  - Root cause unconfirmed but implementation started → force investigation mode
+### Failure budget rules (hard constraints)
 
-"New evidence" means: narrowed scope, ruled out hypothesis, obtained real fixture/response, discovered new error boundary. Not: same test fails again, same patch produces same result, only logging added.
+Each Task Card has a failure budget that acts as a hard stop on speculative attempts.
+
+**Required tracking fields:**
+- `attempt_count`: Total implementation attempts made
+- `failed_attempt_count`: Attempts that failed verification
+- `same_direction_retry_count`: Retries using the same approach without new evidence
+- `last_new_evidence`: Timestamp/description of last genuinely new evidence
+
+**Hard stop conditions (mandatory state transitions):**
+
+1. `failed_attempt_count >= max_attempts`
+   - **Action**: Transition to `blocked-needs-user`
+   - **Required**: Write blocker record explaining what information is missing
+   - **Prohibited**: Any further code changes until blocker resolved
+
+2. `same_direction_retry_count >= max_same_direction_retries` without new evidence
+   - **Action**: Transition to `replanning`
+   - **Required**: Document dead end in journal, propose new approach
+   - **Prohibited**: Continue with same approach
+
+3. Root cause unconfirmed AND implementation started
+   - **Action**: Force transition to `debug-investigation`
+   - **Required**: Create/update `debug.md` with hypothesis table
+   - **Prohibited**: Broad speculative fixes
+
+4. No new evidence after `stop_if_no_new_evidence_after` attempts
+   - **Action**: Transition to `blocked-needs-evidence`
+   - **Required**: Document what evidence is needed
+   - **Prohibited**: Further guesses without data
+
+**What counts as "new evidence":**
+- ✅ Narrowed scope of issue
+- ✅ Ruled out a hypothesis
+- ✅ Obtained real fixture/response/sample
+- ✅ Discovered new error boundary or call chain
+- ❌ Same test fails again
+- ❌ Same patch produces same result
+- ❌ Only added logging without new insight
+- ❌ Rephrasing previous conclusion
+
+**Responsibilities:**
+- `implementer`: Must check failure budget before each change, update attempt counts
+- `change-check`: Must verify attempt history is current, flag if budget exceeded
+- `resume-work`: Must restore attempt history and blocker state, not just goals
+- `task-orchestrator`: Enforces hard stops, orchestrates state transitions
 
 ### Epic Card (for multi-task work)
 
@@ -173,6 +247,27 @@ Split into another card when any of these differs:
 - verification gate
 - isolation boundary
 - expected reviewer surface area
+
+### Structural checks are hard gates
+
+**Hard fail (must transition to `replanning`):**
+- Function exceeds 100 lines without clear decomposition
+- Single file grows by >200 lines without architectural justification
+- Introduction of circular dependencies
+- UI/domain/infra layers mixed without explicit architecture decision
+- New "god" function/hook/util that violates single responsibility
+
+**Soft fail (must document residual risk):**
+- Module boundary clarity questionable but not violated
+- New abstraction lacks immediate reuse point but has potential
+- Test coverage partial due to external dependencies
+- Minor coupling introduced that doesn't block current scope
+
+**Actions on structural issues:**
+- `change-check`: Must run structural checks, classify as hard/soft fail
+- `planner`: Must document structure impact before implementation
+- `implementer`: Must check structure impact before changes, escalate if constraints violated
+- `task-orchestrator`: Enforces transition to `replanning` on hard fail
 
 ### Code truth beats note truth
 

@@ -38,6 +38,11 @@ Other files should either:
 - external memory rules
 - debug artifact layout, hypothesis rules, and debug-closure rules
 - human review boundary
+- plan mode state definitions and transitions
+- failure budget tracking fields
+- structural check hard/soft fail rules
+- verification commands and done criteria (for Codex execution)
+- review expectations and reviewer guidance
 
 ## Drift to avoid
 

@@ -15,7 +15,7 @@ Use this journal when work spans sessions, threads, or worktrees. Treat the code
 # Task Journal: <task-slug>
 
 - Linked Task Card: <path-or-inline-reference>
-- Status: planned | in-progress | blocked | ready-for-check | done
+- Status: planned | in-progress | verifying | blocked-needs-user | blocked-needs-evidence | replanning | done | abandoned
 - Branch/worktree: <branch-or-worktree-name>
 - Last updated: <YYYY-MM-DD HH:MM TZ>
 

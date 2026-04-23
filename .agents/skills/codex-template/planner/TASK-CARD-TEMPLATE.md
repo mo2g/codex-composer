@@ -14,7 +14,7 @@ Use this template when a task is non-trivial or likely to outlive the current Co
 ```md
 # Task Card: <task-slug>
 
-- Status: planned | in-progress | blocked | ready-for-check | done
+- Status: planned | in-progress | verifying | blocked-needs-user | blocked-needs-evidence | replanning | done | abandoned
 - Owner thread: <current-thread | new-thread>
 - Branch/worktree: <branch-or-worktree-name>
 - Last updated: <YYYY-MM-DD HH:MM TZ>
@@ -68,6 +68,31 @@ Use these when coordinating multiple tasks through an Epic Card:
 
 - <narrowest command or evidence path that can prove the card>
 - <additional risk-driven verification if needed>
+
+## Verification commands (for Codex execution)
+
+```bash
+# Primary verification command
+<command to run tests, typecheck, lint, etc.>
+
+# Additional verification if needed
+<additional command>
+```
+
+## Done criteria
+
+- [ ] All acceptance criteria verified with evidence
+- [ ] Structural checks pass (no hard fails)
+- [ ] Failure budget not exceeded
+- [ ] `change-check` completed and `acceptance-evidence.md` written
+- [ ] Task Card status updated to `done` or `verifying`
+
+## Review expectations
+
+- **Review focus**: <what the reviewer should pay attention to>
+- **Expected review time**: <small/medium/large>
+- **Risk areas**: <areas that need careful review>
+- **Safe to merge when**: <conditions for safe merge>
 
 ## Isolation
 
