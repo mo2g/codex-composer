@@ -100,3 +100,18 @@ test("install.sh copies task-card, journal, and evidence templates into installe
   assert.match(stateMachine, /planned.*in-progress.*verifying.*done/);
   assert.match(stateMachine, /State transitions \(orchestrator-enforced\)/);
 });
+
+test("root AGENTS.md and template/AGENTS.md stay aligned on key content", async () => {
+  const rootAgents = await readText(path.join(process.cwd(), "AGENTS.md"));
+  const templateAgents = await readText(path.join(process.cwd(), "template", "AGENTS.md"));
+
+  // Both should reference the same canonical docs
+  assert.match(rootAgents, /codex-quickstart\.md/);
+  assert.match(templateAgents, /codex-quickstart\.md/);
+  assert.match(rootAgents, /codex-task-card-workflow\.md/);
+  assert.match(templateAgents, /codex-task-card-workflow\.md/);
+
+  // Both should mention source-of-truth concept
+  assert.match(rootAgents, /Source Of Truth|wording conflicts/);
+  assert.match(templateAgents, /Source Of Truth|wording conflicts/);
+});

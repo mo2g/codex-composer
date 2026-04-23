@@ -1,30 +1,18 @@
 # Codex App Template
 
-This repository uses a lightweight Codex App workflow.
+## Start Here
 
-## Quick Start
+**New?** Read `docs/codex-quickstart.md`
 
-**New here?** Read `docs/codex-quickstart.md` first.
+**Developing?** Run `npm test` after workflow changes
 
-**Working?**
-- Simple task: `planner` → `implementer` → `change-check` → commit
-- Complex task: Use plan mode (see quickstart)
-- Debug: Use `debug-investigation` skill
-- Resume: Use `resume-work` skill
-
-## Where to Find Things
+## Layout
 
 - `docs/codex-quickstart.md` — How to use this repo
-- `docs/codex-task-card-workflow.md` — Full workflow spec
+- `docs/codex-task-card-workflow.md` — Workflow spec
 - `docs/codex-debug-workflow.md` — Debug mode spec
-- `.agents/skills/codex-template/` — Skill definitions
+- `.agents/skills/codex-template/` — Skills
 
 ## Source Of Truth
 
-If wording conflicts, defer to:
-1. `docs/codex-task-card-workflow.md`
-2. `docs/codex-debug-workflow.md`
-
-## Verification
-
-After workflow/template changes: `npm test`
+If wording conflicts: `codex-task-card-workflow.md` > `codex-debug-workflow.md` > `workflow-sync-rules.md`

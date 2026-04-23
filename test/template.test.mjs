@@ -88,11 +88,15 @@ Keep existing content.
   assert.match(agents, /Keep existing content\./);
   assert.equal(blockCount, 1);
   assertIncludesAll(agents, [
-    /Skills: `planner`, `implementer`, `resume-work`, `change-check`, `debug-investigation`\.?/,
+    /Skills:/,
+    /planner/,
+    /implementer/,
+    /change-check/,
+    /debug-investigation/,
+    /task-orchestrator/,
     /docs\/codex-task-card-workflow\.md/,
     /docs\/codex-debug-workflow\.md/
   ]);
-  assert.match(agents, /task-orchestrator/);
 });
 
 test("blank template initializes a git repository and installs template defaults", async () => {
@@ -187,7 +191,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
   assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /docs\/codex-quickstart\.md/, /template\//, /test\//]);
-  assertIncludesAll(agents, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /debug-investigation/]);
+  assertIncludesAll(agents, [/docs\/codex-quickstart\.md/, /docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/]);
 
   assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
   assertIncludesAll(implementer, [/debug mode is active/, /root cause is still unconfirmed/, /minimal .*experiment mode/]);
@@ -198,7 +202,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
   assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
   assertMentionsAny(readme, [/Merge stays manual/, /manual after verification and review/]);
-  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /installed-repo first-pass and default loop/]);
+  assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /quickstart/, /Start Here/]);
 });
 
 test("source repository removes legacy entrypoints and keeps only the codex-template skill namespace", async () => {

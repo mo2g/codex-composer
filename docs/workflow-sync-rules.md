@@ -2,6 +2,18 @@
 
 Keep the Codex workflow description consistent across the repository.
 
+## Canonical Ownership
+
+| Rule/Policy | Canonical Home | Others Should |
+|-------------|----------------|---------------|
+| Workflow spec | `docs/codex-task-card-workflow.md` | Reference, not duplicate |
+| Debug mode | `docs/codex-debug-workflow.md` | Reference, not duplicate |
+| Structural checks | `ACCEPTANCE-EVIDENCE-TEMPLATE.md` | Summarize + link |
+| Task states | `STATE-MACHINE.md` | Use exact enum |
+| Source-of-truth order | `workflow-sync-rules.md` (this file) | Brief pointer |
+| Entry path | `AGENTS.md` → `codex-quickstart.md` | Keep minimal |
+| Verification | `.codex/config.toml` hooks | Reference command |
+
 ## Files that should stay aligned
 
 - `README.md`
