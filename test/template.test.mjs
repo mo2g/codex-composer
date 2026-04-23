@@ -191,7 +191,7 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   const memory = await readText(path.join(repoRoot, ".agents", "skills", TEMPLATE_NAMESPACE, "EXTERNAL-MEMORY.md"));
 
   assertIncludesAll(readme, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /docs\/codex-quickstart\.md/, /template\//, /test\//]);
-  assertIncludesAll(agents, [/docs\/codex-quickstart\.md/, /docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/]);
+  assertIncludesAll(agents, [/docs\/codex-quickstart\.md/, /docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /workflow-sync-rules/]);
 
   assertIncludesAll(planner, [/Task Card/, /Required artifacts/, /Root-cause status/]);
   assertIncludesAll(implementer, [/debug mode is active/, /root cause is still unconfirmed/, /minimal .*experiment mode/]);
@@ -201,7 +201,6 @@ test("source repository keeps one canonical vocabulary across docs, config, inst
   assertIncludesAll(taskOrchestrator, [/task-orchestrator/, /single entry point/, /hard constraints/, /state transitions/]);
   assertIncludesAll(workflow, [/docs\/codex-task-card-workflow\.md/, /docs\/codex-debug-workflow\.md/, /acceptance-evidence\.md/]);
   assertIncludesAll(memory, [/Code truth beats note truth\./, /acceptance-evidence\.md/, /debug\.md/]);
-  assertMentionsAny(readme, [/Merge stays manual/, /manual after verification and review/]);
   assertMentionsAny(agents, [/docs\/codex-quickstart\.md/, /quickstart/, /Start Here/]);
 });
 

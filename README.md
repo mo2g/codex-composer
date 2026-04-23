@@ -23,12 +23,6 @@ A lightweight source template for adding a practical Codex App workflow to a rep
 - `test/` — Contract tests (run `npm test` after any template/skill change)
 - `template/` — Files installed into target repositories
 
-## Source Of Truth
-
-- `docs/codex-task-card-workflow.md`
-- `docs/codex-debug-workflow.md`
-- `docs/workflow-sync-rules.md`
-
 ## Bootstrap
 
 1. Run `npm install`.
@@ -72,7 +66,5 @@ See `docs/codex-upgrade-guide.md` for the detailed policy.
 
 ## Verification
 
-- `npm test` validates the source template contract.
-- Installed repositories stay lightweight by default.
-- `docs/_codex/<task-slug>/` stays optional and is only for work that needs durable state.
-- Merge stays manual after verification and review.
+- `npm test` validates the source template contract
+- See `docs/workflow-sync-rules.md` for maintenance policy
