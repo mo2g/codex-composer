@@ -92,6 +92,33 @@ Use this journal when work spans sessions, threads, or worktrees. Treat the code
 
 ## Notes For Resume Work
 
-- Reconstruct intent from `AGENTS.md`, the Task Card, `debug.md` when active, the journal, the diff, and nearby tests in that order.
-- Call out drift before proposing the next step.
-- If the journal is stale, repair the journal after the code truth is understood.
+**Recovery priority order**:
+1. Code and diff (source of truth)
+2. Task Card (goal, scope, acceptance criteria)
+3. Journal (decisions, attempts, evidence, next step)
+4. `debug.md` when in debug mode
+5. `blockers.md` when blocked
+
+**Required fields for long-running work resumability:**
+
+When updating the journal, always record:
+- **Current status**: `in-progress` / `verifying` / `blocked-*` / `replanning`
+- **Last action**: what you just did
+- **Last verification**: what ran and the result
+- **Failure budget**: `attempt_count`, `failed_count`, `same_direction_retries`
+- **Next smallest step**: the single next action
+- **Blockers** (if any): what's needed to unblock
+
+**When to update the journal:**
+- After every implementation attempt (success or failure)
+- After every verification run
+- When switching from `implementer` to `change-check` or vice versa
+- When a task becomes blocked
+- When receiving user input that unblocks work
+- Before any handoff (thread split, worktree, human review)
+
+**Drift handling:**
+- If code contradicts journal, trust the code
+- Call out drift explicitly in "Drift check" section
+- Repair the journal to match code truth
+- Never continue from stale assumptions

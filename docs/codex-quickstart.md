@@ -2,21 +2,40 @@
 
 ## First Pass
 
-1. Read `AGENTS.md`.
-2. Inspect repo manifests, nearby tests, repo-local skills under `.agents/skills/`, and `.codex/config.toml` only if the repo already keeps one.
-3. If the task is non-trivial, start with `planner`.
+1. Read `AGENTS.md` for this repository's workflow guidance.
+2. Inspect repo manifests, nearby tests, and `.codex/config.toml` if present.
+3. If the task is non-trivial, start with `planner` skill.
 
-## Default Loop
+## Default Loop (single task)
 
-1. Use `planner` to bound one reviewable change and define the verification gate.
-2. Use `docs/_codex/<task-slug>/` only when the task needs durable state.
-3. Stay in the current thread by default; split to another thread or worktree only when reviewability or isolation clearly improves.
-4. Use `implementer` for the approved step, `resume-work` for recovery, and `change-check` before commit or manual merge.
-5. If root cause is still unconfirmed, switch to `debug-investigation`, keep `debug.md`, and keep `implementer` in minimal experiment mode until the cause is confirmed.
+1. **Plan** — Use `planner` to bound one reviewable change
+2. **Implement** — Use `implementer` for the approved step
+3. **Verify** — Use `change-check` before commit
+4. **Commit & Merge** — Manual, after verification
+
+Use `docs/_codex/<task-slug>/` only when the task needs durable state.
+Use `resume-work` to recover context after interruption.
+Use `debug-investigation` when root cause is unconfirmed.
+
+## Plan Mode (multiple related tasks)
+
+For complex requirements spanning multiple reviewable changes:
+
+1. `planner` creates Epic Card + 2-5 Task Cards with dependencies
+2. `task-orchestrator` schedules tasks and tracks progress
+3. Loop: orchestrator → implementer/check → orchestrator
+4. Epic complete when all tasks done
+
+See `docs/codex-task-card-workflow.md` Plan Mode section for the walkthrough.
+
+## Verification
+
+Run the repo's verification command after changes:
+- Template/skill/docs changes: `npm test`
 
 ## Source Of Truth
 
-- `docs/codex-task-card-workflow.md`
-- `docs/codex-debug-workflow.md`
+- `docs/codex-task-card-workflow.md` — workflow spec
+- `docs/codex-debug-workflow.md` — debug mode spec
 
-When wording conflicts, defer to the canonical workflow docs instead of this quickstart.
+When wording conflicts, defer to the canonical workflow docs.

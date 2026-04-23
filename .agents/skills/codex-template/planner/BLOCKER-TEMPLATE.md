@@ -39,7 +39,7 @@ Use this template to record blockers when a task cannot proceed due to missing i
 - <what we know about the problem>
 - <what we've tried>
 
-## Attempts Made
+## Attempt History
 
 | Attempt | Approach | Result | Evidence |
 |---------|----------|--------|----------|

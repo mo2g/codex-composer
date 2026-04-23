@@ -32,7 +32,7 @@ Other files should either:
 
 - Task Card structure
 - Task Card debug metadata such as mode, required artifacts, and root-cause status
-- task journal structure
+- task journal structure and resumability fields (recovery priority, required logging fields)
 - acceptance evidence structure
 - split rules
 - external memory rules
@@ -43,6 +43,7 @@ Other files should either:
 - structural check hard/soft fail rules
 - verification commands and done criteria (for Codex execution)
 - review expectations and reviewer guidance
+- AGENTS.md / AGENTS-BLOCK.md content (root and template must stay aligned)
 
 ## Drift to avoid
 

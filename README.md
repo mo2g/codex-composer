@@ -2,16 +2,26 @@
 
 A lightweight source template for adding a practical Codex App workflow to a repository.
 
-## Map
+## Documentation Map
 
-- `AGENTS.md`: short source-repo map and maintenance rules
-- `docs/codex-quickstart.md`: installed-repo first-pass and default loop
-- `docs/codex-task-card-workflow.md`: canonical task-card and external-memory spec
-- `docs/codex-debug-workflow.md`: canonical debug-mode spec
-- `docs/codex-upgrade-guide.md`: upgrade behavior for already-installed repositories
-- `.agents/skills/codex-template/`: reusable execution skills
-- `template/`: installed entrypoint files
-- `test/`: installer and workflow contract tests
+**Start here:**
+- `AGENTS.md` — Quick reference for this source repository
+- `docs/codex-quickstart.md` — 5-step default loop for installed repos
+
+**Workflow specs (canonical):**
+- `docs/codex-task-card-workflow.md` — Task Card workflow + Plan Mode spec
+- `docs/codex-debug-workflow.md` — Debug mode spec
+- `docs/workflow-sync-rules.md` — What must stay synchronized
+
+**Templates:**
+- `.agents/skills/codex-template/planner/TASK-CARD-TEMPLATE.md` — Single task template
+- `.agents/skills/codex-template/planner/EPIC-CARD-TEMPLATE.md` — Multi-task Epic template
+- `.agents/skills/codex-template/task-orchestrator/` — Plan mode scheduler
+
+**Operations:**
+- `docs/codex-upgrade-guide.md` — Upgrade behavior for installed repositories
+- `test/` — Contract tests (run `npm test` after any template/skill change)
+- `template/` — Files installed into target repositories
 
 ## Source Of Truth
 

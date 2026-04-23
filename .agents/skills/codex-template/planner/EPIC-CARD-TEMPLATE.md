@@ -39,9 +39,9 @@ Use this template when a requirement spans multiple reviewable Task Cards.
 
 | ID | Task | Type | Complexity | Model | Status | Depends On |
 |----|------|------|------------|-------|--------|------------|
-| 01 | <brief description> | decision/execution/verification | 1-10 | cheap/standard/strong | planned/in-progress/blocked/done | - |
-| 02 | <brief description> | decision/execution/verification | 1-10 | cheap/standard/strong | planned/in-progress/blocked/done | 01 |
-| 03 | <brief description> | decision/execution/verification | 1-10 | cheap/standard/strong | planned/in-progress/blocked/done | 01, 02 |
+| 01 | <brief description> | decision/execution/verification | 1-10 | cheap/standard/strong | planned/in-progress/verifying/blocked-needs-user/blocked-needs-evidence/replanning/done/abandoned | - |
+| 02 | <brief description> | decision/execution/verification | 1-10 | cheap/standard/strong | planned/in-progress/verifying/blocked-needs-user/blocked-needs-evidence/replanning/done/abandoned | 01 |
+| 03 | <brief description> | decision/execution/verification | 1-10 | cheap/standard/strong | planned/in-progress/verifying/blocked-needs-user/blocked-needs-evidence/replanning/done/abandoned | 01, 02 |
 
 ## Dependency Graph
 

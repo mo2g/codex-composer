@@ -36,13 +36,29 @@ Use this template when `change-check` needs to show exactly how each acceptance 
 
 ## Structural Checks
 
-| Check | Threshold | Observed | Pass/Fail |
-|-------|-----------|----------|-----------|
-| Max function length | <threshold> | <observed> | pass / fail |
-| Max file growth | <threshold lines> | <observed> | pass / fail |
-| Module boundary clarity | clear / unclear | <observed> | pass / fail |
-| Circular dependency risk | none / low / high | <observed> | pass / fail |
-| New abstraction has clear reuse | yes / no | <observed> | pass / fail |
+**Hard fail rules** (transition to `replanning` if any fail):
+- Function >100 lines without clear decomposition
+- File growth >200 lines without architectural justification
+- Circular dependencies introduced
+- UI/domain/infra layers mixed without explicit architecture decision
+- New "god" function/hook/util that violates single responsibility
+
+**Soft fail rules** (document residual risk, justify in Task Card):
+- Module boundary clarity questionable but not violated
+- New abstraction lacks immediate reuse point but has potential
+- Test coverage partial due to external dependencies
+- Minor coupling introduced that doesn't block current scope
+
+| Check | Threshold | Observed | Result |
+|-------|-----------|----------|--------|
+| Max function length | 100 lines | <observed> | pass / hard-fail / soft-fail |
+| Max file growth | 200 lines | <observed> | pass / hard-fail / soft-fail |
+| Module boundary clarity | clear | <observed> | pass / soft-fail |
+| Circular dependency risk | none | <observed> | pass / hard-fail |
+| New abstraction has clear reuse | yes | <observed> | pass / soft-fail |
+
+**State transition required**: If any hard-fail → transition task to `replanning`
+**Documentation required**: If any soft-fail → note residual risk below
 
 ## Tests added or updated
 

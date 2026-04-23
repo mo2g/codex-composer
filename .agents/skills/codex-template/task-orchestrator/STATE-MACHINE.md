@@ -62,6 +62,21 @@ Entry conditions:
 - `blocked-needs-evidence -> in-progress`: Evidence obtained, fixture available
 - `replanning -> planned`: Task redefined with new scope, complexity, or split
 
+## State transitions (orchestrator-enforced)
+
+| From | To | Condition | Enforced By |
+|------|-----|-----------|-------------|
+| `planned` | `in-progress` | Dependencies satisfied, failure budget allows | orchestrator |
+| `in-progress` | `verifying` | Implementation complete | orchestrator |
+| `verifying` | `done` | All criteria verified, no hard fails | orchestrator |
+| `in-progress` | `blocked-needs-user` | Budget exceeded, missing spec, ambiguous intent | orchestrator |
+| `in-progress` | `blocked-needs-evidence` | Missing fixture, no repro, unknown contract | orchestrator |
+| `in-progress` | `replanning` | Structural hard fail, complexity requires split | orchestrator |
+| `verifying` | `replanning` | Structural hard fail found during check | orchestrator |
+| `blocked-needs-user` | `in-progress` | User provided required input | orchestrator |
+| `blocked-needs-evidence` | `in-progress` | Evidence obtained | orchestrator |
+| `replanning` | `planned` | New plan approved, task restructured | orchestrator |
+
 ## Forced Transfer Rules
 
 These transitions are mandatory (not optional):

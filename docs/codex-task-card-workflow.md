@@ -237,6 +237,115 @@ Complex requirements use an Epic Card to coordinate multiple Task Cards:
 
 Epic Cards live at `docs/_codex/<epic-slug>/epic-card.md` alongside their Task Cards.
 
+### Plan Mode Walkthrough (End-to-End Example)
+
+**Scenario**: Add a new authentication system with login, logout, and session refresh.
+
+**Step 1: Create Epic and Task Cards**
+
+```
+docs/_codex/auth-epic/
+├── epic-card.md
+├── auth-01-login/
+│   ├── task-card.md
+│   ├── journal.md
+│   └── acceptance-evidence.md
+├── auth-02-logout/
+│   ├── task-card.md
+│   ├── journal.md
+│   └── acceptance-evidence.md
+└── auth-03-refresh/
+    ├── task-card.md
+    ├── journal.md
+    └── acceptance-evidence.md
+```
+
+**Epic Card excerpt**:
+```yaml
+Goal: Add authentication system
+Task List:
+  - auth-01-login (decision+execution): Design and implement login endpoint
+  - auth-02-logout (execution): Implement logout endpoint  
+  - auth-03-refresh (execution): Implement session refresh
+Dependency Graph:
+  auth-01-login -> auth-02-logout
+  auth-01-login -> auth-03-refresh
+```
+
+**Task Card excerpt (auth-01-login)**:
+```yaml
+Status: planned
+Task Type: decision | execution
+Dependencies: none
+Complexity Score: 6
+Failure Budget:
+  Max attempts: 4
+  Max same-direction retries: 2
+Verification commands:
+  - npm test -- auth/login.test.ts
+  - npm run typecheck
+```
+
+**Step 2: Orchestrator Schedules First Task**
+
+Invoke `task-orchestrator`:
+- Reads Epic Card, finds `auth-01-login` has no dependencies → ready
+- Checks failure budget (unused) → can proceed
+- Dispatches to `implementer`
+
+**Step 3: Implement First Task**
+
+Invoke `implementer`:
+- Checks failure budget → OK
+- Implements login endpoint
+- Updates `journal.md` with decisions and attempt count
+- Completes → status becomes `verifying`
+
+**Step 4: Verify and Complete First Task**
+
+Invoke `change-check`:
+- Runs `npm test -- auth/login.test.ts`
+- Runs `npm run typecheck`
+- Performs structural checks
+- Writes `acceptance-evidence.md`
+- Passes → status becomes `done`
+
+**Step 5: Orchestrator Schedules Next Tasks**
+
+Invoke `task-orchestrator`:
+- `auth-01-login` is `done`
+- Both `auth-02-logout` and `auth-03-refresh` dependencies satisfied → ready
+- Selects `auth-02-logout` (lower complexity)
+- Dispatches to `implementer`
+
+**Step 6: Handle a Blocked Task**
+
+During `auth-03-refresh`, discovers session store API is undocumented:
+
+Invoke `task-orchestrator`:
+- Status becomes `blocked-needs-evidence`
+- Writes `blockers.md`:
+  ```yaml
+  Blocker ID: B01
+  Type: missing-contract
+  Blocks: auth-03-refresh
+  Required: Session store API documentation or sample responses
+  ```
+- Stops scheduling until resolved
+
+**Step 7: Resume After User Provides Input**
+
+User adds API documentation to ticket. Invoke `task-orchestrator`:
+- Reads `blockers.md`, sees B01 resolved
+- Transitions `auth-03-refresh` from `blocked-needs-evidence` → `in-progress`
+- Dispatches to `implementer`
+
+**Step 8: Epic Complete**
+
+All tasks `done`. Invoke `task-orchestrator`:
+- Updates Epic progress: 3/3 complete, 0 blocked
+- Epic status → `done`
+
 ## Strong constraints
 
 ### One card = one reviewable change

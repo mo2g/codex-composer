@@ -21,6 +21,13 @@ description: Reconstruct a paused task from AGENTS.md, the task journal, any deb
 
 ## Execution steps
 
+**Recovery priority** (trust in this order):
+1. Code and diff (source of truth)
+2. Task Card (goal, scope, acceptance criteria)
+3. Journal (decisions, attempts, evidence, next step)
+4. `debug.md` when in debug mode
+5. `blockers.md` when blocked
+
 1. Read `AGENTS.md`, the Task Card, `debug.md` when debug mode is active, and the task journal if the repository keeps them.
 2. **Restore plan mode state** (if plan mode fields present):
    - Read Epic Card and `blockers.md`
